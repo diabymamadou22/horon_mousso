@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #FAF9F6;
+    color: #2D3436;
+    font-family: 'DM Sans', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    color: #1B3022;
+    font-family: 'Plus Jakarta Sans', 'DM Sans', system-ui, sans-serif;
+  }
+}
+
+/* Custom scrollbar and smooth transitions */
+html {
+  scroll-behavior: smooth;
+  background-color: #FAF9F6;
+}
+
+/* Sleek Interface theme custom color utilities */
+.bg-sleek-cream { background-color: #FAF9F6; }
+.bg-sleek-green { background-color: #2D5A27; }
+.bg-sleek-green-light { background-color: #E8F5E9; }
+.bg-sleek-green-hover { background-color: #23471F; }
+.bg-sleek-red { background-color: #C53030; }
+.bg-sleek-red-hover { background-color: #A62828; }
+.text-sleek-dark { color: #1B3022; }
+.text-sleek-green { color: #2D5A27; }
+.text-sleek-red { color: #C53030; }
+.border-sleek { border-color: #E0E0E0; }
