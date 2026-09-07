@@ -19,13 +19,30 @@ app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 
+interface AdminCredentials {
+  username: string;
+  email: string;
+  password: string;
+  isDefault: boolean;
+  updatedAt: string;
+}
+
 interface DBStructure {
   products: Product[];
   announcements: Announcement[];
   media: MediaItem[];
   messages: CustomerMessage[];
   settings: CompanySettings;
+  adminCredentials?: AdminCredentials;
 }
+
+const defaultAdminCreds: AdminCredentials = {
+  username: 'admin',
+  email: 'admin@horonmousso.com',
+  password: 'admin',
+  isDefault: true,
+  updatedAt: new Date().toISOString()
+};
 
 function loadDB(): DBStructure {
   try {
@@ -34,7 +51,19 @@ function loadDB(): DBStructure {
     }
     if (fs.existsSync(DB_FILE)) {
       const data = fs.readFileSync(DB_FILE, 'utf-8');
-      return JSON.parse(data);
+      const parsed: DBStructure = JSON.parse(data);
+      // Migrate company name if previous placeholder
+      if (parsed.settings && (parsed.settings.companyName.includes('AgroTerroir') || !parsed.settings.companyName)) {
+        parsed.settings = { ...initialSettings, ...parsed.settings, companyName: 'Horon Mousso' };
+      }
+      // Ensure Soumbala product exists
+      if (parsed.products && !parsed.products.some(p => p.id === 'prod_soumbala')) {
+        parsed.products.unshift(initialProducts[0]);
+      }
+      if (!parsed.adminCredentials) {
+        parsed.adminCredentials = defaultAdminCreds;
+      }
+      return parsed;
     }
   } catch (error) {
     console.error('Error loading DB from file, using initial data:', error);
@@ -44,7 +73,8 @@ function loadDB(): DBStructure {
     announcements: initialAnnouncements,
     media: initialMedia,
     messages: initialMessages,
-    settings: initialSettings
+    settings: initialSettings,
+    adminCredentials: defaultAdminCreds
   };
   saveDB(defaultDB);
   return defaultDB;
@@ -67,30 +97,79 @@ let db = loadDB();
    API ROUTES
 =========================== */
 
+// Auth status endpoint
+app.get('/api/auth/status', (_req, res) => {
+  const creds = db.adminCredentials || defaultAdminCreds;
+  res.json({
+    isDefault: !!creds.isDefault,
+    username: creds.username,
+    email: creds.email,
+    updatedAt: creds.updatedAt
+  });
+});
+
+// Change admin credentials endpoint
+app.post('/api/auth/change-credentials', (req, res) => {
+  const { currentPassword, newUsername, newEmail, newPassword } = req.body;
+  const creds = db.adminCredentials || defaultAdminCreds;
+
+  if (currentPassword !== creds.password) {
+    return res.status(400).json({ success: false, message: 'Le mot de passe actuel est incorrect.' });
+  }
+
+  if (newPassword && newPassword.length < 4) {
+    return res.status(400).json({ success: false, message: 'Le nouveau mot de passe doit comporter au moins 4 caractères.' });
+  }
+
+  db.adminCredentials = {
+    username: (newUsername && newUsername.trim()) || creds.username,
+    email: (newEmail && newEmail.trim()) || creds.email,
+    password: newPassword || creds.password,
+    isDefault: false,
+    updatedAt: new Date().toISOString()
+  };
+
+  saveDB(db);
+
+  res.json({
+    success: true,
+    message: 'Identifiants administrateur mis à jour avec succès.',
+    username: db.adminCredentials.username,
+    email: db.adminCredentials.email
+  });
+});
+
 // Auth endpoint
 app.post('/api/auth/login', (req, res) => {
   const { identifier, password } = req.body;
-  // Default admin credentials: admin@agroterroir.com or admin with password "admin" or "admin123"
-  const validUser = (identifier === 'admin@agroterroir.com' || identifier === 'admin');
-  const validPass = (password === 'admin' || password === 'admin123' || password === 'agro2025');
+  const creds = db.adminCredentials || defaultAdminCreds;
 
-  if (validUser && validPass) {
+  const validIdentifier = 
+    identifier === creds.username || 
+    identifier === creds.email || 
+    (creds.isDefault && (identifier === 'admin@agroterroir.com' || identifier === 'admin'));
+
+  const validPassword = password === creds.password || (creds.isDefault && (password === 'admin123' || password === 'agro2025'));
+
+  if (validIdentifier && validPassword) {
     return res.json({
       success: true,
-      token: 'session_agro_admin_' + Date.now(),
+      token: 'session_horon_admin_' + Date.now(),
       user: {
         id: 'usr_admin_1',
-        name: 'Administrateur Général',
-        email: 'admin@agroterroir.com',
+        name: 'Administrateur Horon Mousso',
+        email: creds.email,
         role: 'admin',
-        createdAt: new Date().toISOString()
+        createdAt: creds.updatedAt
       }
     });
   }
 
   return res.status(401).json({
     success: false,
-    message: 'Identifiant ou mot de passe incorrect. (Démo: identifiant "admin", mot de passe "admin")'
+    message: creds.isDefault 
+      ? 'Identifiant ou mot de passe incorrect. (Par défaut : identifiant "admin", mot de passe "admin")'
+      : 'Identifiant ou mot de passe incorrect.'
   });
 });
 
@@ -273,7 +352,8 @@ app.post('/api/reset-demo', (_req, res) => {
     announcements: initialAnnouncements,
     media: initialMedia,
     messages: initialMessages,
-    settings: initialSettings
+    settings: initialSettings,
+    adminCredentials: defaultAdminCreds
   };
   saveDB(db);
   res.json({ success: true, message: 'Données de démonstration réinitialisées avec succès.' });
@@ -299,7 +379,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`AgroTerroir Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Horon Mousso Server running on http://0.0.0.0:${PORT}`);
   });
 }
 

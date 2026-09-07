@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#142618"/>
+      <stop offset="50%" stop-color="#2D5A27"/>
+      <stop offset="100%" stop-color="#0F1D13"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="redGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#991B1B"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  
+  <!-- Subtle Ornamental Inner Ring -->
+  <circle cx="256" cy="256" r="216" fill="none" stroke="url(#goldGrad)" stroke-width="4" stroke-dasharray="8 12" opacity="0.4"/>
+  <circle cx="256" cy="256" r="202" fill="none" stroke="#22C55E" stroke-width="2" opacity="0.3"/>
+
+  <!-- Center Decorative Glow -->
+  <circle cx="256" cy="256" r="140" fill="#2D5A27" filter="url(#shadow)" opacity="0.6"/>
+
+  <!-- Artisanal Mortar & Pestle + Spice Leaf Iconography -->
+  <g transform="translate(256, 230) scale(1.15)">
+    <!-- Leaves / Terroir Spices -->
+    <path d="M-40,-75 C-65,-120 5,-140 25,-85 C25,-60 -15,-50 -40,-75 Z" fill="#4ADE80" opacity="0.9"/>
+    <path d="M25,-85 C45,-125 105,-95 70,-55 C50,-35 15,-55 25,-85 Z" fill="url(#goldGrad)" opacity="0.95"/>
+    <path d="M-10,-55 C-30,-80 -5,-110 15,-70 C20,-50 -5,-40 -10,-55 Z" fill="url(#redGrad)"/>
+
+    <!-- Mortar Bowl -->
+    <path d="M-90,-15 C-90,65 90,65 90,-15 C90,-30 -90,-30 -90,-15 Z" fill="#1C3620" stroke="url(#goldGrad)" stroke-width="6"/>
+    <!-- Mortar Rim -->
+    <ellipse cx="0" cy="-20" rx="90" ry="22" fill="#284E2E" stroke="url(#goldGrad)" stroke-width="5"/>
+    <!-- Mortar Base Stand -->
+    <path d="M-55,55 L55,55 L65,80 L-65,80 Z" fill="#142618" stroke="url(#goldGrad)" stroke-width="4"/>
+
+    <!-- Pestle Handle -->
+    <path d="M-20,-75 L20,-15 L5,5 L-35,-55 Z" fill="url(#goldGrad)" transform="rotate(-25, 0, -30)" filter="url(#shadow)"/>
+  </g>
+
+  <!-- Typography Monogram "HORON MOUSSO" -->
+  <text x="256" y="380" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-weight="900" font-size="34" fill="#FFFFFF" letter-spacing="6" text-anchor="middle">HORON</text>
+  <text x="256" y="420" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-weight="800" font-size="24" fill="url(#goldGrad)" letter-spacing="8" text-anchor="middle">MOUSSO</text>
+  <text x="256" y="450" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-weight="600" font-size="13" fill="#86EFAC" letter-spacing="3" text-anchor="middle">ÉPICES NOBLES • DU TERROIR</text>
+</svg>

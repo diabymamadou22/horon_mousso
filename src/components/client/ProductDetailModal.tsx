@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   X, 
@@ -13,7 +13,10 @@ import {
   Leaf, 
   Package, 
   Tag, 
-  ArrowLeft 
+  ArrowLeft,
+  ShoppingBag,
+  Plus,
+  Minus 
 } from 'lucide-react';
 
 export const ProductDetailModal: React.FC = () => {
@@ -24,6 +27,8 @@ export const ProductDetailModal: React.FC = () => {
     settings, 
     openOrderWhatsApp, 
     sendContactMessage,
+    addToCart,
+    setIsCartOpen
   } = useApp();
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -32,13 +37,25 @@ export const ProductDetailModal: React.FC = () => {
   const [contact, setContact] = useState('');
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [selectedFormat, setSelectedFormat] = useState('');
 
   const product = products.find(p => p.id === selectedProductId);
+
+  // Initialize selected format when product changes
+  useEffect(() => {
+    if (product) {
+      setQuantity(1);
+      const formats = product.format ? product.format.split(',').map(f => f.trim()) : [];
+      setSelectedFormat(formats[0] || 'Standard');
+    }
+  }, [product]);
 
   if (!product) return null;
 
   const allImages = [product.mainImage, ...(product.additionalImages || [])].filter(Boolean);
   const activeImage = allImages[activeImageIndex] || product.mainImage;
+  const availableFormats = product.format ? product.format.split(',').map(f => f.trim()).filter(Boolean) : [];
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,19 +257,83 @@ export const ProductDetailModal: React.FC = () => {
             </div>
 
             {/* Commander / Contact Section */}
-            <div className="pt-6 border-t border-[#E0E0E0] space-y-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                Commander ce produit
-              </div>
+            <div className="pt-6 border-t border-[#E0E0E0] space-y-4">
+              {/* Format selection if available */}
+              {availableFormats.length > 1 && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    Sélectionnez le format / conditionnement :
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {availableFormats.map((fmt, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSelectedFormat(fmt)}
+                        className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition cursor-pointer ${
+                          selectedFormat === fmt
+                            ? 'border-[#2D5A27] bg-[#2D5A27] text-white shadow-xs'
+                            : 'border-gray-200 text-gray-700 hover:border-gray-300 bg-white'
+                        }`}
+                      >
+                        {fmt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-              {/* Prominent Action Button: Sleek Red Commander */}
-              <button
-                onClick={() => openOrderWhatsApp(product)}
-                className="w-full flex items-center justify-center gap-2.5 bg-[#C53030] hover:bg-[#A62828] text-white font-extrabold text-sm sm:text-base py-3.5 px-6 rounded-full shadow-lg shadow-red-100 transition transform active:scale-98 cursor-pointer"
-              >
-                <MessageCircle className="w-5 h-5" />
-                <span>Commander sur WhatsApp</span>
-              </button>
+              {/* Quantity selector */}
+              {product.availability !== 'rupture' && (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200">
+                  <span className="text-xs font-bold text-gray-700">Quantité souhaitée :</span>
+                  <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden shadow-xs">
+                    <button
+                      type="button"
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      className="p-1.5 px-3 hover:bg-gray-100 text-gray-700 font-bold transition cursor-pointer"
+                      aria-label="Diminuer"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <span className="px-4 text-sm font-extrabold text-gray-900">
+                      {quantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setQuantity(quantity + 1)}
+                      className="p-1.5 px-3 hover:bg-gray-100 text-gray-700 font-bold transition cursor-pointer"
+                      aria-label="Augmenter"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="space-y-2">
+                {product.availability !== 'rupture' && (
+                  <button
+                    onClick={() => {
+                      addToCart(product, quantity, selectedFormat);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 bg-[#2D5A27] hover:bg-[#23471f] text-white font-extrabold text-sm py-3.5 px-6 rounded-xl shadow-md transition transform active:scale-98 cursor-pointer"
+                  >
+                    <ShoppingBag className="w-5 h-5 text-amber-300" />
+                    <span>Ajouter au Panier ({quantity})</span>
+                  </button>
+                )}
+
+                {/* Direct WhatsApp button */}
+                <button
+                  onClick={() => openOrderWhatsApp(product)}
+                  className="w-full flex items-center justify-center gap-2.5 bg-[#C53030] hover:bg-[#A62828] text-white font-extrabold text-sm py-3.5 px-6 rounded-xl shadow-md transition transform active:scale-98 cursor-pointer"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  <span>Commander directement sur WhatsApp</span>
+                </button>
+              </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <button

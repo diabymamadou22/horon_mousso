@@ -1,6 +1,6 @@
 {
-  "name": "AgroTerroir - Commerce & Transformation Agricole",
-  "description": "Plateforme moderne de présentation, de commande et d'administration pour la transformation et la commercialisation de produits agricoles et épices.",
+  "name": "Horon Mousso - Commerce & Transformation Agricole",
+  "description": "Plateforme officielle de Horon Mousso : valorisation, transformation saine et commercialisation d'épices d'exception, piments séchés, soumbala et délices du terroir.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

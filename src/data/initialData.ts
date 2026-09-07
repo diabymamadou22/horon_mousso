@@ -2,25 +2,49 @@ import { CompanySettings, Product, Announcement, MediaItem, CustomerMessage } fr
 
 export const initialSettings: CompanySettings = {
   id: 'settings_main',
-  companyName: 'AgroTerroir Délices (Exemple Provisoire)',
+  companyName: 'Horon Mousso',
   logo: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=200&q=80',
-  slogan: 'L’excellence des épices et piments du terroir, transformés avec pureté artisanale.',
-  shortDescription: 'Entreprise spécialisée dans la transformation, le conditionnement et la distribution de piments de haute qualité, d\'épices pures et de produits agricoles locaux.',
-  phone: '+225 07 08 09 10 11',
-  whatsapp: '+2250708091011',
-  email: 'contact@agroterroir-delices.com',
-  address: 'Zone Industrielle & Artisanale Agro, Boulevard du Terroir',
-  cityCountry: 'Abidjan, Côte d’Ivoire',
-  openingHours: 'Du Lundi au Samedi : 08h00 – 18h00',
+  slogan: 'L’art et la noblesse des épices du terroir, transformées avec excellence et pureté.',
+  shortDescription: 'Entreprise agroalimentaire spécialisée dans la sélection, la transformation saine et le conditionnement d\'épices d\'exception, soumbala pur, piments séchés et produits agricoles authentiques.',
+  phone: '+223 70 12 34 56',
+  whatsapp: '+22370123456',
+  email: 'contact@horonmousso.com',
+  address: 'Atelier de Transformation & Boutique, Quartier Artisanal du Terroir',
+  cityCountry: 'Bamako & Abidjan, Afrique de l’Ouest',
+  openingHours: 'Du Lundi au Samedi : 08h00 – 18h30',
   heroImage: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=1920&q=80',
   heroVideo: '',
-  qualityCommitment: 'Nos produits sont séchés selon des méthodes contrôlées, nettoyés et broyés sans aucun colorant ni conservateur chimique. 100% pur terroir.',
-  producersCommitment: 'Partenariat direct et équitable avec plus de 45 coopératives maraîchères locales, garantissant un revenu juste et des récoltes fraîches cueillies à maturité.',
-  mission: 'Valoriser le patrimoine agricole local en proposant des épices saines, puissantes et prêtes à l\'emploi pour les ménages, restaurants et professionnels.',
-  vision: 'Devenir la référence régionale en transformation d\'épices et produits maraîchers séchés en Afrique de l\'Ouest, alliant tradition et normes d\'hygiène rigoureuses.'
+  qualityCommitment: 'Nos épices et piments sont soigneusement triés à la main, séchés au séchoir hygiénique thermorégulé et broyés sans colorant, sans glutamate de synthèse ni conservateur chimique. 100% naturel.',
+  producersCommitment: 'Collaboration étroite et solidaire avec les groupements de femmes artisanes et les coopératives paysannes locales, garantissant un prix d\'achat équitable et une valorisation directe du travail féminin rural.',
+  mission: 'Démocratiser l\'accès à des épices saines, authentiques et prêtes à l\'emploi tout en valorisant le génie culinaire et agricole du terroir ouest-africain.',
+  vision: 'Être la marque de référence en Afrique et dans la diaspora pour les épices nobles, soumbala d\'excellence et condiments du terroir, conjuguant tradition et normes internationales.',
+  waveNumber: '+223 70 12 34 56',
+  orangeMoneyNumber: '+223 70 12 34 56',
+  moovMoneyNumber: '+223 60 12 34 56',
+  paymentInstructions: 'Paiement sécurisé accepté via Wave, Orange Money, Moov Money, ou en espèces à la livraison / au retrait en atelier.'
 };
 
 export const initialProducts: Product[] = [
+  {
+    id: 'prod_soumbala',
+    name: 'Soumbala Pur de Néré Artisanal (Grand Cru)',
+    category: 'produits_transformes',
+    description: 'Grain de néré noble fermenté et séché selon la tradition, sans aucun cube chimique. Arôme profond et umami authentique.',
+    fullDescription: 'Le Soumbala Horon Mousso est préparé avec des graines de néré sélectionnées par nos groupements de femmes artisanes. Fermentation surveillée, séchage hygiénique et désodorisation douce pour révéler toute la subtilité de cette épice d\'or noir ouest-africaine. Riche en fer, protéines et minéraux, il sublime vos sauces feuille, riz gras, soupe de poisson et marinades.',
+    price: '2 500 FCFA / 250g',
+    format: 'Pot hermétique 250g, Sachet poudre 500g, Boules traditionnelles 500g',
+    availability: 'disponible',
+    mainImage: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=800&q=80',
+    additionalImages: [
+      'https://images.unsplash.com/photo-1509358271058-acd22cc93898?auto=format&fit=crop&w=800&q=80'
+    ],
+    isNew: true,
+    isFeatured: true,
+    origin: 'Savanes arborées & coopératives féminines',
+    composition: '100% Graines de néré (Parkia biglobosa) fermentées naturellement',
+    usageAdvice: '1 à 2 cuillères à café écrasées ou saupoudrées directement dans vos sauces chaudes pour remplacer les bouillons industriels.',
+    createdAt: '2025-02-25T10:00:00Z'
+  },
   {
     id: 'prod_1',
     name: 'Piment Rouge Extra Fort en Poudre',

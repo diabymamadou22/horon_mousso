@@ -9,6 +9,7 @@ import {
   Lock, 
   Leaf
 } from 'lucide-react';
+import { PWAInstallButton } from '../common/PWAInstallButton';
 
 export const Footer: React.FC = () => {
   const { settings, setActiveTab, setIsAdminMode, openOrderWhatsApp } = useApp();
@@ -122,6 +123,8 @@ export const Footer: React.FC = () => {
                 <MessageCircle className="w-3.5 h-3.5" />
                 <span>WhatsApp : {settings.whatsapp || settings.phone}</span>
               </button>
+
+              <PWAInstallButton variant="footer" />
             </div>
           </div>
         </div>

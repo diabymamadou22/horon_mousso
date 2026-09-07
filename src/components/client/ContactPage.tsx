@@ -10,7 +10,8 @@ import {
   Send, 
   CheckCircle2, 
   Building2, 
-  HelpCircle 
+  HelpCircle,
+  Wallet 
 } from 'lucide-react';
 
 export const ContactPage: React.FC = () => {
@@ -138,6 +139,52 @@ export const ContactPage: React.FC = () => {
                   </span>
                 </div>
               </div>
+
+              {/* Mobile Money Payment Info Card */}
+              {(settings.waveNumber || settings.orangeMoneyNumber || settings.mtnMoMoNumber || settings.moovMoneyNumber) && (
+                <div className="bg-white rounded-3xl p-6 sm:p-7 border border-[#E0E0E0] shadow-xs space-y-4">
+                  <h3 className="font-extrabold text-base text-[#1B3022] flex items-center gap-2">
+                    <Wallet className="w-5 h-5 text-[#2D5A27]" />
+                    <span>Moyens de Règlement & Mobile Money</span>
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Pour régler vos acomptes ou vos factures après confirmation de votre commande :
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    {settings.waveNumber && (
+                      <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-between">
+                        <span className="font-bold text-sky-900">Wave :</span>
+                        <span className="font-extrabold text-sky-800">{settings.waveNumber}</span>
+                      </div>
+                    )}
+                    {settings.orangeMoneyNumber && (
+                      <div className="p-2.5 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-between">
+                        <span className="font-bold text-orange-900">Orange Money :</span>
+                        <span className="font-extrabold text-orange-800">{settings.orangeMoneyNumber}</span>
+                      </div>
+                    )}
+                    {settings.mtnMoMoNumber && (
+                      <div className="p-2.5 rounded-xl bg-yellow-50 border border-yellow-100 flex items-center justify-between">
+                        <span className="font-bold text-yellow-900">MTN MoMo :</span>
+                        <span className="font-extrabold text-yellow-800">{settings.mtnMoMoNumber}</span>
+                      </div>
+                    )}
+                    {settings.moovMoneyNumber && (
+                      <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-between">
+                        <span className="font-bold text-blue-900">Moov Money :</span>
+                        <span className="font-extrabold text-blue-800">{settings.moovMoneyNumber}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {settings.paymentInstructions && (
+                    <div className="text-[11px] text-gray-600 bg-stone-50 p-2.5 rounded-lg border border-stone-200 leading-relaxed">
+                      <strong>Consignes :</strong> {settings.paymentInstructions}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </FadeInView>
         </div>

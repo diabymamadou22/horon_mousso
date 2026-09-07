@@ -84,6 +84,21 @@ export interface CompanySettings {
   producersCommitment: string;
   mission: string;
   vision: string;
+  // Mobile Money & Payment info
+  waveNumber?: string;
+  orangeMoneyNumber?: string;
+  mtnMoMoNumber?: string;
+  moovMoneyNumber?: string;
+  paymentInstructions?: string;
+}
+
+export interface CartItem {
+  id: string; // unique item id (productId + format)
+  productId: string;
+  product: Product;
+  format: string;
+  quantity: number;
+  unitPriceNumeric: number;
 }
 
 export interface User {
@@ -101,4 +116,12 @@ export interface DashboardStats {
   videosCount: number;
   messagesCount: number;
   unreadMessagesCount: number;
+}
+
+export interface SyncStatus {
+  isOnline: boolean;
+  cloudConnected: boolean;
+  localCacheActive: boolean;
+  lastSyncTime: string | null;
+  mode: 'cloud_and_local' | 'local_only';
 }

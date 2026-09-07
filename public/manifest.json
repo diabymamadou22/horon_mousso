@@ -1,0 +1,41 @@
+{
+  "id": "/",
+  "name": "Horon Mousso - Épices & Terroir",
+  "short_name": "HoronMousso",
+  "description": "Plateforme officielle de Horon Mousso : valorisation, transformation saine et commercialisation d'épices d'exception, piments séchés, soumbala et délices du terroir.",
+  "theme_color": "#2D5A27",
+  "background_color": "#0D180F",
+  "display": "standalone",
+  "orientation": "any",
+  "start_url": "/",
+  "scope": "/",
+  "lang": "fr",
+  "dir": "ltr",
+  "categories": ["shopping", "food", "business"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

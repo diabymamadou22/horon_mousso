@@ -11,15 +11,35 @@ import {
   Clock, 
   Upload, 
   Sparkles,
-  Award
+  Award,
+  Lock,
+  ShieldAlert,
+  CheckCircle2,
+  Wallet,
+  AlertTriangle
 } from 'lucide-react';
 
 export const AdminSettings: React.FC = () => {
-  const { settings, updateSettings } = useApp();
+  const { settings, updateSettings, authStatus, changeAdminCredentials } = useApp();
 
-  const [formData, setFormData] = useState({ ...settings });
+  const [formData, setFormData] = useState({ 
+    ...settings,
+    waveNumber: settings.waveNumber || '',
+    orangeMoneyNumber: settings.orangeMoneyNumber || '',
+    mtnMoMoNumber: settings.mtnMoMoNumber || '',
+    moovMoneyNumber: settings.moovMoneyNumber || '',
+    paymentInstructions: settings.paymentInstructions || ''
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Security Credentials state
+  const [credUsername, setCredUsername] = useState(authStatus.username || 'admin');
+  const [credEmail, setCredEmail] = useState('contact@horonmousso.com');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdatingCreds, setIsUpdatingCreds] = useState(false);
+  const [credFeedback, setCredFeedback] = useState<{ success: boolean; message: string } | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -37,6 +57,37 @@ export const AdminSettings: React.FC = () => {
       console.error(err);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleCredentialsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCredFeedback(null);
+
+    if (newPassword && newPassword !== confirmPassword) {
+      setCredFeedback({ success: false, message: 'Les deux mots de passe ne correspondent pas.' });
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 4) {
+      setCredFeedback({ success: false, message: 'Le mot de passe doit contenir au moins 4 caractères.' });
+      return;
+    }
+
+    setIsUpdatingCreds(true);
+    try {
+      const res = await changeAdminCredentials(credUsername.trim(), credEmail.trim(), newPassword);
+      if (res.success) {
+        setCredFeedback({ success: true, message: 'Identifiants administrateur mis à jour avec succès !' });
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        setCredFeedback({ success: false, message: res.message || 'Échec de la mise à jour des identifiants.' });
+      }
+    } catch (err: any) {
+      setCredFeedback({ success: false, message: err.message || 'Une erreur est survenue.' });
+    } finally {
+      setIsUpdatingCreds(false);
     }
   };
 
@@ -249,6 +300,89 @@ export const AdminSettings: React.FC = () => {
           </div>
         </div>
 
+        {/* Moyens de Paiement & Mobile Money */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-extrabold text-stone-900 uppercase tracking-wider flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-emerald-700" />
+              <span>Moyens de Paiement & Comptes Mobile Money</span>
+            </h2>
+            <span className="text-[11px] text-stone-500 font-medium">Pour les règlements clients</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                Numéro Wave
+              </label>
+              <input
+                type="text"
+                name="waveNumber"
+                value={formData.waveNumber}
+                onChange={handleChange}
+                placeholder="ex: +225 07 00 00 00 00"
+                className="w-full text-xs p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-700"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                Numéro Orange Money
+              </label>
+              <input
+                type="text"
+                name="orangeMoneyNumber"
+                value={formData.orangeMoneyNumber}
+                onChange={handleChange}
+                placeholder="ex: +225 07 00 00 00 00"
+                className="w-full text-xs p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-700"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                Numéro MTN MoMo
+              </label>
+              <input
+                type="text"
+                name="mtnMoMoNumber"
+                value={formData.mtnMoMoNumber}
+                onChange={handleChange}
+                placeholder="ex: +225 05 00 00 00 00"
+                className="w-full text-xs p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-700"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                Numéro Moov Money
+              </label>
+              <input
+                type="text"
+                name="moovMoneyNumber"
+                value={formData.moovMoneyNumber}
+                onChange={handleChange}
+                placeholder="ex: +225 01 00 00 00 00"
+                className="w-full text-xs p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-700"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-stone-700 mb-1.5">
+              Consignes & Modalités de Paiement pour les Clients
+            </label>
+            <textarea
+              rows={2}
+              name="paymentInstructions"
+              value={formData.paymentInstructions}
+              onChange={handleChange}
+              placeholder="Indiquez comment vos clients doivent valider le règlement (ex: Envoyez la preuve par WhatsApp avec le numéro de référence...)"
+              className="w-full text-xs p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-700"
+            />
+          </div>
+        </div>
+
         {/* Textes de la page À propos */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-5">
           <h2 className="text-sm font-extrabold text-stone-900 uppercase tracking-wider flex items-center gap-2">
@@ -303,18 +437,145 @@ export const AdminSettings: React.FC = () => {
           </div>
         </div>
 
-        {/* Submit button bar */}
+        {/* Submit button bar for general settings */}
         <div className="flex items-center justify-end gap-3 sticky bottom-4 bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-stone-200 shadow-lg">
           <button
             type="submit"
             disabled={isSaving}
-            className="inline-flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold py-3.5 px-8 rounded-xl shadow-md transition disabled:opacity-50 text-xs sm:text-sm"
+            className="inline-flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold py-3.5 px-8 rounded-xl shadow-md transition disabled:opacity-50 text-xs sm:text-sm cursor-pointer"
           >
             <Save className="w-4 h-4" />
-            <span>{isSaving ? 'Enregistrement en cours...' : 'Enregistrer les modifications'}</span>
+            <span>{isSaving ? 'Enregistrement en cours...' : 'Enregistrer les paramètres généraux'}</span>
           </button>
         </div>
       </form>
+
+      {/* --- SÉCURITÉ & ACCÈS ADMINISTRATEUR --- */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-stone-100 pb-4">
+          <div>
+            <h2 className="text-base font-extrabold text-stone-900 flex items-center gap-2">
+              <Lock className="w-5 h-5 text-[#C53030]" />
+              <span>Sécurité & Compte Administrateur</span>
+            </h2>
+            <p className="text-xs text-stone-500 mt-1">
+              Modifiez l'identifiant et le mot de passe requis pour administrer le site Horon Mousso.
+            </p>
+          </div>
+
+          {authStatus.isDefaultCredentials ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+              <ShieldAlert className="w-4 h-4 text-amber-700" />
+              Mot de passe par défaut actif
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+              <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+              Accès personnalisé sécurisé
+            </span>
+          )}
+        </div>
+
+        {authStatus.isDefaultCredentials && (
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-amber-900">Recommandation importante pour la mise en production :</p>
+              <p className="mt-1 text-amber-800 leading-relaxed">
+                Le compte utilise actuellement les identifiants par défaut (<strong>admin</strong> / <strong>admin</strong>). Pour garantir la sécurité de votre catalogue, veuillez définir ci-dessous vos identifiants personnels.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {credFeedback && (
+          <div className={`p-4 rounded-2xl text-xs flex items-center gap-2 ${
+            credFeedback.success 
+              ? 'bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold' 
+              : 'bg-red-50 border border-red-200 text-red-900 font-semibold'
+          }`}>
+            {credFeedback.success ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+            )}
+            <span>{credFeedback.message}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleCredentialsSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                Nom d'utilisateur administrateur
+              </label>
+              <input
+                type="text"
+                required
+                value={credUsername}
+                onChange={(e) => setCredUsername(e.target.value)}
+                placeholder="ex: horon_admin"
+                className="w-full text-xs p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-[#2D5A27] focus:bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                Email administrateur
+              </label>
+              <input
+                type="email"
+                required
+                value={credEmail}
+                onChange={(e) => setCredEmail(e.target.value)}
+                placeholder="admin@horonmousso.com"
+                className="w-full text-xs p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-[#2D5A27] focus:bg-white"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                Nouveau mot de passe
+              </label>
+              <input
+                type="password"
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="••••••••••••"
+                className="w-full text-xs p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-[#2D5A27] focus:bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                Confirmer le nouveau mot de passe
+              </label>
+              <input
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••••••"
+                className="w-full text-xs p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-[#2D5A27] focus:bg-white"
+              />
+            </div>
+          </div>
+
+          <div className="pt-2 flex justify-end">
+            <button
+              type="submit"
+              disabled={isUpdatingCreds}
+              className="inline-flex items-center gap-2 bg-[#2D5A27] hover:bg-[#23471F] text-white font-bold py-3 px-6 rounded-xl shadow-md transition disabled:opacity-50 text-xs cursor-pointer"
+            >
+              <Lock className="w-4 h-4" />
+              <span>{isUpdatingCreds ? 'Mise à jour...' : 'Mettre à jour les identifiants'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

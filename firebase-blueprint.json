@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "products": {
+      "fields": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "string" },
+        "availability": { "type": "string" },
+        "description": { "type": "string" },
+        "origin": { "type": "string" },
+        "format": { "type": "string" },
+        "healthBenefits": { "type": "string" },
+        "culinaryUses": { "type": "string" },
+        "mainImage": { "type": "string" },
+        "additionalImages": { "type": "array" },
+        "featured": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "access": {
+        "read": "true",
+        "write": "true"
+      }
+    },
+    "announcements": {
+      "fields": {
+        "title": { "type": "string" },
+        "excerpt": { "type": "string" },
+        "content": { "type": "string" },
+        "date": { "type": "string" },
+        "readTime": { "type": "string" },
+        "category": { "type": "string" },
+        "author": { "type": "string" },
+        "image": { "type": "string" },
+        "published": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "access": {
+        "read": "true",
+        "write": "true"
+      }
+    },
+    "media": {
+      "fields": {
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "type": { "type": "string" },
+        "caption": { "type": "string" },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "access": {
+        "read": "true",
+        "write": "true"
+      }
+    },
+    "messages": {
+      "fields": {
+        "name": { "type": "string" },
+        "contact": { "type": "string" },
+        "message": { "type": "string" },
+        "productReference": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "access": {
+        "read": "true",
+        "write": "true"
+      }
+    },
+    "settings": {
+      "fields": {
+        "companyName": { "type": "string" },
+        "description": { "type": "string" },
+        "phone": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "openingHours": { "type": "string" },
+        "aboutText": { "type": "string" },
+        "missionText": { "type": "string" },
+        "valuesText": { "type": "string" },
+        "waveNumber": { "type": "string" },
+        "orangeMoneyNumber": { "type": "string" },
+        "mtnMoMoNumber": { "type": "string" },
+        "moovMoneyNumber": { "type": "string" },
+        "paymentInstructions": { "type": "string" },
+        "logo": { "type": "string" },
+        "heroBannerImage": { "type": "string" }
+      },
+      "access": {
+        "read": "true",
+        "write": "true"
+      }
+    }
+  }
+}

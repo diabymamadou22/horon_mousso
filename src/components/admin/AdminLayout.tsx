@@ -11,8 +11,10 @@ import {
   ExternalLink, 
   Menu, 
   X,
-  Leaf
+  Leaf,
+  Cloud
 } from 'lucide-react';
+import { SyncStatusModal } from '../common/SyncStatusModal';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -26,10 +28,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     logout, 
     setIsAdminMode, 
     settings,
-    messages 
+    messages,
+    syncStatus 
   } = useApp();
 
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
   const unreadMessagesCount = messages.filter(m => m.status === 'nouveau').length;
 
@@ -72,6 +76,16 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           </div>
 
           <div className="flex items-center gap-3 sm:gap-4">
+            <button
+              onClick={() => setIsSyncModalOpen(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-300 hover:text-white bg-white/10 hover:bg-white/20 py-1.5 px-3 rounded-full transition cursor-pointer"
+              title="Statut Base Cloud & Locale (Multi-Appareils)"
+            >
+              <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Synchro Multi-Appareils</span>
+              <span className={`w-2 h-2 rounded-full ${syncStatus.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+            </button>
+
             <button
               onClick={() => setIsAdminMode(false)}
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-200 hover:text-white bg-white/10 hover:bg-white/20 py-1.5 px-3 rounded-full transition cursor-pointer"
@@ -224,6 +238,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           {children}
         </main>
       </div>
+
+      {/* Sync Status & Multi-Device Modal */}
+      <SyncStatusModal 
+        isOpen={isSyncModalOpen} 
+        onClose={() => setIsSyncModalOpen(false)} 
+      />
     </div>
   );
 };

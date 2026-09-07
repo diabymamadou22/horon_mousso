@@ -11,7 +11,14 @@ import {
   Check, 
   Clock, 
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Cloud,
+  Database,
+  RefreshCw,
+  CheckCircle2,
+  Wifi,
+  Smartphone,
+  Layers
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -31,7 +38,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     media, 
     messages, 
     setAdminTab, 
-    settings 
+    settings,
+    syncStatus,
+    forceSync,
+    isLoading 
   } = useApp();
 
   const photosCount = media.filter(m => m.type === 'image').length;
@@ -147,6 +157,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           );
         })}
+      </div>
+
+      {/* Real-time Multi-Device Sync Card */}
+      <div className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center shrink-0">
+            <Cloud className="w-6 h-6 text-[#2D5A27]" />
+          </div>
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-extrabold text-stone-900 text-sm">Synchronisation Multi-Appareils Active</span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/70 px-2.5 py-0.5 rounded-full">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                Cloud Firestore & Local
+              </span>
+            </div>
+            <p className="text-xs text-stone-500 leading-relaxed max-w-2xl">
+              Les téléphones, tablettes et ordinateurs partagent le même catalogue et les mêmes commandes en temps réel. Les modifications effectuées ici sont automatiquement répercutées sur tous vos écrans.
+            </p>
+            <div className="text-[11px] text-stone-400 flex items-center gap-3 pt-1">
+              <span className="flex items-center gap-1">
+                <span className={`w-2 h-2 rounded-full ${syncStatus.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+                {syncStatus.isOnline ? 'En ligne' : 'Hors-ligne'}
+              </span>
+              <span>•</span>
+              <span>Dernière synchro : {syncStatus.lastSyncTime || 'Automatique en direct'}</span>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => forceSync()}
+          disabled={isLoading}
+          className="inline-flex items-center gap-2 text-xs font-bold bg-stone-100 hover:bg-stone-200 text-stone-800 py-2.5 px-4 rounded-xl border border-stone-300 transition shrink-0 cursor-pointer disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 text-emerald-700 ${isLoading ? 'animate-spin' : ''}`} />
+          <span>{isLoading ? 'Synchronisation...' : 'Synchroniser maintenant'}</span>
+        </button>
       </div>
 
       {/* Quick Action Grid */}

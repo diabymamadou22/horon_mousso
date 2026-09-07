@@ -3,8 +3,8 @@ import { useApp } from '../../context/AppContext';
 import { Lock, User, KeyRound, ArrowLeft, ShieldAlert, Sparkles, CheckCircle2 } from 'lucide-react';
 
 export const AdminLogin: React.FC = () => {
-  const { login, setIsAdminMode, settings } = useApp();
-  const [identifier, setIdentifier] = useState('admin@agroterroir.com');
+  const { login, setIsAdminMode, settings, authStatus } = useApp();
+  const [identifier, setIdentifier] = useState('admin');
   const [password, setPassword] = useState('admin');
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -21,7 +21,7 @@ export const AdminLogin: React.FC = () => {
   };
 
   const handleDemoFill = () => {
-    setIdentifier('admin@agroterroir.com');
+    setIdentifier('admin');
     setPassword('admin');
     setErrorMsg('');
   };
@@ -61,24 +61,31 @@ export const AdminLogin: React.FC = () => {
           )}
 
           {/* Quick Demo Helper */}
-          <div className="p-3.5 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs text-emerald-950 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <div className="font-bold flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Identifiants de test :</span>
+          {authStatus.isDefaultCredentials ? (
+            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="font-bold flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Identifiants initiaux :</span>
+                </div>
+                <div className="text-[11px] text-amber-800">
+                  admin / admin
+                </div>
               </div>
-              <div className="text-[11px] text-emerald-800">
-                admin / admin (ou admin@agroterroir.com)
-              </div>
+              <button
+                type="button"
+                onClick={handleDemoFill}
+                className="bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+              >
+                Pré-remplir
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleDemoFill}
-              className="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition"
-            >
-              Pré-remplir
-            </button>
-          </div>
+          ) : (
+            <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs text-stone-600 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Identifiants personnalisés configurés pour votre entreprise.</span>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -92,7 +99,7 @@ export const AdminLogin: React.FC = () => {
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="admin ou admin@agroterroir.com"
+                  placeholder="admin ou contact@horonmousso.com"
                   className="w-full pl-10 pr-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:bg-white transition"
                 />
               </div>
