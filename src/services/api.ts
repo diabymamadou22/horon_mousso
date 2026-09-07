@@ -38,7 +38,12 @@ import {
   saveSingleLocalMessage,
   deleteSingleLocalMessage,
   getLocalSettings,
-  saveLocalSettings
+  saveLocalSettings,
+  getLocalOrders,
+  saveLocalOrders,
+  saveSingleLocalOrder,
+  getLocalReviews,
+  saveLocalReviews
 } from '../lib/indexedDb';
 import {
   getCloudProducts,
@@ -268,7 +273,7 @@ export const api = {
     // 1. Cloud Firestore (Single Source of Truth across all devices)
     try {
       const cloudProducts = await getCloudProducts();
-      if (cloudProducts !== null && cloudProducts !== undefined) {
+      if (cloudProducts !== null && cloudProducts !== undefined && cloudProducts.length > 0) {
         localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(cloudProducts));
         await saveLocalProducts(cloudProducts);
         return cloudProducts;
@@ -282,9 +287,11 @@ export const api = {
       const res = await fetch('/api/products');
       if (res.ok) {
         const data = await res.json();
-        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(data));
-        await saveLocalProducts(data);
-        return data;
+        if (Array.isArray(data) && data.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(data));
+          await saveLocalProducts(data);
+          return data;
+        }
       }
     } catch {
       // Vercel / offline
@@ -293,6 +300,7 @@ export const api = {
     // 3. Permanent IndexedDB
     const idbProducts = await getLocalProducts();
     if (idbProducts && idbProducts.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(idbProducts));
       return idbProducts;
     }
 
@@ -301,13 +309,16 @@ export const api = {
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        await saveLocalProducts(parsed);
-        return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          await saveLocalProducts(parsed);
+          return parsed;
+        }
       } catch {}
     }
 
     // 5. Initial baseline
     await saveLocalProducts(initialProducts);
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(initialProducts));
     return initialProducts;
   },
 
@@ -411,7 +422,7 @@ export const api = {
   async getAnnouncements(): Promise<Announcement[]> {
     try {
       const cloudAnnouncements = await getCloudAnnouncements();
-      if (cloudAnnouncements !== null && cloudAnnouncements !== undefined) {
+      if (cloudAnnouncements !== null && cloudAnnouncements !== undefined && cloudAnnouncements.length > 0) {
         localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(cloudAnnouncements));
         await saveLocalAnnouncements(cloudAnnouncements);
         return cloudAnnouncements;
@@ -424,14 +435,17 @@ export const api = {
       const res = await fetch('/api/announcements');
       if (res.ok) {
         const data = await res.json();
-        localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(data));
-        await saveLocalAnnouncements(data);
-        return data;
+        if (Array.isArray(data) && data.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(data));
+          await saveLocalAnnouncements(data);
+          return data;
+        }
       }
     } catch {}
 
     const idbAnnouncements = await getLocalAnnouncements();
     if (idbAnnouncements && idbAnnouncements.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(idbAnnouncements));
       return idbAnnouncements;
     }
 
@@ -439,12 +453,15 @@ export const api = {
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        await saveLocalAnnouncements(parsed);
-        return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          await saveLocalAnnouncements(parsed);
+          return parsed;
+        }
       } catch {}
     }
 
     await saveLocalAnnouncements(initialAnnouncements);
+    localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(initialAnnouncements));
     return initialAnnouncements;
   },
 
@@ -540,7 +557,7 @@ export const api = {
   async getMedia(): Promise<MediaItem[]> {
     try {
       const cloudMedia = await getCloudMedia();
-      if (cloudMedia !== null && cloudMedia !== undefined) {
+      if (cloudMedia !== null && cloudMedia !== undefined && cloudMedia.length > 0) {
         localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(cloudMedia));
         await saveLocalMedia(cloudMedia);
         return cloudMedia;
@@ -553,14 +570,17 @@ export const api = {
       const res = await fetch('/api/media');
       if (res.ok) {
         const data = await res.json();
-        localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(data));
-        await saveLocalMedia(data);
-        return data;
+        if (Array.isArray(data) && data.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(data));
+          await saveLocalMedia(data);
+          return data;
+        }
       }
     } catch {}
 
     const idbMedia = await getLocalMedia();
     if (idbMedia && idbMedia.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(idbMedia));
       return idbMedia;
     }
 
@@ -568,12 +588,15 @@ export const api = {
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        await saveLocalMedia(parsed);
-        return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          await saveLocalMedia(parsed);
+          return parsed;
+        }
       } catch {}
     }
 
     await saveLocalMedia(initialMedia);
+    localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(initialMedia));
     return initialMedia;
   },
 
@@ -833,13 +856,40 @@ export const api = {
      ORDERS & DELIVERIES (CLOUD + LOCAL PERSISTENCE)
   ========================================================= */
   async getOrders(): Promise<Order[]> {
+    // 1. Try local server API
+    try {
+      const res = await fetch('/api/orders');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(data));
+          await saveLocalOrders(data);
+          return data;
+        }
+      }
+    } catch {}
+
+    // 2. IndexedDB
+    const idbOrders = await getLocalOrders();
+    if (idbOrders && idbOrders.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(idbOrders));
+      return idbOrders;
+    }
+
+    // 3. LocalStorage
     const cached = localStorage.getItem(STORAGE_KEYS.ORDERS);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          await saveLocalOrders(parsed);
+          return parsed;
+        }
       } catch {}
     }
+
+    await saveLocalOrders(initialOrders);
+    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(initialOrders));
     return initialOrders;
   },
 
@@ -850,9 +900,11 @@ export const api = {
       console.warn('Erreur Firestore save order:', e);
     }
 
+    await saveSingleLocalOrder(order);
     const current = await this.getOrders();
     const updated = [order, ...current.filter(o => o.id !== order.id)];
     localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(updated));
+    await saveLocalOrders(updated);
 
     // Also send to express server if online
     try {
@@ -889,6 +941,7 @@ export const api = {
     };
     current[index] = updatedOrder;
     localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(current));
+    await saveLocalOrders(current);
 
     try {
       await fetch(`/api/orders/${id}/status`, {
@@ -911,6 +964,7 @@ export const api = {
     const current = await this.getOrders();
     const filtered = current.filter(o => o.id !== id);
     localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(filtered));
+    await saveLocalOrders(filtered);
 
     try {
       await fetch(`/api/orders/${id}`, { method: 'DELETE' });
@@ -923,13 +977,48 @@ export const api = {
      CUSTOMER REVIEWS & RATINGS (SOCIAL PROOF)
   ========================================================= */
   async getReviews(productId?: string): Promise<ProductReview[]> {
-    const cached = localStorage.getItem(STORAGE_KEYS.REVIEWS);
-    let allReviews: ProductReview[] = initialReviews;
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) allReviews = parsed;
-      } catch {}
+    // 1. Try local server API
+    let allReviews: ProductReview[] = [];
+    try {
+      const res = await fetch('/api/reviews');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          allReviews = data;
+          localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(data));
+          await saveLocalReviews(data);
+        }
+      }
+    } catch {}
+
+    // 2. IndexedDB
+    if (allReviews.length === 0) {
+      const idbReviews = await getLocalReviews();
+      if (idbReviews && idbReviews.length > 0) {
+        allReviews = idbReviews;
+        localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(idbReviews));
+      }
+    }
+
+    // 3. LocalStorage
+    if (allReviews.length === 0) {
+      const cached = localStorage.getItem(STORAGE_KEYS.REVIEWS);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            allReviews = parsed;
+            await saveLocalReviews(parsed);
+          }
+        } catch {}
+      }
+    }
+
+    // 4. Default fallback
+    if (allReviews.length === 0) {
+      allReviews = initialReviews;
+      await saveLocalReviews(initialReviews);
+      localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(initialReviews));
     }
 
     if (productId) {
@@ -948,6 +1037,15 @@ export const api = {
     const current = await this.getReviews();
     const updated = [review, ...current.filter(r => r.id !== review.id)];
     localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(updated));
+    await saveLocalReviews(updated);
+
+    try {
+      await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(review)
+      });
+    } catch {}
 
     return review;
   },
@@ -962,6 +1060,11 @@ export const api = {
     const current = await this.getReviews();
     const filtered = current.filter(r => r.id !== id);
     localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(filtered));
+    await saveLocalReviews(filtered);
+
+    try {
+      await fetch(`/api/reviews/${id}`, { method: 'DELETE' });
+    } catch {}
 
     return true;
   },

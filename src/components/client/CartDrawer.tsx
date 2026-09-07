@@ -16,7 +16,11 @@ import {
   Clock,
   MapPin,
   CheckCircle2,
-  FileText
+  FileText,
+  Tag,
+  Percent,
+  Sparkles,
+  Gift
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { formatFCFA } from '../../utils/cartUtils';
@@ -26,6 +30,8 @@ import { PaymentMethod } from '../../types';
 export const CartDrawer: React.FC = () => {
   const { 
     cart, 
+    products,
+    addToCart,
     isCartOpen, 
     setIsCartOpen, 
     removeFromCart, 
@@ -53,11 +59,56 @@ export const CartDrawer: React.FC = () => {
   const [hasCopiedOM, setHasCopiedOM] = useState(false);
   const [hasCopiedWave, setHasCopiedWave] = useState(false);
 
+  // Promo Code State
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; percent: number } | null>(null);
+
   if (!isCartOpen) return null;
 
+  // Free shipping threshold (15 000 FCFA)
+  const FREE_SHIPPING_THRESHOLD = 15000;
+  const isFreeShipping = cartTotalAmount >= FREE_SHIPPING_THRESHOLD;
+  const shippingProgress = Math.min(100, Math.round((cartTotalAmount / FREE_SHIPPING_THRESHOLD) * 100));
+  const remainingForFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - cartTotalAmount);
+
   const currentZone = deliveryZones.find(z => z.id === selectedZoneId) || deliveryZones[0];
-  const deliveryFee = deliveryType === 'retrait' ? 0 : currentZone.fee;
-  const grandTotal = cartTotalAmount + deliveryFee;
+  const rawDeliveryFee = deliveryType === 'retrait' ? 0 : currentZone.fee;
+  const deliveryFee = isFreeShipping && deliveryType === 'livraison' ? 0 : rawDeliveryFee;
+
+  // Discount
+  const discountAmount = appliedPromo 
+    ? Math.round((cartTotalAmount * appliedPromo.percent) / 100) 
+    : 0;
+
+  const grandTotal = Math.max(0, cartTotalAmount - discountAmount + deliveryFee);
+
+  const handleApplyPromo = (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = promoInput.trim().toUpperCase();
+    if (!clean) return;
+
+    if (clean === 'BIENVENUE10' || clean === 'TERROIR10') {
+      setAppliedPromo({ code: clean, percent: 10 });
+      showToast(`Code ${clean} activé : -10% sur votre commande !`, 'success');
+      setPromoInput('');
+    } else if (clean === 'HORON5') {
+      setAppliedPromo({ code: clean, percent: 5 });
+      showToast(`Code ${clean} activé : -5% sur votre commande !`, 'success');
+      setPromoInput('');
+    } else {
+      showToast('Code promo non valide. Essayez BIENVENUE10', 'error');
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    showToast('Code promo retiré', 'info');
+  };
+
+  // Cross-sell suggestions (products not currently in cart)
+  const crossSellProducts = products
+    .filter(p => !cart.some(item => item.productId === p.id))
+    .slice(0, 2);
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +132,7 @@ export const CartDrawer: React.FC = () => {
         deliveryFee,
         deliveryType,
         paymentMethod,
-        notes: notes.trim()
+        notes: `${notes.trim()}${appliedPromo ? ` [Code Promo: ${appliedPromo.code} (-${appliedPromo.percent}% : -${formatFCFA(discountAmount)})]` : ''}${isFreeShipping ? ' [Livraison Offerte Seuil 15 000 F]' : ''}`
       });
 
       if (order) {
@@ -98,9 +149,9 @@ N° Commande : *${order.orderNumber}*
 ----------------------------------------
 ${itemsSummary}
 
-📦 *Sous-total :* ${formatFCFA(order.subtotal)}
-🚚 *Livraison (${order.deliveryZone}) :* ${formatFCFA(order.deliveryFee)}
-💰 *TOTAL NET :* ${formatFCFA(order.total)}
+📦 *Sous-total articles :* ${formatFCFA(order.subtotal)}
+${appliedPromo ? `🏷️ *Remise Promo (${appliedPromo.code} -${appliedPromo.percent}%) :* -${formatFCFA(discountAmount)}\n` : ''}🚚 *Livraison (${order.deliveryZone}) :* ${deliveryFee === 0 ? 'OFFERTE (0 FCFA)' : formatFCFA(deliveryFee)}
+💰 *TOTAL NET À RÉGLER :* ${formatFCFA(grandTotal)}
 
 👤 *Client :* ${order.customerName}
 📞 *Téléphone :* ${order.customerPhone}
@@ -127,7 +178,8 @@ Bonjour, je viens de passer commande sur le site. Merci de me confirmer la prise
       return `${idx + 1}. ${item.quantity}x ${item.product.name} (${item.format})${pricePart}`;
     }).join('\n');
 
-    const totalStr = `\nSous-total : ${formatFCFA(cartTotalAmount)}\nFrais de livraison : ${formatFCFA(deliveryFee)}\nTotal net : ${formatFCFA(grandTotal)}`;
+    const promoStr = appliedPromo ? `\nRemise (${appliedPromo.code}) : -${formatFCFA(discountAmount)}` : '';
+    const totalStr = `\nSous-total : ${formatFCFA(cartTotalAmount)}${promoStr}\nFrais de livraison : ${deliveryFee === 0 ? 'OFFERTE (0 FCFA)' : formatFCFA(deliveryFee)}\nTotal net : ${formatFCFA(grandTotal)}`;
     const textToCopy = `COMMANDE HORON MOUSSO\n-----------------------\n${itemsSummary}${totalStr}\n\nClient : ${customerName || 'À préciser'}\nTéléphone : ${customerPhone || 'À préciser'}\nMode : ${deliveryType === 'retrait' ? 'Retrait en boutique' : 'Livraison'}\nZone : ${currentZone.name}\nAdresse : ${customerAddress || 'À préciser'}\nPaiement : ${paymentMethod}`;
 
     navigator.clipboard.writeText(textToCopy);
@@ -217,9 +269,43 @@ Bonjour, je viens de passer commande sur le site. Merci de me confirmer la prise
             </div>
           ) : (
             <>
-              {/* Product items list */}
-              <div className="space-y-4 pb-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Articles sélectionnés</h4>
+              {/* 1. FREE SHIPPING PROGRESS BAR */}
+              <div className="pb-4">
+                <div className="p-3.5 bg-gradient-to-r from-emerald-50 via-emerald-100/50 to-stone-50 rounded-2xl border border-emerald-200/80 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-emerald-950 flex items-center gap-1.5">
+                      <Truck className="w-4 h-4 text-[#2D5A27]" />
+                      {isFreeShipping ? (
+                        <span className="text-[#2D5A27] font-extrabold flex items-center gap-1">
+                          <span>Livraison Locale OFFERTE !</span>
+                          <span className="text-xs">🎉</span>
+                        </span>
+                      ) : (
+                        <span>Plus que <strong className="text-[#2D5A27]">{formatFCFA(remainingForFreeShipping)}</strong> pour la livraison offerte</span>
+                      )}
+                    </span>
+                    <span className="text-[11px] font-mono font-bold text-emerald-800">
+                      {shippingProgress}%
+                    </span>
+                  </div>
+
+                  {/* Progress track */}
+                  <div className="w-full bg-emerald-200/60 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-[#2D5A27] h-full rounded-full transition-all duration-500"
+                      style={{ width: `${shippingProgress}%` }}
+                    />
+                  </div>
+
+                  <p className="text-[10px] text-emerald-800/80">
+                    Seuil de gratuité dès 15 000 FCFA d'achat sur tout Bamako.
+                  </p>
+                </div>
+              </div>
+
+              {/* 2. Product items list */}
+              <div className="space-y-4 py-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Articles sélectionnés ({cartTotalCount})</h4>
                 {cart.map((item) => (
                   <div 
                     key={item.id} 
@@ -300,6 +386,86 @@ Bonjour, je viens de passer commande sur le site. Merci de me confirmer la prise
                 ))}
               </div>
 
+              {/* 3. PROMO CODE SECTION */}
+              <div className="py-3">
+                {appliedPromo ? (
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs">
+                    <div className="flex items-center gap-2">
+                      <Tag className="w-3.5 h-3.5 text-[#2D5A27]" />
+                      <span>Code <strong>{appliedPromo.code}</strong> appliqué (-{appliedPromo.percent}%)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemovePromo}
+                      className="text-red-600 hover:underline font-bold text-[11px] cursor-pointer"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleApplyPromo} className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Tag className="w-3.5 h-3.5 absolute left-3 top-2.5 text-stone-400" />
+                      <input
+                        type="text"
+                        placeholder="Code promo (ex: BIENVENUE10)"
+                        value={promoInput}
+                        onChange={(e) => setPromoInput(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-stone-200 uppercase focus:outline-hidden focus:border-[#2D5A27]"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="px-3 py-1.5 bg-stone-100 hover:bg-[#2D5A27] hover:text-white text-stone-700 text-xs font-bold rounded-xl transition cursor-pointer"
+                    >
+                      Appliquer
+                    </button>
+                  </form>
+                )}
+              </div>
+
+              {/* 4. CROSS-SELLING SUGGESTIONS (1-CLICK ADD) */}
+              {crossSellProducts.length > 0 && (
+                <div className="py-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Complétez votre panier</span>
+                    </span>
+                    <span className="text-[10px] text-stone-400">Pépites du terroir</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {crossSellProducts.map((p) => (
+                      <div 
+                        key={p.id}
+                        className="p-2.5 rounded-xl border border-stone-200/80 bg-white flex items-center justify-between gap-2 shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <img 
+                            src={p.mainImage} 
+                            alt={p.name} 
+                            referrerPolicy="no-referrer"
+                            className="w-10 h-10 rounded-lg object-cover border border-stone-200 shrink-0" 
+                          />
+                          <div className="min-w-0">
+                            <h6 className="text-[11px] font-bold text-stone-800 truncate">{p.name}</h6>
+                            <p className="text-[10px] text-[#2D5A27] font-semibold">{p.price || 'À partir de 1 500 F'}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => addToCart(p, 1)}
+                          className="shrink-0 p-1.5 px-2 bg-emerald-50 hover:bg-[#2D5A27] text-emerald-800 hover:text-white rounded-lg text-[10px] font-extrabold transition cursor-pointer"
+                        >
+                          + Ajouter
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Order Form */}
               <form onSubmit={handleSubmitOrder} className="pt-5 space-y-4">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Détails de livraison & contact</h4>
@@ -363,7 +529,7 @@ Bonjour, je viens de passer commande sur le site. Merci de me confirmer la prise
                               <p className="text-xs font-bold text-neutral-800">{z.name}</p>
                               <p className="text-[10px] text-neutral-500 flex items-center gap-1">
                                 <Clock className="w-3 h-3 text-neutral-400" />
-                                {z.estimatedTime} • {z.description}
+                                {z.delay || z.estimatedTime}{z.description ? ` • ${z.description}` : ''}
                               </p>
                             </div>
                           </div>
@@ -532,10 +698,27 @@ Bonjour, je viens de passer commande sur le site. Merci de me confirmer la prise
                     <span>Sous-total articles :</span>
                     <span className="font-mono font-medium">{formatFCFA(cartTotalAmount)}</span>
                   </div>
+
+                  {appliedPromo && (
+                    <div className="flex items-center justify-between text-xs text-emerald-700 font-semibold">
+                      <span className="flex items-center gap-1">
+                        <Tag className="w-3 h-3 text-[#2D5A27]" />
+                        Remise code {appliedPromo.code} (-{appliedPromo.percent}%) :
+                      </span>
+                      <span className="font-mono font-bold">-{formatFCFA(discountAmount)}</span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between text-xs text-neutral-600">
                     <span>Frais d'expédition ({deliveryType === 'retrait' ? 'Retrait boutique' : currentZone.name}) :</span>
                     <span className="font-mono font-medium">
-                      {deliveryFee === 0 ? 'Gratuit' : formatFCFA(deliveryFee)}
+                      {deliveryFee === 0 ? (
+                        <span className="text-[#2D5A27] font-bold bg-emerald-100/70 px-2 py-0.5 rounded-md">
+                          Offert
+                        </span>
+                      ) : (
+                        formatFCFA(deliveryFee)
+                      )}
                     </span>
                   </div>
                   <div className="pt-2 border-t border-neutral-200 flex items-center justify-between">

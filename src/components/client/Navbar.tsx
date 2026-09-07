@@ -19,9 +19,10 @@ export const Navbar: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
-  const navLinks: { id: PublicTab; label: string }[] = [
+  const navLinks: { id: PublicTab; label: string; badge?: string }[] = [
     { id: 'accueil', label: 'Accueil' },
     { id: 'produits', label: 'Produits' },
+    { id: 'grossiste', label: 'Espace Grossiste', badge: 'B2B' },
     { id: 'actualites', label: 'Actualités' },
     { id: 'galerie', label: 'Galerie' },
     { id: 'a_propos', label: 'À Propos' },
@@ -121,20 +122,25 @@ export const Navbar: React.FC = () => {
         </button>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-8">
+        <nav className="hidden lg:flex items-center gap-7">
           {navLinks.map(link => {
             const isActive = activeTab === link.id;
             return (
               <button
                 key={link.id}
                 onClick={() => handleNavClick(link.id)}
-                className={`text-sm font-medium transition-colors cursor-pointer ${
+                className={`text-sm font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
                   isActive
                     ? 'text-[#2D5A27] font-bold border-b-2 border-[#2D5A27] pb-1'
                     : 'text-gray-600 hover:text-[#2D5A27]'
                 }`}
               >
-                {link.label}
+                <span>{link.label}</span>
+                {link.badge && (
+                  <span className="px-1.5 py-0.2 bg-amber-100 text-amber-900 text-[10px] font-extrabold rounded-md">
+                    {link.badge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -204,7 +210,14 @@ export const Navbar: React.FC = () => {
                     : 'text-gray-600 hover:bg-stone-50'
                 }`}
               >
-                <span>{link.label}</span>
+                <span className="flex items-center gap-2">
+                  <span>{link.label}</span>
+                  {link.badge && (
+                    <span className="px-1.5 py-0.2 bg-amber-100 text-amber-900 text-[10px] font-extrabold rounded-md">
+                      {link.badge}
+                    </span>
+                  )}
+                </span>
                 <ChevronRight className={`w-4 h-4 ${isActive ? 'text-[#2D5A27]' : 'text-gray-300'}`} />
               </button>
             );

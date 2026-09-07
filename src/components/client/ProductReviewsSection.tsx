@@ -66,11 +66,11 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
     try {
       const success = await addReview({
         productId,
+        productName,
         customerName: customerName.trim(),
-        customerEmail: customerContact.trim() || undefined,
         rating,
         comment: comment.trim(),
-        verifiedPurchase: true
+        isVerifiedPurchase: true
       });
 
       if (success) {
@@ -289,7 +289,7 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
                       <User className="w-3.5 h-3.5 text-stone-400" />
                       {rev.customerName}
                     </span>
-                    {rev.verifiedPurchase && (
+                    {(rev.isVerifiedPurchase ?? (rev as any).verifiedPurchase) && (
                       <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-[#2D5A27]">
                         <CheckCircle2 className="w-3 h-3 text-[#2D5A27]" />
                         Client vérifié

@@ -1,6 +1,52 @@
 <!doctype html>
 <html lang="fr">
   <head>
+    <script>
+      // Filter benign Vite development WebSocket reconnection logs in sandboxed container
+      (function() {
+        function isViteNoise(arg) {
+          if (!arg) return false;
+          try {
+            const str = typeof arg === 'string'
+              ? arg
+              : (arg.message || arg.stack || arg.reason || (typeof arg.toString === 'function' ? arg.toString() : ''));
+            return /\[vite\]|websocket|ws:\/\/|wss:\/\/|vite:ws/i.test(str);
+          } catch (_) {
+            return false;
+          }
+        }
+        function hasViteNoise(args) {
+          for (let i = 0; i < args.length; i++) {
+            if (isViteNoise(args[i])) return true;
+          }
+          return false;
+        }
+
+        ['error', 'warn', 'info', 'log', 'debug'].forEach(function(method) {
+          const orig = console[method];
+          if (typeof orig === 'function') {
+            console[method] = function(...args) {
+              if (hasViteNoise(args)) return;
+              orig.apply(console, args);
+            };
+          }
+        });
+
+        window.addEventListener('error', function(e) {
+          if (isViteNoise(e.message) || isViteNoise(e.error) || (e.filename && isViteNoise(e.filename))) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(e) {
+          if (isViteNoise(e.reason)) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+          }
+        }, true);
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     <title>Horon Mousso - Commerce & Transformation Agricole</title>

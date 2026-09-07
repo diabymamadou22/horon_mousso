@@ -29,7 +29,9 @@ import {
   saveLocalAnnouncements,
   saveLocalMedia,
   saveLocalMessages,
-  saveLocalSettings
+  saveLocalSettings,
+  saveLocalOrders,
+  saveLocalReviews
 } from '../lib/indexedDb';
 import {
   seedFirestoreIfEmpty,
@@ -43,7 +45,7 @@ import {
   subscribeToCloudReviews
 } from '../lib/firebase';
 
-export type PublicTab = 'accueil' | 'produits' | 'actualites' | 'galerie' | 'a_propos' | 'contact';
+export type PublicTab = 'accueil' | 'produits' | 'grossiste' | 'actualites' | 'galerie' | 'a_propos' | 'contact';
 export type AdminTab = 'dashboard' | 'commandes' | 'produits' | 'annonces' | 'medias' | 'messages' | 'avis' | 'parametres';
 
 interface Toast {
@@ -240,7 +242,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [cart]);
 
   // Auth Security Status
-  const [authStatus, setAuthStatus] = useState<{ isDefault: boolean; username: string; email: string } | null>(null);
+  const [authStatus, setAuthStatus] = useState<{ isDefault: boolean; username: string; email: string }>({
+    isDefault: true,
+    username: 'admin',
+    email: 'contact@horonmousso.com'
+  });
 
   const checkAuthStatus = useCallback(async () => {
     try {
@@ -254,6 +260,113 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     checkAuthStatus();
   }, [checkAuthStatus]);
+
+  // Comprehensive Data Hydration on app boot/refresh
+  useEffect(() => {
+    let isMounted = true;
+    const hydrateAllData = async () => {
+      try {
+        const [
+          prodsRes,
+          annsRes,
+          mediaRes,
+          msgsRes,
+          settingsRes,
+          ordersRes,
+          reviewsRes
+        ] = await Promise.allSettled([
+          api.getProducts(),
+          api.getAnnouncements(),
+          api.getMedia(),
+          api.getMessages(),
+          api.getSettings(),
+          api.getOrders(),
+          api.getReviews()
+        ]);
+
+        if (!isMounted) return;
+
+        if (prodsRes.status === 'fulfilled' && prodsRes.value && prodsRes.value.length > 0) {
+          setProducts(prodsRes.value);
+        }
+        if (annsRes.status === 'fulfilled' && annsRes.value && annsRes.value.length > 0) {
+          setAnnouncements(annsRes.value);
+        }
+        if (mediaRes.status === 'fulfilled' && mediaRes.value && mediaRes.value.length > 0) {
+          setMedia(mediaRes.value);
+        }
+        if (msgsRes.status === 'fulfilled' && msgsRes.value && msgsRes.value.length > 0) {
+          setMessages(msgsRes.value);
+        }
+        if (settingsRes.status === 'fulfilled' && settingsRes.value && settingsRes.value.companyName) {
+          setSettings(settingsRes.value);
+        }
+        if (ordersRes.status === 'fulfilled' && ordersRes.value && ordersRes.value.length > 0) {
+          setOrders(ordersRes.value);
+        }
+        if (reviewsRes.status === 'fulfilled' && reviewsRes.value && reviewsRes.value.length > 0) {
+          setReviews(reviewsRes.value);
+        }
+      } catch (err) {
+        console.warn('Initial data hydration notice:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    hydrateAllData();
+    return () => { isMounted = false; };
+  }, []);
+
+  // Continuous Auto-Persistence across all tables to localStorage and IndexedDB
+  useEffect(() => {
+    if (products && products.length > 0) {
+      try { localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products)); } catch {}
+      saveLocalProducts(products).catch(() => {});
+    }
+  }, [products]);
+
+  useEffect(() => {
+    if (announcements && announcements.length > 0) {
+      try { localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(announcements)); } catch {}
+      saveLocalAnnouncements(announcements).catch(() => {});
+    }
+  }, [announcements]);
+
+  useEffect(() => {
+    if (media && media.length > 0) {
+      try { localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(media)); } catch {}
+      saveLocalMedia(media).catch(() => {});
+    }
+  }, [media]);
+
+  useEffect(() => {
+    if (messages) {
+      try { localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(messages)); } catch {}
+      saveLocalMessages(messages).catch(() => {});
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (settings && settings.companyName) {
+      try { localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings)); } catch {}
+      saveLocalSettings(settings).catch(() => {});
+    }
+  }, [settings]);
+
+  useEffect(() => {
+    if (orders && orders.length > 0) {
+      try { localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders)); } catch {}
+      saveLocalOrders(orders).catch(() => {});
+    }
+  }, [orders]);
+
+  useEffect(() => {
+    if (reviews && reviews.length > 0) {
+      try { localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(reviews)); } catch {}
+      saveLocalReviews(reviews).catch(() => {});
+    }
+  }, [reviews]);
 
   // Cart calculation
   const cartTotalCount = useMemo(() => {
@@ -512,7 +625,7 @@ Merci de confirmer la prise en charge et le délai !`;
       try {
         // 1. Live Products Subscription (Single Source of Truth across all devices)
         const unsubProds = subscribeToCloudProducts((cloudProds) => {
-          if (cloudProds) {
+          if (cloudProds && cloudProds.length > 0) {
             setProducts(cloudProds);
             setIsLoading(false);
             setSyncStatus(prev => ({
@@ -520,14 +633,13 @@ Merci de confirmer la prise en charge et le délai !`;
               cloudConnected: true,
               lastSyncTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
             }));
-            // Background passive persistence mirror
             saveLocalProducts(cloudProds).catch(() => {});
           }
         });
 
         // 2. Live Announcements Subscription
         const unsubAnns = subscribeToCloudAnnouncements((cloudAnns) => {
-          if (cloudAnns) {
+          if (cloudAnns && cloudAnns.length > 0) {
             setAnnouncements(cloudAnns);
             saveLocalAnnouncements(cloudAnns).catch(() => {});
           }
@@ -535,7 +647,7 @@ Merci de confirmer la prise en charge et le délai !`;
 
         // 3. Live Media Gallery Subscription
         const unsubMedia = subscribeToCloudMedia((cloudMedia) => {
-          if (cloudMedia) {
+          if (cloudMedia && cloudMedia.length > 0) {
             setMedia(cloudMedia);
             saveLocalMedia(cloudMedia).catch(() => {});
           }
@@ -543,7 +655,7 @@ Merci de confirmer la prise en charge et le délai !`;
 
         // 4. Live Messages & Orders Subscription
         const unsubMsgs = subscribeToCloudMessages((cloudMsgs) => {
-          if (cloudMsgs) {
+          if (cloudMsgs && cloudMsgs.length > 0) {
             setMessages(cloudMsgs);
             saveLocalMessages(cloudMsgs).catch(() => {});
           }
@@ -566,17 +678,19 @@ Merci de confirmer la prise en charge et le délai !`;
 
         // 7. Live Commercial Orders Subscription
         const unsubOrders = subscribeToCloudOrders((cloudOrders) => {
-          if (cloudOrders) {
+          if (cloudOrders && cloudOrders.length > 0) {
             setOrders(cloudOrders);
             localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(cloudOrders));
+            saveLocalOrders(cloudOrders).catch(() => {});
           }
         });
 
         // 8. Live Customer Reviews Subscription
         const unsubReviews = subscribeToCloudReviews((cloudReviews) => {
-          if (cloudReviews) {
+          if (cloudReviews && cloudReviews.length > 0) {
             setReviews(cloudReviews);
             localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(cloudReviews));
+            saveLocalReviews(cloudReviews).catch(() => {});
           }
         });
 

@@ -1,10 +1,13 @@
 import express from 'express';
+import http from 'http';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { initialProducts, initialAnnouncements, initialMedia, initialMessages, initialSettings } from './src/data/initialData';
-import { Product, Announcement, MediaItem, CustomerMessage, CompanySettings } from './src/types';
+import { initialOrders } from './src/data/initialOrders';
+import { initialReviews } from './src/data/initialReviews';
+import { Product, Announcement, MediaItem, CustomerMessage, CompanySettings, Order, ProductReview } from './src/types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,6 +36,8 @@ interface DBStructure {
   media: MediaItem[];
   messages: CustomerMessage[];
   settings: CompanySettings;
+  orders: Order[];
+  reviews: ProductReview[];
   adminCredentials?: AdminCredentials;
 }
 
@@ -52,13 +57,35 @@ function loadDB(): DBStructure {
     if (fs.existsSync(DB_FILE)) {
       const data = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed: DBStructure = JSON.parse(data);
+      // Ensure products and announcements are never empty on boot
+      if (!parsed.products || parsed.products.length === 0) {
+        parsed.products = initialProducts;
+      }
+      if (!parsed.announcements || parsed.announcements.length === 0) {
+        parsed.announcements = initialAnnouncements;
+      }
+      if (!parsed.media || parsed.media.length === 0) {
+        parsed.media = initialMedia;
+      }
+      if (!parsed.messages) {
+        parsed.messages = initialMessages;
+      }
+      if (!parsed.orders || parsed.orders.length === 0) {
+        parsed.orders = initialOrders;
+      }
+      if (!parsed.reviews || parsed.reviews.length === 0) {
+        parsed.reviews = initialReviews;
+      }
       // Migrate company name if previous placeholder
       if (parsed.settings && (parsed.settings.companyName.includes('AgroTerroir') || !parsed.settings.companyName)) {
         parsed.settings = { ...initialSettings, ...parsed.settings, companyName: 'Horon Mousso' };
+      } else if (!parsed.settings) {
+        parsed.settings = initialSettings;
       }
       if (!parsed.adminCredentials) {
         parsed.adminCredentials = defaultAdminCreds;
       }
+      saveDB(parsed);
       return parsed;
     }
   } catch (error) {
@@ -70,6 +97,8 @@ function loadDB(): DBStructure {
     media: initialMedia,
     messages: initialMessages,
     settings: initialSettings,
+    orders: initialOrders,
+    reviews: initialReviews,
     adminCredentials: defaultAdminCreds
   };
   saveDB(defaultDB);
@@ -193,10 +222,16 @@ app.get('/api/products', (_req, res) => {
 app.post('/api/products', (req, res) => {
   const newProduct: Product = {
     ...req.body,
-    id: 'prod_' + Date.now(),
-    createdAt: new Date().toISOString()
+    id: req.body.id || ('prod_' + Date.now()),
+    createdAt: req.body.createdAt || new Date().toISOString()
   };
-  db.products.unshift(newProduct);
+  // Replace if exists, or unshift
+  const existingIdx = db.products.findIndex(p => p.id === newProduct.id);
+  if (existingIdx > -1) {
+    db.products[existingIdx] = newProduct;
+  } else {
+    db.products.unshift(newProduct);
+  }
   saveDB(db);
   res.status(201).json(newProduct);
 });
@@ -231,10 +266,15 @@ app.get('/api/announcements', (_req, res) => {
 app.post('/api/announcements', (req, res) => {
   const newAnnouncement: Announcement = {
     ...req.body,
-    id: 'ann_' + Date.now(),
-    createdAt: new Date().toISOString()
+    id: req.body.id || ('ann_' + Date.now()),
+    createdAt: req.body.createdAt || new Date().toISOString()
   };
-  db.announcements.unshift(newAnnouncement);
+  const existingIdx = db.announcements.findIndex(a => a.id === newAnnouncement.id);
+  if (existingIdx > -1) {
+    db.announcements[existingIdx] = newAnnouncement;
+  } else {
+    db.announcements.unshift(newAnnouncement);
+  }
   saveDB(db);
   res.status(201).json(newAnnouncement);
 });
@@ -269,10 +309,15 @@ app.get('/api/media', (_req, res) => {
 app.post('/api/media', (req, res) => {
   const newMedia: MediaItem = {
     ...req.body,
-    id: 'med_' + Date.now(),
-    createdAt: new Date().toISOString()
+    id: req.body.id || ('med_' + Date.now()),
+    createdAt: req.body.createdAt || new Date().toISOString()
   };
-  db.media.unshift(newMedia);
+  const existingIdx = db.media.findIndex(m => m.id === newMedia.id);
+  if (existingIdx > -1) {
+    db.media[existingIdx] = newMedia;
+  } else {
+    db.media.unshift(newMedia);
+  }
   saveDB(db);
   res.status(201).json(newMedia);
 });
@@ -290,18 +335,18 @@ app.get('/api/messages', (_req, res) => {
 });
 
 app.post('/api/messages', (req, res) => {
-  const { name, contact, message, productReference } = req.body;
+  const { name, contact, message, productReference, id, createdAt } = req.body;
   if (!name || !contact || !message) {
     return res.status(400).json({ error: 'Champs obligatoires manquants (nom, contact, message).' });
   }
   const newMessage: CustomerMessage = {
-    id: 'msg_' + Date.now(),
+    id: id || ('msg_' + Date.now()),
     name,
     contact,
     message,
     productReference: productReference || '',
     status: 'nouveau',
-    createdAt: new Date().toISOString()
+    createdAt: createdAt || new Date().toISOString()
   };
   db.messages.unshift(newMessage);
   saveDB(db);
@@ -327,6 +372,79 @@ app.delete('/api/messages/:id', (req, res) => {
   res.json({ success: true, id });
 });
 
+// Orders CRUD
+app.get('/api/orders', (_req, res) => {
+  res.json(db.orders || initialOrders);
+});
+
+app.post('/api/orders', (req, res) => {
+  const newOrder: Order = {
+    ...req.body,
+    id: req.body.id || ('ord_' + Date.now()),
+    createdAt: req.body.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  if (!db.orders) db.orders = [];
+  const existingIdx = db.orders.findIndex(o => o.id === newOrder.id);
+  if (existingIdx > -1) {
+    db.orders[existingIdx] = newOrder;
+  } else {
+    db.orders.unshift(newOrder);
+  }
+  saveDB(db);
+  res.status(201).json(newOrder);
+});
+
+app.patch('/api/orders/:id/status', (req, res) => {
+  const { id } = req.params;
+  const { status, paymentStatus } = req.body;
+  if (!db.orders) db.orders = [];
+  const order = db.orders.find(o => o.id === id);
+  if (!order) {
+    return res.status(404).json({ error: 'Commande non trouvée' });
+  }
+  if (status) order.status = status;
+  if (paymentStatus) order.paymentStatus = paymentStatus;
+  order.updatedAt = new Date().toISOString();
+  saveDB(db);
+  res.json(order);
+});
+
+app.delete('/api/orders/:id', (req, res) => {
+  const { id } = req.params;
+  if (db.orders) {
+    db.orders = db.orders.filter(o => o.id !== id);
+    saveDB(db);
+  }
+  res.json({ success: true, id });
+});
+
+// Reviews CRUD
+app.get('/api/reviews', (_req, res) => {
+  res.json(db.reviews || initialReviews);
+});
+
+app.post('/api/reviews', (req, res) => {
+  const newReview: ProductReview = {
+    ...req.body,
+    id: req.body.id || ('rev_' + Date.now()),
+    createdAt: req.body.createdAt || new Date().toISOString()
+  };
+  if (!db.reviews) db.reviews = [];
+  db.reviews.unshift(newReview);
+  saveDB(db);
+  res.status(201).json(newReview);
+});
+
+app.delete('/api/reviews/:id', (req, res) => {
+  const { id } = req.params;
+  if (db.reviews) {
+    db.reviews = db.reviews.filter(r => r.id !== id);
+    saveDB(db);
+  }
+  res.json({ success: true, id });
+});
+
 // Company Settings
 app.get('/api/settings', (_req, res) => {
   res.json(db.settings);
@@ -349,6 +467,8 @@ app.post('/api/reset-demo', (_req, res) => {
     media: initialMedia,
     messages: initialMessages,
     settings: initialSettings,
+    orders: initialOrders,
+    reviews: initialReviews,
     adminCredentials: defaultAdminCreds
   };
   saveDB(db);
@@ -360,9 +480,14 @@ app.post('/api/reset-demo', (_req, res) => {
 =========================== */
 
 async function startServer() {
+  const server = http.createServer(app);
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR === 'true' ? false : { server },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -374,7 +499,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`Horon Mousso Server running on http://0.0.0.0:${PORT}`);
   });
 }

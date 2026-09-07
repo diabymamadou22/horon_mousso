@@ -12,10 +12,12 @@ import { ProductsPage } from './components/client/ProductsPage';
 import { AnnouncementsPage } from './components/client/AnnouncementsPage';
 import { GalleryPage } from './components/client/GalleryPage';
 import { AboutPage } from './components/client/AboutPage';
+import { WholesalePage } from './components/client/WholesalePage';
 import { ContactPage } from './components/client/ContactPage';
 import { ProductDetailModal } from './components/client/ProductDetailModal';
 import { CartDrawer } from './components/client/CartDrawer';
 import { OrderReceiptModal } from './components/client/OrderReceiptModal';
+import { WelcomePromoModal } from './components/client/WelcomePromoModal';
 import { Footer } from './components/client/Footer';
 import { MobileBottomNav } from './components/client/MobileBottomNav';
 
@@ -73,6 +75,9 @@ export default function App() {
 
       {/* Official Order Digital Receipt / Confirmation Modal */}
       <OrderReceiptModal />
+
+      {/* Welcome Discount Discovery Modal */}
+      <WelcomePromoModal />
 
       {/* Floating PWA Install Notification Prompt */}
       <PWAInstallButton variant="banner" />
@@ -147,6 +152,8 @@ export default function App() {
             )}
 
             {activeTab === 'produits' && <ProductsPage />}
+
+            {activeTab === 'grossiste' && <WholesalePage />}
 
             {activeTab === 'actualites' && <AnnouncementsPage />}
 

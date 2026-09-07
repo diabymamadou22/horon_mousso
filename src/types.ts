@@ -53,6 +53,8 @@ export interface DeliveryZone {
   name: string;
   fee: number; // En FCFA
   delay: string;
+  estimatedTime?: string;
+  description?: string;
 }
 
 export interface OrderItem {

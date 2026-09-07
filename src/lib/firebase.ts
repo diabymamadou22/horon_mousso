@@ -137,18 +137,31 @@ export async function seedFirestoreIfEmpty(): Promise<boolean> {
       });
     }
 
-    // Seed settings
+    // Seed settings safely (preserve local settings if user customized them)
+    let settingsToSeed = initialSettings;
+    try {
+      if (typeof window !== 'undefined') {
+        const localCached = localStorage.getItem('agro_settings_cache');
+        if (localCached) {
+          const parsed = JSON.parse(localCached);
+          if (parsed && parsed.companyName) {
+            settingsToSeed = { ...initialSettings, ...parsed };
+          }
+        }
+      }
+    } catch {}
+
     await setDoc(doc(firestoreDb, 'settings', 'main'), {
-      ...initialSettings,
+      ...settingsToSeed,
       syncedAt: new Date().toISOString()
-    });
+    }, { merge: true });
 
     // Seed initial orders
     for (const ord of initialOrders) {
       await setDoc(doc(firestoreDb, 'orders', ord.id), {
         ...ord,
         syncedAt: new Date().toISOString()
-      });
+      }, { merge: true });
     }
 
     // Seed initial reviews
@@ -156,7 +169,7 @@ export async function seedFirestoreIfEmpty(): Promise<boolean> {
       await setDoc(doc(firestoreDb, 'reviews', rev.id), {
         ...rev,
         syncedAt: new Date().toISOString()
-      });
+      }, { merge: true });
     }
 
     // Mark as initialized permanently so future runs or empty collections never get reset
@@ -188,6 +201,10 @@ export function subscribeToCloudProducts(
 ): Unsubscribe {
   const colRef = collection(firestoreDb, 'products');
   return onSnapshot(colRef, (snapshot) => {
+    if (snapshot.empty) {
+      // Do not overwrite local products if collection is unseeded or empty
+      return;
+    }
     const list: Product[] = [];
     snapshot.forEach(docSnap => {
       list.push(docSnap.data() as Product);
@@ -206,6 +223,9 @@ export function subscribeToCloudAnnouncements(
 ): Unsubscribe {
   const colRef = collection(firestoreDb, 'announcements');
   return onSnapshot(colRef, (snapshot) => {
+    if (snapshot.empty) {
+      return;
+    }
     const list: Announcement[] = [];
     snapshot.forEach(docSnap => {
       list.push(docSnap.data() as Announcement);
@@ -223,6 +243,9 @@ export function subscribeToCloudMedia(
 ): Unsubscribe {
   const colRef = collection(firestoreDb, 'media');
   return onSnapshot(colRef, (snapshot) => {
+    if (snapshot.empty) {
+      return;
+    }
     const list: MediaItem[] = [];
     snapshot.forEach(docSnap => {
       list.push(docSnap.data() as MediaItem);
@@ -259,10 +282,6 @@ export function subscribeToCloudSettings(
   return onSnapshot(docRef, (docSnap) => {
     if (docSnap.exists()) {
       onUpdate(docSnap.data() as CompanySettings);
-    } else {
-      // Doc doesn't exist yet, seed and emit initial
-      saveSettingsToFirestore(initialSettings).catch(() => {});
-      onUpdate(initialSettings);
     }
   }, (err) => {
     if (onError) onError(err);
@@ -301,7 +320,6 @@ export function subscribeToCloudOrders(
   const colRef = collection(firestoreDb, 'orders');
   return onSnapshot(colRef, (snapshot) => {
     if (snapshot.empty) {
-      onUpdate(initialOrders);
       return;
     }
     const list: Order[] = [];
@@ -322,7 +340,6 @@ export function subscribeToCloudReviews(
   const colRef = collection(firestoreDb, 'reviews');
   return onSnapshot(colRef, (snapshot) => {
     if (snapshot.empty) {
-      onUpdate(initialReviews);
       return;
     }
     const list: ProductReview[] = [];
@@ -476,6 +493,9 @@ export async function getCloudAnnouncements(): Promise<Announcement[]> {
   try {
     const colRef = collection(firestoreDb, 'announcements');
     const snap = await getDocs(colRef);
+    if (snap.empty) {
+      return initialAnnouncements;
+    }
     const list: Announcement[] = [];
     snap.forEach(d => list.push(d.data() as Announcement));
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -490,6 +510,9 @@ export async function getCloudMedia(): Promise<MediaItem[]> {
   try {
     const colRef = collection(firestoreDb, 'media');
     const snap = await getDocs(colRef);
+    if (snap.empty) {
+      return initialMedia;
+    }
     const list: MediaItem[] = [];
     snap.forEach(d => list.push(d.data() as MediaItem));
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

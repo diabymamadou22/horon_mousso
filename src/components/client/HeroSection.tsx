@@ -182,30 +182,30 @@ export const HeroSection: React.FC = () => {
             className="flex-1 flex flex-col justify-center space-y-7 will-change-transform"
           >
             {/* Top Interactive Badges */}
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2">
               <motion.span 
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#2D5A27] text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#1A381E] text-white text-xs font-bold rounded-full shadow-xs"
               >
-                <Leaf className="w-3.5 h-3.5 text-emerald-300 animate-pulse" />
-                <span>Terroir & Transformation Noble</span>
+                <Leaf className="w-3.5 h-3.5 text-emerald-300" />
+                <span>Terroir & Pureté</span>
               </motion.span>
 
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-100/80 border border-amber-200/70 text-amber-900 text-xs font-semibold rounded-full shadow-2xs">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 border border-amber-200/80 text-amber-900 text-xs font-medium rounded-full shadow-2xs">
                 <Sparkles className="w-3 h-3 text-amber-600" />
-                <span>100% Naturel • Zéro additif chimique</span>
+                <span>100% Naturel • Zéro additif</span>
               </span>
             </div>
 
             {/* Hero Heading with Warm Gradient Accent */}
-            <div className="space-y-3">
-              <h1 className="text-3xl sm:text-5xl lg:text-[54px] font-black text-[#142618] leading-[1.12] tracking-tight">
-                L’excellence de nos terres, <br />
+            <div className="space-y-2.5">
+              <h1 className="text-3xl sm:text-5xl lg:text-[52px] font-black text-[#142618] leading-[1.12] tracking-tight">
+                L’art du terroir, <br />
                 <span className="relative inline-block text-transparent bg-clip-text bg-gradient-to-r from-[#C53030] via-[#E56B2D] to-[#D48B28]">
-                  sublimée en épices d’or
+                  en épices pures
                   <svg 
-                    className="absolute -bottom-2 left-0 w-full h-2.5 text-[#E56B2D]/40" 
+                    className="absolute -bottom-1.5 left-0 w-full h-2 text-[#E56B2D]/40" 
                     viewBox="0 0 100 20" 
                     preserveAspectRatio="none"
                   >
@@ -214,28 +214,27 @@ export const HeroSection: React.FC = () => {
                 </span>.
               </h1>
 
-              <p className="text-base sm:text-lg text-stone-600 max-w-xl leading-relaxed pt-2">
-                {settings.shortDescription || "Sélection rigoureuse, séchage sain et mouture pure de piments rouges, soumbala traditionnel et épices d'Afrique de l'Ouest pour réveiller vos créations culinaires."}
+              <p className="text-sm sm:text-base text-stone-600 max-w-lg leading-relaxed pt-1">
+                Piments séchés, soumbala traditionnel et aromates nobles d'Afrique de l'Ouest. Arômes préservés, fraîcheur garantie.
               </p>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-3.5 pt-1">
+            <div className="flex flex-wrap items-center gap-3 pt-1">
               <button
                 id="btn-hero-explore"
                 onClick={() => setActiveTab('produits')}
-                className="group relative overflow-hidden px-8 py-4 bg-[#2D5A27] hover:bg-[#1f3f1b] text-white rounded-2xl font-extrabold shadow-lg shadow-emerald-950/20 flex items-center gap-3 transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer text-sm sm:text-base"
+                className="group relative overflow-hidden px-7 py-3.5 bg-[#2D5A27] hover:bg-[#1f3f1b] text-white rounded-2xl font-bold shadow-md shadow-emerald-950/15 flex items-center gap-2.5 transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer text-sm"
               >
-                {/* Shimmer sweep effect */}
                 <div className="absolute inset-0 w-1/2 h-full bg-white/20 skew-x-12 -translate-x-full group-hover:translate-x-[300%] transition-transform duration-1000 ease-out" />
-                <span>Découvrir le Catalogue</span>
+                <span>Explorer le Catalogue</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </button>
 
               <button
                 id="btn-hero-whatsapp"
                 onClick={() => openOrderWhatsApp()}
-                className="px-6 py-4 bg-white border border-stone-300 hover:border-emerald-600 text-stone-800 hover:text-emerald-800 rounded-2xl font-bold shadow-xs hover:shadow-md transition-all duration-300 flex items-center gap-2.5 cursor-pointer text-sm sm:text-base"
+                className="px-5 py-3.5 bg-white border border-stone-200 hover:border-emerald-600 text-stone-800 hover:text-emerald-800 rounded-2xl font-semibold shadow-xs hover:shadow-md transition-all duration-300 flex items-center gap-2 cursor-pointer text-sm"
               >
                 <MessageCircle className="w-4 h-4 text-emerald-600" />
                 <span>Commander sur WhatsApp</span>
@@ -243,20 +242,20 @@ export const HeroSection: React.FC = () => {
             </div>
 
             {/* Customer Trust & Ratings Bar */}
-            <div className="pt-5 border-t border-stone-200/90 flex flex-wrap items-center justify-between gap-4 text-stone-700">
+            <div className="pt-4 border-t border-stone-200/80 flex flex-wrap items-center justify-between gap-3 text-stone-700">
               {/* Star Rating & Avatar Stack */}
               <div className="flex items-center gap-3">
                 <div className="flex -space-x-2 overflow-hidden">
-                  <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-amber-600 text-white text-[11px] font-bold flex items-center justify-center">
+                  <div className="inline-block h-7 w-7 rounded-full ring-2 ring-white bg-amber-600 text-white text-[10px] font-bold flex items-center justify-center">
                     AD
                   </div>
-                  <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-emerald-700 text-white text-[11px] font-bold flex items-center justify-center">
+                  <div className="inline-block h-7 w-7 rounded-full ring-2 ring-white bg-emerald-700 text-white text-[10px] font-bold flex items-center justify-center">
                     MT
                   </div>
-                  <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-red-600 text-white text-[11px] font-bold flex items-center justify-center">
+                  <div className="inline-block h-7 w-7 rounded-full ring-2 ring-white bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">
                     FS
                   </div>
-                  <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-[#142618] text-amber-300 text-[10px] font-bold flex items-center justify-center">
+                  <div className="inline-block h-7 w-7 rounded-full ring-2 ring-white bg-[#142618] text-amber-300 text-[9px] font-bold flex items-center justify-center">
                     +5k
                   </div>
                 </div>
@@ -267,19 +266,19 @@ export const HeroSection: React.FC = () => {
                     ))}
                     <span className="text-xs font-bold text-stone-900 ml-1">4.9/5</span>
                   </div>
-                  <p className="text-[11px] text-stone-500 font-medium">Recommandé par les familles & restaurateurs</p>
+                  <p className="text-[11px] text-stone-500 font-medium">Par nos clients & restaurateurs</p>
                 </div>
               </div>
 
               {/* Badges Highlight */}
-              <div className="flex items-center gap-4 text-xs font-semibold text-stone-600">
+              <div className="flex items-center gap-3.5 text-xs font-medium text-stone-600">
                 <div className="flex items-center gap-1.5">
-                  <Truck className="w-4 h-4 text-[#2D5A27]" />
+                  <Truck className="w-3.5 h-3.5 text-[#2D5A27]" />
                   <span>Livraison Rapide</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-[#2D5A27]" />
-                  <span>Séchage Hygiénique</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#2D5A27]" />
+                  <span>Qualité Contrôlée</span>
                 </div>
               </div>
             </div>
@@ -504,53 +503,53 @@ export const HeroSection: React.FC = () => {
       </motion.div>
 
       {/* Infinite Seamless Marquee Ticker */}
-      <div className="bg-[#142618] text-white py-3 border-y border-emerald-900/50 overflow-hidden select-none relative z-20">
-        <div className="animate-marquee flex items-center gap-10 whitespace-nowrap text-xs sm:text-sm font-semibold tracking-wide">
+      <div className="bg-[#142618] text-white py-2.5 border-y border-emerald-900/40 overflow-hidden select-none relative z-20">
+        <div className="animate-marquee flex items-center gap-8 whitespace-nowrap text-xs font-semibold tracking-wide">
           <span className="flex items-center gap-2 text-emerald-300">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>100% Naturel • Sans Colorant ni Additif de Synthèse</span>
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>100% Naturel • Zéro Conservateur</span>
           </span>
-          <span className="text-stone-500">•</span>
+          <span className="text-emerald-800">•</span>
           <span className="flex items-center gap-2 text-amber-200">
-            <Flame className="w-4 h-4 text-red-400" />
-            <span>Piments d'Origine Sélectionnés & Séchés avec Rigueur</span>
+            <Flame className="w-3.5 h-3.5 text-red-400" />
+            <span>Piments d'Origine Sélectionnés</span>
           </span>
-          <span className="text-stone-500">•</span>
+          <span className="text-emerald-800">•</span>
           <span className="flex items-center gap-2 text-emerald-300">
-            <Leaf className="w-4 h-4 text-emerald-400" />
-            <span>Soumbala Pur de Néré Artisanal Grand Arôme</span>
+            <Leaf className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Soumbala Pur de Néré Artisanal</span>
           </span>
-          <span className="text-stone-500">•</span>
+          <span className="text-emerald-800">•</span>
           <span className="flex items-center gap-2 text-white">
-            <Truck className="w-4 h-4 text-amber-400" />
-            <span>Expédition Rapide Partout en Zone Urbaine & Intérieur</span>
+            <Truck className="w-3.5 h-3.5 text-amber-400" />
+            <span>Livraison Rapide</span>
           </span>
-          <span className="text-stone-500">•</span>
+          <span className="text-emerald-800">•</span>
           <span className="flex items-center gap-2 text-amber-200">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>Formats Détail, Demi-Gros & Sacs Professionnels pour Restaurateurs</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Formats Particuliers & Pros</span>
           </span>
-          <span className="text-stone-500">•</span>
+          <span className="text-emerald-800">•</span>
           
           {/* Duplicate set for seamless looping */}
           <span className="flex items-center gap-2 text-emerald-300">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>100% Naturel • Sans Colorant ni Additif de Synthèse</span>
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>100% Naturel • Zéro Conservateur</span>
           </span>
-          <span className="text-stone-500">•</span>
+          <span className="text-emerald-800">•</span>
           <span className="flex items-center gap-2 text-amber-200">
-            <Flame className="w-4 h-4 text-red-400" />
-            <span>Piments d'Origine Sélectionnés & Séchés avec Rigueur</span>
+            <Flame className="w-3.5 h-3.5 text-red-400" />
+            <span>Piments d'Origine Sélectionnés</span>
           </span>
-          <span className="text-stone-500">•</span>
+          <span className="text-emerald-800">•</span>
           <span className="flex items-center gap-2 text-emerald-300">
-            <Leaf className="w-4 h-4 text-emerald-400" />
-            <span>Soumbala Pur de Néré Artisanal Grand Arôme</span>
+            <Leaf className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Soumbala Pur de Néré Artisanal</span>
           </span>
-          <span className="text-stone-500">•</span>
+          <span className="text-emerald-800">•</span>
           <span className="flex items-center gap-2 text-white">
-            <Truck className="w-4 h-4 text-amber-400" />
-            <span>Expédition Rapide Partout en Zone Urbaine & Intérieur</span>
+            <Truck className="w-3.5 h-3.5 text-amber-400" />
+            <span>Livraison Rapide</span>
           </span>
         </div>
       </div>

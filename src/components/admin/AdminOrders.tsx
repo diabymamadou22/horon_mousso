@@ -19,7 +19,10 @@ import {
   DollarSign, 
   ArrowUpRight,
   Package,
-  Calendar
+  Calendar,
+  Download,
+  FileSpreadsheet,
+  Users
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Order, OrderStatus, PaymentStatus } from '../../types';
@@ -39,6 +42,63 @@ export const AdminOrders: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'tous'>('tous');
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | 'tous'>('tous');
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<Order | null>(null);
+
+  // CSV Export for business reporting & accounting
+  const exportOrdersToCSV = () => {
+    if (orders.length === 0) {
+      showToast('Aucune commande à exporter', 'info');
+      return;
+    }
+
+    const headers = [
+      'Numéro Commande',
+      'Date',
+      'Nom Client',
+      'Téléphone',
+      'Email',
+      'Mode Livraison',
+      'Zone Livraison',
+      'Adresse',
+      'Articles',
+      'Sous-total (FCFA)',
+      'Frais Livraison (FCFA)',
+      'Total (FCFA)',
+      'Mode Paiement',
+      'Statut Paiement',
+      'Statut Commande',
+      'Notes'
+    ];
+
+    const rows = orders.map(o => [
+      `"${o.orderNumber}"`,
+      `"${new Date(o.createdAt).toLocaleString('fr-FR')}"`,
+      `"${(o.customerName || '').replace(/"/g, '""')}"`,
+      `"${(o.customerPhone || '').replace(/"/g, '""')}"`,
+      `"${(o.customerEmail || '').replace(/"/g, '""')}"`,
+      `"${o.deliveryType}"`,
+      `"${(o.deliveryZone || '').replace(/"/g, '""')}"`,
+      `"${(o.deliveryAddress || '').replace(/"/g, '""')}"`,
+      `"${o.items.map(i => `${i.quantity}x ${i.productName} (${i.format})`).join(' ; ').replace(/"/g, '""')}"`,
+      o.subtotal || 0,
+      o.deliveryFee || 0,
+      o.total || 0,
+      `"${o.paymentMethod}"`,
+      `"${o.paymentStatus || 'en_attente'}"`,
+      `"${o.status}"`,
+      `"${(o.notes || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `commandes_horon_mousso_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Fichier CSV des commandes exporté avec succès !', 'success');
+  };
 
   // Filtered orders
   const filteredOrders = useMemo(() => {
@@ -146,8 +206,38 @@ export const AdminOrders: React.FC = () => {
     }
   };
 
+  const averageBasket = stats.totalCount > 0 
+    ? Math.round(stats.totalRevenue / stats.totalCount) 
+    : 0;
+
   return (
     <div className="space-y-6">
+      {/* Top Header & Export Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-neutral-200 shadow-2xs">
+        <div>
+          <h2 className="text-xl font-black text-neutral-900 flex items-center gap-2">
+            <ShoppingBag className="w-5 h-5 text-[#2D5A27]" />
+            Commandes & Suivi Commercial
+          </h2>
+          <p className="text-xs text-neutral-500 mt-1">
+            Gérez les expéditions, suivez les encaissements Mobile Money et téléchargez vos états comptables.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={exportOrdersToCSV}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#2D5A27] hover:bg-[#23481f] text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
+            title="Exporter toutes les commandes au format CSV"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
+            <span>Exporter en CSV</span>
+            <Download className="w-3.5 h-3.5 opacity-80" />
+          </button>
+        </div>
+      </div>
+
       {/* Top Banner / KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <div className="bg-white p-4 rounded-xl border border-neutral-200 shadow-2xs">
@@ -190,6 +280,41 @@ export const AdminOrders: React.FC = () => {
             <DollarSign className="w-5 h-5 text-[#2D5A27]" />
           </div>
           <span className="text-[11px] text-emerald-700/80 mt-1 block">Commandes actives et livrées</span>
+        </div>
+      </div>
+
+      {/* CRM & Commerce Insights Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-stone-50 border border-stone-200/80 rounded-xl p-3.5 text-xs text-stone-700">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-emerald-100/70 text-emerald-800 flex items-center justify-center shrink-0">
+            <DollarSign className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-[11px] text-stone-500 block font-medium">Panier Moyen</span>
+            <span className="font-bold text-stone-900 font-mono text-sm">{formatFCFA(averageBasket)}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-blue-100/70 text-blue-800 flex items-center justify-center shrink-0">
+            <Users className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-[11px] text-stone-500 block font-medium">Clients Récurrents / Actifs</span>
+            <span className="font-bold text-stone-900 text-sm">{new Set(orders.map(o => o.customerPhone || o.customerName)).size} clients</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-purple-100/70 text-purple-800 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-[11px] text-stone-500 block font-medium">Taux de Satisfaction / Livraison</span>
+            <span className="font-bold text-stone-900 text-sm">
+              {stats.totalCount > 0 ? Math.round((stats.deliveredCount / stats.totalCount) * 100) : 100}% de succès
+            </span>
+          </div>
         </div>
       </div>
 

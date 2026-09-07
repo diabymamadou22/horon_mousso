@@ -20,7 +20,12 @@ import {
   Smartphone,
   Layers,
   ShoppingBag,
-  Star
+  Star,
+  FileSpreadsheet,
+  TrendingUp,
+  CreditCard,
+  Users,
+  Download
 } from 'lucide-react';
 import { formatFCFA } from '../../utils/cartUtils';
 
@@ -46,16 +51,71 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     settings,
     syncStatus,
     forceSync,
-    isLoading 
+    isLoading,
+    showToast
   } = useApp();
 
   const photosCount = media.filter(m => m.type === 'image').length;
   const videosCount = media.filter(m => m.type === 'video').length;
   const unreadMessagesCount = messages.filter(m => m.status === 'nouveau').length;
   const pendingOrdersCount = orders.filter(o => o.status === 'en_attente' || o.status === 'en_preparation').length;
+  const deliveredOrdersCount = orders.filter(o => o.status === 'livree').length;
   const totalRevenue = orders
     .filter(o => o.status !== 'annulee')
     .reduce((sum, o) => sum + (o.total || 0), 0);
+
+  const averageBasket = orders.length > 0 
+    ? Math.round(totalRevenue / orders.length) 
+    : 0;
+
+  // Breakdown by payment methods
+  const waveOrders = orders.filter(o => o.paymentMethod?.toLowerCase().includes('wave'));
+  const omOrders = orders.filter(o => o.paymentMethod?.toLowerCase().includes('orange') || o.paymentMethod?.toLowerCase().includes('om'));
+  const cashOrders = orders.filter(o => o.paymentMethod?.toLowerCase().includes('espece') || o.paymentMethod?.toLowerCase().includes('livraison'));
+
+  const exportOrdersCSV = () => {
+    if (orders.length === 0) {
+      showToast('Aucune commande à exporter', 'info');
+      return;
+    }
+
+    const headers = [
+      'Numéro Commande',
+      'Date',
+      'Nom Client',
+      'Téléphone',
+      'Email',
+      'Mode Livraison',
+      'Zone',
+      'Total (FCFA)',
+      'Mode Paiement',
+      'Statut Commande'
+    ];
+
+    const rows = orders.map(o => [
+      `"${o.orderNumber}"`,
+      `"${new Date(o.createdAt).toLocaleString('fr-FR')}"`,
+      `"${(o.customerName || '').replace(/"/g, '""')}"`,
+      `"${(o.customerPhone || '').replace(/"/g, '""')}"`,
+      `"${(o.customerEmail || '').replace(/"/g, '""')}"`,
+      `"${o.deliveryType}"`,
+      `"${(o.deliveryZone || '').replace(/"/g, '""')}"`,
+      o.total || 0,
+      `"${o.paymentMethod}"`,
+      `"${o.status}"`
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `commandes_horon_mousso_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Fichier CSV exporté avec succès !', 'success');
+  };
 
   const stats = [
     {
@@ -177,6 +237,80 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           );
         })}
+      </div>
+
+      {/* Financial & Performance Insights */}
+      <div className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-stone-100">
+          <div>
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md">
+              <TrendingUp className="w-3 h-3 text-emerald-600" />
+              Pilotage Commercial & Trésorerie
+            </span>
+            <h2 className="text-lg font-black text-stone-900 mt-1">
+              Performance Financière & Modes de Règlement
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportOrdersCSV}
+              className="inline-flex items-center gap-2 bg-[#2D5A27] hover:bg-[#23481f] text-white text-xs font-bold py-2 px-3.5 rounded-xl shadow-xs transition cursor-pointer"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
+              <span>Exporter CSV</span>
+              <Download className="w-3 h-3 opacity-80" />
+            </button>
+            <button
+              onClick={() => setAdminTab('commandes')}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-stone-700 hover:text-stone-950 bg-stone-100 hover:bg-stone-200 py-2 px-3 rounded-xl transition cursor-pointer"
+            >
+              <span>Voir Commandes</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200/80 space-y-1">
+            <span className="text-xs text-stone-500 font-medium">Panier Moyen Client</span>
+            <div className="text-xl sm:text-2xl font-black text-stone-900 font-mono">
+              {formatFCFA(averageBasket)}
+            </div>
+            <span className="text-[11px] text-stone-400 block">Sur l'ensemble des paniers passés</span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200/80 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-stone-500 font-medium">Répartition Paiements</span>
+              <CreditCard className="w-4 h-4 text-stone-400" />
+            </div>
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between items-center text-stone-700">
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-cyan-500"></span> Wave</span>
+                <span className="font-bold">{waveOrders.length} cmd</span>
+              </div>
+              <div className="flex justify-between items-center text-stone-700">
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500"></span> Orange Money</span>
+                <span className="font-bold">{omOrders.length} cmd</span>
+              </div>
+              <div className="flex justify-between items-center text-stone-700">
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Espèces / Autres</span>
+                <span className="font-bold">{cashOrders.length} cmd</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200/80 space-y-1">
+            <span className="text-xs text-stone-500 font-medium">Commandes Livrées</span>
+            <div className="text-xl sm:text-2xl font-black text-emerald-800">
+              {deliveredOrdersCount} / {orders.length}
+            </div>
+            <span className="text-[11px] text-emerald-700 font-semibold block">
+              {orders.length > 0 ? Math.round((deliveredOrdersCount / orders.length) * 100) : 100}% de satisfaction & livraison
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Real-time Multi-Device Sync Card */}

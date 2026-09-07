@@ -61,7 +61,7 @@ export const AdminLogin: React.FC = () => {
           )}
 
           {/* Quick Demo Helper */}
-          {authStatus.isDefaultCredentials ? (
+          {authStatus?.isDefault ? (
             <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950 flex items-center justify-between">
               <div className="space-y-0.5">
                 <div className="font-bold flex items-center gap-1">

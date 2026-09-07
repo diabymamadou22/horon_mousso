@@ -1,8 +1,8 @@
 import { openDB, IDBPDatabase } from 'idb';
-import { Product, Announcement, MediaItem, CustomerMessage, CompanySettings, CartItem } from '../types';
+import { Product, Announcement, MediaItem, CustomerMessage, CompanySettings, CartItem, Order, ProductReview } from '../types';
 
 const DB_NAME = 'horon_mousso_permanent_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
@@ -30,6 +30,12 @@ export function getDB(): Promise<IDBPDatabase> {
         }
         if (!db.objectStoreNames.contains('offline_orders')) {
           db.createObjectStore('offline_orders', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('orders')) {
+          db.createObjectStore('orders', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('reviews')) {
+          db.createObjectStore('reviews', { keyPath: 'id' });
         }
         if (!db.objectStoreNames.contains('sync_metadata')) {
           db.createObjectStore('sync_metadata', { keyPath: 'key' });
@@ -297,6 +303,69 @@ export async function getOfflineOrders(): Promise<Record<string, unknown>[]> {
   } catch (err) {
     console.warn('IndexedDB getOfflineOrders fallback:', err);
     return [];
+  }
+}
+
+/* =========================================================
+   ORDERS & REVIEWS (INDEXEDDB PERMANENT STORAGE)
+========================================================= */
+
+export async function getLocalOrders(): Promise<Order[]> {
+  try {
+    const db = await getDB();
+    const orders = await db.getAll('orders');
+    return orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } catch (err) {
+    console.warn('IndexedDB getLocalOrders fallback:', err);
+    return [];
+  }
+}
+
+export async function saveLocalOrders(orders: Order[]): Promise<void> {
+  try {
+    const db = await getDB();
+    const tx = db.transaction('orders', 'readwrite');
+    await tx.store.clear();
+    for (const order of orders) {
+      await tx.store.put(order);
+    }
+    await tx.done;
+  } catch (err) {
+    console.warn('IndexedDB saveLocalOrders fallback:', err);
+  }
+}
+
+export async function saveSingleLocalOrder(order: Order): Promise<void> {
+  try {
+    const db = await getDB();
+    await db.put('orders', order);
+  } catch (err) {
+    console.warn('IndexedDB saveSingleLocalOrder fallback:', err);
+  }
+}
+
+export async function getLocalReviews(): Promise<ProductReview[]> {
+  try {
+    const db = await getDB();
+    const revs = await db.getAll('reviews');
+    return revs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } catch (err) {
+    console.warn('IndexedDB getLocalReviews fallback:', err);
+    return [];
+  }
+}
+
+export async function saveLocalReviews(reviews: ProductReview[]): Promise<void> {
+  try {
+    const db = await getDB();
+    const tx = db.transaction('reviews', 'readwrite');
+    await tx.store.clear();
+    for (const rev of reviews) {
+      await tx.store.put(rev);
+    }
+    await tx.done;
+  } catch (err) {
+    console.warn('IndexedDB saveLocalReviews fallback:', err);
   }
 }
 

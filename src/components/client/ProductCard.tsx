@@ -107,14 +107,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       </div>
 
       {/* Content */}
-      <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
         <div>
-          <h3 
-            onClick={() => openProductDetail(product.id)}
-            className="font-bold text-base sm:text-lg text-[#1B3022] group-hover:text-[#2D5A27] transition cursor-pointer line-clamp-1 leading-snug"
-          >
-            {product.name}
-          </h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 
+              onClick={() => openProductDetail(product.id)}
+              className="font-bold text-sm sm:text-base text-[#142618] group-hover:text-[#2D5A27] transition cursor-pointer line-clamp-1 leading-snug"
+            >
+              {product.name}
+            </h3>
+          </div>
 
           {/* Rating & Review Counter */}
           <div className="flex items-center gap-1.5 mt-1">
@@ -125,27 +127,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               {avgRating.toFixed(1)}
             </span>
             <span className="text-[11px] text-stone-400">
-              ({reviewCount > 0 ? `${reviewCount} avis` : '4.9/5'})
+              ({reviewCount > 0 ? `${reviewCount}` : '5.0'})
             </span>
-          </div>
-
-          <p className="text-xs text-stone-500 mt-1 line-clamp-2 leading-relaxed">
-            {product.description}
-          </p>
-
-          {/* Packaging / Format */}
-          <div className="mt-3 pt-3 border-t border-stone-100 flex items-center justify-between text-xs text-stone-600">
-            <span className="font-medium text-stone-400">Format :</span>
-            <span className="font-semibold text-stone-700 truncate max-w-[65%] text-right" title={product.format}>
+            <span className="text-stone-300">•</span>
+            <span className="text-[11px] text-stone-500 font-medium truncate max-w-[120px]" title={product.format}>
               {product.format}
             </span>
           </div>
 
+          <p className="text-xs text-stone-500 mt-1.5 line-clamp-2 leading-relaxed">
+            {product.description}
+          </p>
+
           {/* Price */}
           {product.price && (
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-xs font-medium text-stone-400">Prix :</span>
-              <span className="text-base font-black text-[#2D5A27]">
+            <div className="mt-2.5 flex items-baseline justify-between">
+              <span className="text-base sm:text-lg font-black text-[#1E3B24]">
                 {product.price}
               </span>
             </div>
@@ -153,10 +150,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
 
         {/* Action Buttons */}
-        <div className="pt-3 border-t border-stone-100 flex items-center gap-2">
+        <div className="pt-2.5 border-t border-stone-100 flex items-center gap-1.5">
           <button
             onClick={() => openProductDetail(product.id)}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 bg-[#2D5A27] hover:bg-[#1f3f1b] text-white text-xs font-bold py-2.5 px-2.5 rounded-xl transition cursor-pointer shadow-xs"
+            className="flex-1 inline-flex items-center justify-center gap-1 bg-[#1E3B24] hover:bg-[#142618] text-white text-xs font-bold py-2 px-2.5 rounded-xl transition cursor-pointer shadow-2xs"
           >
             <span>Détails</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
@@ -165,18 +162,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           {product.availability !== 'rupture' && (
             <button
               onClick={handleAddToCart}
-              className={`inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs ${
+              className={`inline-flex items-center justify-center gap-1 py-2 px-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-2xs ${
                 justAdded
-                  ? 'bg-emerald-600 border-emerald-600 text-white scale-105'
-                  : 'border-[#2D5A27]/30 text-[#2D5A27] bg-[#2D5A27]/5 hover:bg-[#2D5A27] hover:text-white'
+                  ? 'bg-emerald-600 border-emerald-600 text-white scale-102'
+                  : 'border-emerald-700/20 text-[#1E3B24] bg-emerald-50/60 hover:bg-[#1E3B24] hover:text-white'
               }`}
-              title="Ajouter ce produit au panier"
+              title="Ajouter au panier"
               aria-label="Ajouter au panier"
             >
               {justAdded ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-white animate-bounce" />
-                  <span className="hidden sm:inline">Ajouté !</span>
+                  <Check className="w-3.5 h-3.5 text-white" />
+                  <span className="hidden sm:inline">Ajouté</span>
                 </>
               ) : (
                 <>
@@ -192,11 +189,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               e.stopPropagation();
               openOrderWhatsApp(product);
             }}
-            className="inline-flex items-center justify-center p-2.5 rounded-xl border border-red-200 text-[#C53030] bg-red-50 hover:bg-[#C53030] hover:text-white transition cursor-pointer"
-            title="Commander directement sur WhatsApp"
+            className="inline-flex items-center justify-center p-2 rounded-xl border border-red-200/80 text-[#B82B2B] bg-red-50/70 hover:bg-[#B82B2B] hover:text-white transition cursor-pointer"
+            title="Commander sur WhatsApp"
             aria-label="Commander sur WhatsApp"
           >
-            <MessageCircle className="w-4 h-4" />
+            <MessageCircle className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

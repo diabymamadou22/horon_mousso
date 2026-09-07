@@ -65,6 +65,12 @@ export const Footer: React.FC = () => {
                 </button>
               </li>
               <li>
+                <button onClick={() => setActiveTab('grossiste')} className="text-[#2D5A27] font-bold hover:underline transition cursor-pointer flex items-center gap-1.5">
+                  <span>Espace Grossiste & Devis Pro</span>
+                  <span className="px-1.5 py-0.2 bg-amber-100 text-amber-900 text-[9px] font-black rounded">B2B</span>
+                </button>
+              </li>
+              <li>
                 <button onClick={() => setActiveTab('actualites')} className="hover:text-[#2D5A27] transition cursor-pointer">
                   Actualités & Nouveautés
                 </button>
