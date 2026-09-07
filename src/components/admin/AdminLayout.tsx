@@ -12,9 +12,12 @@ import {
   Menu, 
   X,
   Leaf,
-  Cloud
+  Cloud,
+  ShoppingBag,
+  Star
 } from 'lucide-react';
 import { SyncStatusModal } from '../common/SyncStatusModal';
+import { AdminMobileBottomNav } from './AdminMobileBottomNav';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -29,6 +32,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     setIsAdminMode, 
     settings,
     messages,
+    orders,
+    reviews,
     syncStatus 
   } = useApp();
 
@@ -36,13 +41,16 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
   const unreadMessagesCount = messages.filter(m => m.status === 'nouveau').length;
+  const pendingOrdersCount = orders.filter(o => o.status === 'en_attente' || o.status === 'en_preparation').length;
 
   const menuItems: { id: AdminTab; label: string; icon: React.ElementType; badge?: number }[] = [
     { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
+    { id: 'commandes', label: 'Commandes', icon: ShoppingBag, badge: pendingOrdersCount },
     { id: 'produits', label: 'Produits', icon: Package },
     { id: 'annonces', label: 'Annonces & Actus', icon: Megaphone },
     { id: 'medias', label: 'Médias & Galerie', icon: ImageIcon },
     { id: 'messages', label: 'Messages', icon: Mail, badge: unreadMessagesCount },
+    { id: 'avis', label: 'Avis Clients', icon: Star },
     { id: 'parametres', label: 'Paramètres', icon: SettingsIcon },
   ];
 
@@ -234,10 +242,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         )}
 
         {/* Dynamic Admin Body View */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 pb-24 lg:pb-8 overflow-y-auto max-w-7xl mx-auto w-full">
           {children}
         </main>
       </div>
+
+      {/* Mobile Bottom Navigation for Smartphones */}
+      <AdminMobileBottomNav onOpenMoreMenu={() => setIsMobileNavOpen(true)} />
 
       {/* Sync Status & Multi-Device Modal */}
       <SyncStatusModal 

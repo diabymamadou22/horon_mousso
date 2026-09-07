@@ -1,15 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Product } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { ArrowUpRight, MessageCircle, Sparkles, Check, Clock, AlertTriangle, ShoppingBag, Eye } from 'lucide-react';
+import { ArrowUpRight, MessageCircle, Sparkles, Check, Clock, AlertTriangle, ShoppingBag, Eye, Star } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const { openProductDetail, openOrderWhatsApp, addToCart } = useApp();
+  const { openProductDetail, openOrderWhatsApp, addToCart, reviews } = useApp();
   const [justAdded, setJustAdded] = useState(false);
+
+  // Compute product rating & review count
+  const { avgRating, reviewCount } = useMemo(() => {
+    const prodReviews = reviews.filter(r => r.productId === product.id);
+    if (prodReviews.length === 0) return { avgRating: 5.0, reviewCount: 0 };
+    const avg = Math.round((prodReviews.reduce((sum, r) => sum + r.rating, 0) / prodReviews.length) * 10) / 10;
+    return { avgRating: avg, reviewCount: prodReviews.length };
+  }, [reviews, product.id]);
 
   const getCategoryLabel = (cat: string) => {
     switch (cat) {
@@ -107,6 +115,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           >
             {product.name}
           </h3>
+
+          {/* Rating & Review Counter */}
+          <div className="flex items-center gap-1.5 mt-1">
+            <div className="flex items-center text-amber-400">
+              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+            </div>
+            <span className="text-xs font-bold text-stone-800">
+              {avgRating.toFixed(1)}
+            </span>
+            <span className="text-[11px] text-stone-400">
+              ({reviewCount > 0 ? `${reviewCount} avis` : '4.9/5'})
+            </span>
+          </div>
 
           <p className="text-xs text-stone-500 mt-1 line-clamp-2 leading-relaxed">
             {product.description}

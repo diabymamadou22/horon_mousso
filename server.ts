@@ -56,10 +56,6 @@ function loadDB(): DBStructure {
       if (parsed.settings && (parsed.settings.companyName.includes('AgroTerroir') || !parsed.settings.companyName)) {
         parsed.settings = { ...initialSettings, ...parsed.settings, companyName: 'Horon Mousso' };
       }
-      // Ensure Soumbala product exists
-      if (parsed.products && !parsed.products.some(p => p.id === 'prod_soumbala')) {
-        parsed.products.unshift(initialProducts[0]);
-      }
       if (!parsed.adminCredentials) {
         parsed.adminCredentials = defaultAdminCreds;
       }

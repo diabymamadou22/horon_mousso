@@ -41,17 +41,17 @@ export const ProductsPage: React.FC = () => {
   }, [products, selectedCategory, searchTerm]);
 
   return (
-    <div className="py-12 px-4 sm:px-8 lg:px-10 max-w-7xl mx-auto space-y-8">
+    <div className="py-6 sm:py-12 px-3.5 sm:px-8 lg:px-10 max-w-7xl mx-auto space-y-6 sm:space-y-8">
       {/* Page Header */}
       <FadeInView direction="up" distance={20} duration={0.6}>
-        <div className="space-y-3 text-center max-w-2xl mx-auto">
+        <div className="space-y-2.5 text-center max-w-2xl mx-auto">
           <span className="inline-block px-3 py-1 bg-[#E8F5E9] text-[#2D5A27] text-xs font-bold uppercase tracking-widest rounded-md">
             Catalogue Produits
           </span>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1B3022] tracking-tight">
+          <h1 className="text-2xl sm:text-4xl font-extrabold text-[#1B3022] tracking-tight">
             Nos Piments, Épices & Produits Transformés
           </h1>
-          <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
+          <p className="text-gray-600 text-xs sm:text-base leading-relaxed">
             Découvrez notre gamme complète séchée, moulue et conditionnée avec soin pour garantir arôme, fraîcheur et pureté absolue.
           </p>
         </div>
@@ -59,21 +59,21 @@ export const ProductsPage: React.FC = () => {
 
       {/* Filter & Search Bar */}
       <FadeInView direction="up" distance={20} delay={0.1} duration={0.6}>
-        <div className="bg-white rounded-2xl p-4 sm:p-6 border border-[#E0E0E0] shadow-xs space-y-4">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-6 border border-[#E0E0E0] shadow-xs space-y-3 sm:space-y-4">
           {/* Search Input */}
           <div className="relative">
-            <Search className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Rechercher un produit (ex: piment en poudre, gingembre, curcuma, mélange)..."
-              className="w-full pl-12 pr-10 py-3.5 bg-[#FAF9F6] border border-[#E0E0E0] rounded-xl text-[#1B3022] text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2D5A27] focus:bg-white transition"
+              placeholder="Rechercher un produit..."
+              className="w-full pl-10 sm:pl-12 pr-10 py-2.5 sm:py-3.5 bg-[#FAF9F6] border border-[#E0E0E0] rounded-xl text-[#1B3022] text-xs sm:text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2D5A27] focus:bg-white transition"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
                 aria-label="Effacer la recherche"
               >
                 <X className="w-4 h-4" />
@@ -81,8 +81,8 @@ export const ProductsPage: React.FC = () => {
             )}
           </div>
 
-          {/* Category Buttons */}
-          <div className="flex flex-wrap items-center gap-2 pt-1">
+          {/* Category Buttons with Horizontal Smooth Scroll on Mobile */}
+          <div className="flex items-center gap-2 pt-1 overflow-x-auto pb-1 sm:flex-wrap scrollbar-none">
             {categories.map(cat => {
               const Icon = cat.icon;
               const isSelected = selectedCategory === cat.id;
@@ -90,14 +90,14 @@ export const ProductsPage: React.FC = () => {
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer ${
+                  className={`shrink-0 inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer ${
                     isSelected
                       ? 'bg-[#2D5A27] text-white shadow-xs'
                       : 'bg-[#FAF9F6] border border-[#E0E0E0] text-gray-600 hover:text-[#2D5A27] hover:border-[#2D5A27]/40'
                   }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-emerald-200' : 'text-gray-400'}`} />
-                  <span>{cat.label}</span>
+                  <span className="whitespace-nowrap">{cat.label}</span>
                 </button>
               );
             })}
@@ -116,7 +116,7 @@ export const ProductsPage: React.FC = () => {
                 }}
                 className="text-[#2D5A27] hover:underline font-semibold cursor-pointer"
               >
-                Réinitialiser les filtres
+                Réinitialiser
               </button>
             )}
           </div>
@@ -125,7 +125,7 @@ export const ProductsPage: React.FC = () => {
 
       {/* Products Grid */}
       {filteredProducts.length > 0 ? (
-        <FadeInStagger staggerDelay={0.06} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <FadeInStagger staggerDelay={0.06} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
           {filteredProducts.map(product => (
             <FadeInItem key={product.id}>
               <ProductCard product={product} />

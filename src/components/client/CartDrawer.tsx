@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   X, 
   Trash2, 
@@ -12,10 +12,16 @@ import {
   Copy, 
   Check, 
   ShieldCheck, 
-  ArrowRight 
+  ArrowRight,
+  Clock,
+  MapPin,
+  CheckCircle2,
+  FileText
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { formatFCFA } from '../../utils/cartUtils';
+import { deliveryZones } from '../../data/deliveryZones';
+import { PaymentMethod } from '../../types';
 
 export const CartDrawer: React.FC = () => {
   const { 
@@ -27,6 +33,7 @@ export const CartDrawer: React.FC = () => {
     clearCart, 
     cartTotalCount, 
     cartTotalAmount, 
+    createDirectOrder,
     submitCartOrderWhatsApp,
     settings,
     setActiveTab,
@@ -34,15 +41,23 @@ export const CartDrawer: React.FC = () => {
   } = useApp();
 
   const [deliveryType, setDeliveryType] = useState<'livraison' | 'retrait'>('livraison');
+  const [selectedZoneId, setSelectedZoneId] = useState<string>('zone_bamako_rg');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('Wave');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('wave');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
+  const [hasCopiedOM, setHasCopiedOM] = useState(false);
+  const [hasCopiedWave, setHasCopiedWave] = useState(false);
 
   if (!isCartOpen) return null;
+
+  const currentZone = deliveryZones.find(z => z.id === selectedZoneId) || deliveryZones[0];
+  const deliveryFee = deliveryType === 'retrait' ? 0 : currentZone.fee;
+  const grandTotal = cartTotalAmount + deliveryFee;
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,14 +72,50 @@ export const CartDrawer: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      await submitCartOrderWhatsApp({
+      const order = await createDirectOrder({
         name: customerName.trim(),
         phone: customerPhone.trim(),
-        address: customerAddress.trim() || 'Retrait en boutique/atelier',
+        email: customerEmail.trim() || undefined,
+        address: deliveryType === 'retrait' ? 'Retrait en boutique / Atelier Horon Mousso' : customerAddress.trim(),
+        deliveryZone: deliveryType === 'retrait' ? 'Retrait en boutique (Gratuit)' : currentZone.name,
+        deliveryFee,
         deliveryType,
         paymentMethod,
         notes: notes.trim()
       });
+
+      if (order) {
+        // Also prepare and open WhatsApp communication with customer
+        const rawNumber = settings.whatsapp || settings.phone || '';
+        const cleanNumber = rawNumber.replace(/[^0-9]/g, '');
+        const itemsSummary = order.items.map((it, idx) => 
+          `${idx + 1}. *${it.quantity}x ${it.productName}* (${it.format}) : ${formatFCFA(it.totalPrice)}`
+        ).join('\n');
+
+        const orderMsg = 
+`*NOUVELLE COMMANDE - HORON MOUSSO* 🌿
+N° Commande : *${order.orderNumber}*
+----------------------------------------
+${itemsSummary}
+
+📦 *Sous-total :* ${formatFCFA(order.subtotal)}
+🚚 *Livraison (${order.deliveryZone}) :* ${formatFCFA(order.deliveryFee)}
+💰 *TOTAL NET :* ${formatFCFA(order.total)}
+
+👤 *Client :* ${order.customerName}
+📞 *Téléphone :* ${order.customerPhone}
+📍 *Mode :* ${order.deliveryType === 'retrait' ? 'Retrait en Atelier / Boutique' : 'Livraison à domicile / bureau'}
+🏠 *Adresse :* ${order.deliveryAddress}
+💳 *Paiement :* ${order.paymentMethod.replace('_', ' ').toUpperCase()}
+${order.notes ? `📝 *Remarques :* ${order.notes}` : ''}
+
+Bonjour, je viens de passer commande sur le site. Merci de me confirmer la prise en charge !`;
+
+        if (cleanNumber) {
+          const url = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(orderMsg)}`;
+          window.open(url, '_blank');
+        }
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -76,8 +127,8 @@ export const CartDrawer: React.FC = () => {
       return `${idx + 1}. ${item.quantity}x ${item.product.name} (${item.format})${pricePart}`;
     }).join('\n');
 
-    const totalStr = cartTotalAmount > 0 ? `\nTotal estimé : ${formatFCFA(cartTotalAmount)}` : '';
-    const textToCopy = `COMMANDE HORON MOUSSO\n-----------------------\n${itemsSummary}${totalStr}\n\nClient : ${customerName || 'À préciser'}\nTéléphone : ${customerPhone || 'À préciser'}\nMode : ${deliveryType === 'retrait' ? 'Retrait en atelier' : 'Livraison à domicile'}\nAdresse : ${customerAddress || 'À préciser'}\nPaiement : ${paymentMethod}`;
+    const totalStr = `\nSous-total : ${formatFCFA(cartTotalAmount)}\nFrais de livraison : ${formatFCFA(deliveryFee)}\nTotal net : ${formatFCFA(grandTotal)}`;
+    const textToCopy = `COMMANDE HORON MOUSSO\n-----------------------\n${itemsSummary}${totalStr}\n\nClient : ${customerName || 'À préciser'}\nTéléphone : ${customerPhone || 'À préciser'}\nMode : ${deliveryType === 'retrait' ? 'Retrait en boutique' : 'Livraison'}\nZone : ${currentZone.name}\nAdresse : ${customerAddress || 'À préciser'}\nPaiement : ${paymentMethod}`;
 
     navigator.clipboard.writeText(textToCopy);
     setHasCopied(true);
@@ -260,11 +311,11 @@ export const CartDrawer: React.FC = () => {
                     onClick={() => setDeliveryType('livraison')}
                     className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all ${
                       deliveryType === 'livraison'
-                        ? 'border-[#2D5A27] bg-[#2D5A27]/5 text-[#2D5A27] font-semibold'
+                        ? 'border-[#2D5A27] bg-[#2D5A27]/5 text-[#2D5A27] font-semibold shadow-xs'
                         : 'border-neutral-200 hover:bg-neutral-50 text-neutral-600'
                     }`}
                   >
-                    <Truck className="w-4 h-4" />
+                    <Truck className="w-4 h-4 text-[#2D5A27]" />
                     Livraison à domicile
                   </button>
                   <button
@@ -272,51 +323,111 @@ export const CartDrawer: React.FC = () => {
                     onClick={() => setDeliveryType('retrait')}
                     className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all ${
                       deliveryType === 'retrait'
-                        ? 'border-[#2D5A27] bg-[#2D5A27]/5 text-[#2D5A27] font-semibold'
+                        ? 'border-[#2D5A27] bg-[#2D5A27]/5 text-[#2D5A27] font-semibold shadow-xs'
                         : 'border-neutral-200 hover:bg-neutral-50 text-neutral-600'
                     }`}
                   >
-                    <Store className="w-4 h-4" />
-                    Retrait en Boutique
+                    <Store className="w-4 h-4 text-[#2D5A27]" />
+                    Retrait en Boutique (0 FCFA)
                   </button>
                 </div>
 
+                {/* Delivery Zone Selector (if livraison) */}
+                {deliveryType === 'livraison' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-800 mb-1.5 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-[#2D5A27]" />
+                        Zone & Frais de livraison :
+                      </span>
+                      <span className="text-[11px] text-neutral-500 font-normal">Tarifs transparents</span>
+                    </label>
+                    <div className="space-y-1.5">
+                      {deliveryZones.filter(z => z.fee > 0).map((z) => (
+                        <div
+                          key={z.id}
+                          onClick={() => setSelectedZoneId(z.id)}
+                          className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                            selectedZoneId === z.id
+                              ? 'border-[#2D5A27] bg-[#2D5A27]/5 ring-1 ring-[#2D5A27]'
+                              : 'border-neutral-200 hover:bg-neutral-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                              selectedZoneId === z.id ? 'border-[#2D5A27] bg-[#2D5A27]' : 'border-neutral-300'
+                            }`}>
+                              {selectedZoneId === z.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-neutral-800">{z.name}</p>
+                              <p className="text-[10px] text-neutral-500 flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-neutral-400" />
+                                {z.estimatedTime} • {z.description}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-xs font-bold text-[#2D5A27] font-mono">
+                            {formatFCFA(z.fee)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Customer info fields */}
                 <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-medium text-neutral-700 mb-1">
-                      Votre Nom & Prénom <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="cart-customer-name"
-                      type="text"
-                      required
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder="Ex: Awa Traoré"
-                      className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27]"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-700 mb-1">
+                        Votre Nom & Prénom <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="cart-customer-name"
+                        type="text"
+                        required
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="Ex: Awa Traoré"
+                        className="w-full px-3.5 py-2 text-xs rounded-lg border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-700 mb-1">
+                        Téléphone / WhatsApp <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="cart-customer-phone"
+                        type="tel"
+                        required
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        placeholder="Ex: +223 70 00 11 22"
+                        className="w-full px-3.5 py-2 text-xs rounded-lg border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27]"
+                      />
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-neutral-700 mb-1">
-                      Numéro Téléphone / WhatsApp <span className="text-red-500">*</span>
+                      Email (facultatif, pour recevoir le reçu numérique)
                     </label>
                     <input
-                      id="cart-customer-phone"
-                      type="tel"
-                      required
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      placeholder="Ex: +223 70 00 11 22 ou 07..."
-                      className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27]"
+                      id="cart-customer-email"
+                      type="email"
+                      value={customerEmail}
+                      onChange={(e) => setCustomerEmail(e.target.value)}
+                      placeholder="votre-email@exemple.com"
+                      className="w-full px-3.5 py-2 text-xs rounded-lg border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27]"
                     />
                   </div>
 
                   {deliveryType === 'livraison' && (
                     <div>
                       <label className="block text-xs font-medium text-neutral-700 mb-1">
-                        Ville & Adresse complète <span className="text-red-500">*</span>
+                        Quartier, Rue & Repère précis <span className="text-red-500">*</span>
                       </label>
                       <input
                         id="cart-customer-address"
@@ -324,88 +435,125 @@ export const CartDrawer: React.FC = () => {
                         required={deliveryType === 'livraison'}
                         value={customerAddress}
                         onChange={(e) => setCustomerAddress(e.target.value)}
-                        placeholder="Ex: Bamako, Badalabougou près de la pharmacie..."
-                        className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27]"
+                        placeholder="Ex: Badalabougou près de la clinique, porte 24..."
+                        className="w-full px-3.5 py-2 text-xs rounded-lg border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27]"
                       />
                     </div>
                   )}
 
                   {/* Payment method selection */}
                   <div>
-                    <label className="block text-xs font-medium text-neutral-700 mb-1">
-                      Moyen de paiement préféré
+                    <label className="block text-xs font-semibold text-neutral-800 mb-1.5">
+                      Moyen de règlement préféré
                     </label>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       {[
-                        { id: 'Wave', label: 'Wave Mobile Money' },
-                        { id: 'Orange Money', label: 'Orange Money' },
-                        { id: 'Moov / MTN', label: 'Moov / MTN MoMo' },
-                        { id: 'Espèces', label: 'Espèces à la réception' }
+                        { id: 'wave' as PaymentMethod, label: 'Wave Mobile Money' },
+                        { id: 'orange_money' as PaymentMethod, label: 'Orange Money' },
+                        { id: 'moov_money' as PaymentMethod, label: 'Moov Money' },
+                        { id: 'especes_livraison' as PaymentMethod, label: 'Espèces à la livraison' }
                       ].map((pay) => (
                         <button
                           key={pay.id}
                           type="button"
                           onClick={() => setPaymentMethod(pay.id)}
-                          className={`p-2.5 rounded-lg border text-left transition-colors flex items-center justify-between ${
+                          className={`p-2.5 rounded-xl border text-left transition-all flex items-center justify-between ${
                             paymentMethod === pay.id
-                              ? 'border-[#2D5A27] bg-[#2D5A27]/5 text-[#2D5A27] font-semibold'
+                              ? 'border-[#2D5A27] bg-[#2D5A27]/5 text-[#2D5A27] font-bold shadow-2xs'
                               : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'
                           }`}
                         >
-                          <span>{pay.label}</span>
-                          {paymentMethod === pay.id && <Check className="w-3.5 h-3.5 text-[#2D5A27]" />}
+                          <span className="truncate">{pay.label}</span>
+                          {paymentMethod === pay.id && <Check className="w-3.5 h-3.5 text-[#2D5A27] flex-shrink-0 ml-1" />}
                         </button>
                       ))}
                     </div>
 
-                    {/* Payment Info Note */}
-                    {(settings.waveNumber || settings.orangeMoneyNumber) && (
-                      <div className="mt-2 p-2.5 rounded-lg bg-amber-50/60 border border-amber-200/60 text-[11px] text-amber-900 flex items-start gap-2">
-                        <CreditCard className="w-3.5 h-3.5 text-amber-700 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-semibold">Coordonnées de règlement Horon Mousso :</p>
-                          <p>
-                            {settings.waveNumber && `Wave : ${settings.waveNumber} `}
-                            {settings.orangeMoneyNumber && `| Orange Money : ${settings.orangeMoneyNumber}`}
-                          </p>
+                    {/* Mobile Money Direct Transfer Reference Box */}
+                    {(paymentMethod === 'wave' || paymentMethod === 'orange_money') && (
+                      <div className="mt-2.5 p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/80 text-xs text-emerald-950">
+                        <div className="flex items-center justify-between font-semibold mb-1">
+                          <span className="flex items-center gap-1.5">
+                            <CreditCard className="w-3.5 h-3.5 text-[#2D5A27]" />
+                            Compte marchand Horon Mousso ({paymentMethod === 'wave' ? 'Wave' : 'Orange Money'}) :
+                          </span>
                         </div>
+                        <div className="flex items-center justify-between bg-white px-3 py-1.5 rounded-lg border border-emerald-200 font-mono text-xs">
+                          <span className="font-bold text-neutral-800">
+                            {paymentMethod === 'wave' 
+                              ? (settings.waveNumber || '+223 70 00 00 01') 
+                              : (settings.orangeMoneyNumber || '+223 76 00 00 02')}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const num = paymentMethod === 'wave' ? settings.waveNumber : settings.orangeMoneyNumber;
+                              navigator.clipboard.writeText(num || '');
+                              if (paymentMethod === 'wave') {
+                                setHasCopiedWave(true);
+                                setTimeout(() => setHasCopiedWave(false), 2500);
+                              } else {
+                                setHasCopiedOM(true);
+                                setTimeout(() => setHasCopiedOM(false), 2500);
+                              }
+                              showToast('Numéro copié !', 'info');
+                            }}
+                            className="text-[11px] font-sans font-semibold text-[#2D5A27] hover:underline flex items-center gap-1"
+                          >
+                            <Copy className="w-3 h-3" />
+                            {(paymentMethod === 'wave' ? hasCopiedWave : hasCopiedOM) ? 'Copié !' : 'Copier'}
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-emerald-800/80 mt-1.5">
+                          Vous pouvez initier le transfert dès maintenant ou le faire après validation avec le reçu.
+                        </p>
                       </div>
                     )}
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-neutral-700 mb-1">
-                      Remarques ou instructions particulières (facultatif)
+                      Remarques ou consignes particulières (facultatif)
                     </label>
                     <textarea
                       id="cart-customer-notes"
                       rows={2}
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Ex: Livrer de préférence après 14h, emballage sous vide souhaité..."
+                      placeholder="Ex: Emballage sous-vide renforcé, livrer de préférence en matinée..."
                       className="w-full px-3.5 py-1.5 text-xs rounded-lg border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27]"
                     />
                   </div>
                 </div>
 
                 {/* Subtotal & Action buttons */}
-                <div className="pt-3 border-t border-neutral-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm text-neutral-600">Total estimé de la commande :</span>
-                    <span className="text-lg font-bold text-[#2D5A27]">
-                      {cartTotalAmount > 0 ? formatFCFA(cartTotalAmount) : 'À confirmer avec l\'atelier'}
+                <div className="pt-3 border-t border-neutral-200 bg-[#FAF9F6] p-4 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between text-xs text-neutral-600">
+                    <span>Sous-total articles :</span>
+                    <span className="font-mono font-medium">{formatFCFA(cartTotalAmount)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-neutral-600">
+                    <span>Frais d'expédition ({deliveryType === 'retrait' ? 'Retrait boutique' : currentZone.name}) :</span>
+                    <span className="font-mono font-medium">
+                      {deliveryFee === 0 ? 'Gratuit' : formatFCFA(deliveryFee)}
+                    </span>
+                  </div>
+                  <div className="pt-2 border-t border-neutral-200 flex items-center justify-between">
+                    <span className="text-sm font-black text-neutral-900">Total Net à régler :</span>
+                    <span className="text-lg font-black text-[#2D5A27] font-mono">
+                      {formatFCFA(grandTotal)}
                     </span>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 pt-2">
                     <button
                       id="btn-submit-cart-whatsapp"
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-xl bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-sm transition-all shadow-md active:scale-98 disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl bg-[#2D5A27] hover:bg-[#23481f] text-white font-bold text-sm transition-all shadow-md active:scale-98 disabled:opacity-50"
                     >
-                      <MessageSquare className="w-5 h-5 fill-white" />
-                      {isSubmitting ? 'Préparation...' : 'Confirmer la commande sur WhatsApp'}
+                      <CheckCircle2 className="w-5 h-5 text-emerald-300" />
+                      {isSubmitting ? 'Génération de la commande...' : 'Valider & Obtenir mon Reçu Numérique'}
                     </button>
 
                     <button
@@ -417,20 +565,20 @@ export const CartDrawer: React.FC = () => {
                       {hasCopied ? (
                         <>
                           <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          Commande copiée !
+                          Bon de commande copié !
                         </>
                       ) : (
                         <>
                           <Copy className="w-3.5 h-3.5 text-neutral-500" />
-                          Copier le résumé du bon de commande
+                          Copier le récapitulatif complet
                         </>
                       )}
                     </button>
                   </div>
 
-                  <div className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-neutral-400">
+                  <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-neutral-400">
                     <ShieldCheck className="w-3.5 h-3.5 text-[#2D5A27]" />
-                    <span>Transaction directe avec le service client Horon Mousso</span>
+                    <span>Commande sécurisée et confirmée directement par Horon Mousso</span>
                   </div>
                 </div>
               </form>

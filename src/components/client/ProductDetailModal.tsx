@@ -18,6 +18,7 @@ import {
   Plus,
   Minus 
 } from 'lucide-react';
+import { ProductReviewsSection } from './ProductReviewsSection';
 
 export const ProductDetailModal: React.FC = () => {
   const { 
@@ -398,6 +399,14 @@ export const ProductDetailModal: React.FC = () => {
                   </button>
                 </form>
               )}
+            </div>
+
+            {/* Customer Reviews & Feedback Section */}
+            <div className="md:col-span-12">
+              <ProductReviewsSection 
+                productId={product.id} 
+                productName={product.name} 
+              />
             </div>
           </div>
         </div>

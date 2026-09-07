@@ -1,0 +1,101 @@
+{
+  "products": [],
+  "announcements": [],
+  "media": [
+    {
+      "id": "med_1",
+      "type": "image",
+      "url": "https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?auto=format&fit=crop&w=1200&q=80",
+      "title": "Piment rouge moulu en bassine traditionnelle",
+      "category": "produits",
+      "caption": "Finesse de mouture et éclat de couleur rouge rubis naturelle.",
+      "createdAt": "2025-01-10T10:00:00Z"
+    },
+    {
+      "id": "med_2",
+      "type": "image",
+      "url": "https://images.unsplash.com/photo-1588252303782-cb80119abd6d?auto=format&fit=crop&w=1200&q=80",
+      "title": "Piments rouges habanero entiers séchés",
+      "category": "produits",
+      "caption": "Séchage hygiénique préservant la texture et le parfum.",
+      "createdAt": "2025-01-12T11:00:00Z"
+    },
+    {
+      "id": "med_3",
+      "type": "image",
+      "url": "https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=1200&q=80",
+      "title": "Atelier de tri et d'assemblage des épices",
+      "category": "production",
+      "caption": "Nos équipes au travail respectant les normes d'hygiène alimentaire les plus strictes.",
+      "createdAt": "2025-01-15T09:30:00Z"
+    },
+    {
+      "id": "med_4",
+      "type": "image",
+      "url": "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?auto=format&fit=crop&w=1200&q=80",
+      "title": "Racines de gingembre fraîches avant lavage et séchage",
+      "category": "production",
+      "caption": "Approvisionnement direct auprès de nos producteurs partenaires.",
+      "createdAt": "2025-01-18T14:20:00Z"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_1",
+      "name": "Kouamé Jean-Marc (Restaurant Le Pimentier)",
+      "contact": "+225 05 44 33 22 11 / jm.kouame@restaurant-pimentier.ci",
+      "message": "Bonjour, nous souhaiterions commander 50kg de piment rouge en poudre et 20kg de mélange grillades pour notre chaîne de restauration. Quels sont vos tarifs professionnels et délais de livraison ? Merci.",
+      "productReference": "Piment Rouge Extra Fort en Poudre",
+      "status": "nouveau",
+      "createdAt": "2025-03-01T09:14:00Z"
+    },
+    {
+      "id": "msg_2",
+      "name": "Awa Traoré",
+      "contact": "awa.traore.commerce@gmail.com",
+      "message": "Bonjour, faites-vous des livraisons en demi-gros pour les revendeuses sur le marché de gros ? Vos flacons de 100g de gingembre et curcuma m'intéressent beaucoup.",
+      "productReference": "Gingembre Pur en Poudre",
+      "status": "nouveau",
+      "createdAt": "2025-03-02T14:30:00Z"
+    },
+    {
+      "id": "msg_3",
+      "name": "Moussa Diallo (Superette Épicerie)",
+      "contact": "+225 07 11 22 33 44",
+      "message": "Message reçu concernant la disponibilité du piment séché entier. Nous passons commande de 15 sachets de 500g. Merci de nous confirmer quand c'est prêt.",
+      "productReference": "Piments Forts Entiers Séchés au Soleil",
+      "status": "lu",
+      "createdAt": "2025-02-26T17:40:00Z"
+    }
+  ],
+  "settings": {
+    "id": "settings_main",
+    "companyName": "Horon Mousso",
+    "logo": "https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=200&q=80",
+    "slogan": "L’art et la noblesse des épices du terroir, transformées avec excellence et pureté.",
+    "shortDescription": "Entreprise agroalimentaire spécialisée dans la sélection, la transformation saine et le conditionnement d'épices d'exception, soumbala pur, piments séchés et produits agricoles authentiques.",
+    "phone": "+223 70 12 34 56",
+    "whatsapp": "+22370123456",
+    "email": "contact@horonmousso.com",
+    "address": "Atelier de Transformation & Boutique, Quartier Artisanal du Terroir",
+    "cityCountry": "Bamako & Abidjan, Afrique de l’Ouest",
+    "openingHours": "Du Lundi au Samedi : 08h00 – 18h30",
+    "heroImage": "https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=1920&q=80",
+    "heroVideo": "",
+    "qualityCommitment": "Nos épices et piments sont soigneusement triés à la main, séchés au séchoir hygiénique thermorégulé et broyés sans colorant, sans glutamate de synthèse ni conservateur chimique. 100% naturel.",
+    "producersCommitment": "Collaboration étroite et solidaire avec les groupements de femmes artisanes et les coopératives paysannes locales, garantissant un prix d'achat équitable et une valorisation directe du travail féminin rural.",
+    "mission": "Démocratiser l'accès à des épices saines, authentiques et prêtes à l'emploi tout en valorisant le génie culinaire et agricole du terroir ouest-africain.",
+    "vision": "Être la marque de référence en Afrique et dans la diaspora pour les épices nobles, soumbala d'excellence et condiments du terroir, conjuguant tradition et normes internationales.",
+    "waveNumber": "+223 70 12 34 56",
+    "orangeMoneyNumber": "+223 70 12 34 56",
+    "moovMoneyNumber": "+223 60 12 34 56",
+    "paymentInstructions": "Paiement sécurisé accepté via Wave, Orange Money, Moov Money, ou en espèces à la livraison / au retrait en atelier."
+  },
+  "adminCredentials": {
+    "username": "admin",
+    "email": "admin@horonmousso.com",
+    "password": "admin",
+    "isDefault": true,
+    "updatedAt": "2026-09-07T13:03:51.652Z"
+  }
+}

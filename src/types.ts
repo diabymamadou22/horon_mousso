@@ -16,6 +16,10 @@ export interface Product {
   price?: string; // e.g. "1 500 FCFA" or "3.50 €" or "Sur devis"
   format: string; // e.g. "Sachet 100g, 250g, 1kg, Sac 25kg"
   availability: ProductAvailability;
+  stockQuantity?: number; // Stock réel en unités
+  lowStockThreshold?: number; // Seuil d'alerte (ex: 10)
+  rating?: number; // Note moyenne (ex: 4.9)
+  reviewsCount?: number; // Nombre d'avis (ex: 28)
   mainImage: string;
   additionalImages?: string[];
   isNew?: boolean;
@@ -23,8 +27,74 @@ export interface Product {
   origin?: string;
   composition?: string;
   usageAdvice?: string;
+  wholesaleOption?: string; // e.g. "Disponible en sacs de 10kg et 25kg pour restaurateurs et grossistes"
   createdAt: string;
   updatedAt?: string;
+}
+
+export type OrderStatus = 
+  | 'en_attente' 
+  | 'confirmee' 
+  | 'en_preparation' 
+  | 'en_livraison' 
+  | 'livree' 
+  | 'annulee';
+
+export type PaymentMethod = 
+  | 'especes_livraison' 
+  | 'orange_money' 
+  | 'wave' 
+  | 'moov_money';
+
+export type PaymentStatus = 'en_attente' | 'paye' | 'rembourse';
+
+export interface DeliveryZone {
+  id: string;
+  name: string;
+  fee: number; // En FCFA
+  delay: string;
+}
+
+export interface OrderItem {
+  productId: string;
+  productName: string;
+  format: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface Order {
+  id: string;
+  orderNumber: string; // Ex: HM-2026-0042
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  deliveryAddress: string;
+  deliveryZone: string;
+  deliveryFee: number;
+  deliveryType: 'livraison' | 'retrait';
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
+  status: OrderStatus;
+  items: OrderItem[];
+  subtotal: number;
+  total: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ProductReview {
+  id: string;
+  productId: string;
+  productName?: string;
+  customerName: string;
+  rating: number; // 1 to 5
+  comment: string;
+  location?: string; // Ex: "Bamako (Hamdallaye ACI 2000)"
+  isVerifiedPurchase: boolean;
+  createdAt: string;
 }
 
 export type MediaCategory = 'produits' | 'production' | 'entreprise' | 'marche' | 'evenements';
@@ -116,6 +186,9 @@ export interface DashboardStats {
   videosCount: number;
   messagesCount: number;
   unreadMessagesCount: number;
+  ordersCount: number;
+  pendingOrdersCount: number;
+  totalRevenue: number;
 }
 
 export interface SyncStatus {

@@ -51,52 +51,52 @@ export const Navbar: React.FC = () => {
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-[#E0E0E0] transition-all">
       {/* Top micro-bar */}
-      <div className="bg-[#1B3022] text-stone-300 text-xs py-1.5 px-4 sm:px-10 flex items-center justify-between border-b border-[#2D5A27]/40">
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1.5 text-emerald-300 font-medium">
-            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
-            Horon Mousso - Épices nobles, Soumbala pur & Délices du terroir
+      <div className="bg-[#1B3022] text-stone-300 text-xs py-1 px-3 sm:px-10 flex items-center justify-between border-b border-[#2D5A27]/40">
+        <div className="flex items-center gap-3 overflow-hidden">
+          <span className="flex items-center gap-1.5 text-emerald-300 font-medium truncate text-[11px] sm:text-xs">
+            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shrink-0"></span>
+            <span className="truncate">Horon Mousso • Épices, Soumbala & Terroir</span>
           </span>
           <span className="hidden md:inline text-stone-500">|</span>
           <span className="hidden md:inline text-stone-400">
             {settings.cityCountry}
           </span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
           <button
             onClick={() => setIsSyncModalOpen(true)}
             className="hidden sm:inline-flex items-center gap-1.5 text-xs text-emerald-300 hover:text-white bg-[#2D5A27]/60 hover:bg-[#2D5A27] px-2.5 py-0.5 rounded-full transition cursor-pointer"
             title="Statut synchronisation Cloud & Locale (Multi-Appareils)"
           >
             <Cloud className="w-3 h-3 text-emerald-400" />
-            <span>{syncStatus.isOnline ? 'Cloud & Local Synchro' : 'Mode Local'}</span>
+            <span>{syncStatus.isOnline ? 'Cloud Synchro' : 'Mode Local'}</span>
           </button>
           <a 
             href={`tel:${settings.phone.replace(/\s+/g, '')}`}
-            className="flex items-center gap-1.5 hover:text-white transition"
+            className="hidden sm:flex items-center gap-1.5 hover:text-white transition"
           >
             <PhoneCall className="w-3 h-3 text-emerald-400" />
-            <span className="hidden sm:inline">{settings.phone}</span>
+            <span>{settings.phone}</span>
           </a>
           <button
             onClick={() => setIsAdminMode(true)}
-            className="flex items-center gap-1 text-stone-400 hover:text-emerald-300 font-medium transition py-0.5 px-2 rounded hover:bg-stone-800 cursor-pointer"
+            className="flex items-center gap-1 text-stone-400 hover:text-emerald-300 font-medium transition py-0.5 px-2 rounded hover:bg-stone-800 cursor-pointer text-[11px] sm:text-xs"
             title="Accès Administrateur"
           >
             <Lock className="w-3 h-3" />
-            <span>{currentUser ? 'Admin (Connecté)' : 'Espace Admin'}</span>
+            <span>{currentUser ? 'Admin' : 'Espace Admin'}</span>
           </button>
         </div>
       </div>
 
       {/* Main Navbar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-10 h-20 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-8 lg:px-10 h-16 sm:h-20 flex items-center justify-between">
         {/* Logo & Company Name */}
         <button
           onClick={() => handleNavClick('accueil')}
-          className="flex items-center gap-3 text-left group focus:outline-none cursor-pointer"
+          className="flex items-center gap-2.5 sm:gap-3 text-left group focus:outline-none cursor-pointer"
         >
-          <div className="w-10 h-10 bg-[#2D5A27] rounded-lg flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#2D5A27] rounded-lg flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
             {settings.logo ? (
               <img 
                 src={settings.logo} 
@@ -111,11 +111,11 @@ export const Navbar: React.FC = () => {
             )}
           </div>
           <div>
-            <div className="text-xl font-bold tracking-tight text-[#1B3022]">
+            <div className="text-base sm:text-xl font-bold tracking-tight text-[#1B3022]">
               {renderBrandName(settings.companyName)}
             </div>
-            <div className="text-[11px] text-gray-500 font-medium tracking-tight">
-              Commerce & Transformation Agricole
+            <div className="text-[10px] sm:text-[11px] text-gray-500 font-medium tracking-tight line-clamp-1">
+              Commerce & Transformation
             </div>
           </div>
         </button>

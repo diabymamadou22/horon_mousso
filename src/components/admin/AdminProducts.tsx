@@ -230,9 +230,92 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
         </select>
       </div>
 
-      {/* Products Table */}
+      {/* Products Display (Mobile Cards + Desktop Table) */}
       <div className="bg-white rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile View: Touch-optimized Cards */}
+        <div className="md:hidden divide-y divide-stone-100">
+          {filteredProducts.length > 0 ? (
+            filteredProducts.map(prod => (
+              <div key={prod.id} className="p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <img
+                    src={prod.mainImage}
+                    alt={prod.name}
+                    className="w-20 h-20 rounded-2xl object-cover bg-stone-100 border border-stone-200 shrink-0"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        prod.availability === 'disponible'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : prod.availability === 'sur_commande'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-rose-100 text-rose-800'
+                      }`}>
+                        {prod.availability === 'disponible' ? 'En stock' : prod.availability === 'sur_commande' ? 'Sur commande' : 'Rupture'}
+                      </span>
+                      {prod.isFeatured && (
+                        <span className="text-[9px] font-black text-emerald-900 bg-emerald-100 px-1.5 py-0.5 rounded-md">
+                          Phare
+                        </span>
+                      )}
+                      {prod.isNew && (
+                        <span className="text-[9px] font-black text-amber-900 bg-amber-200 px-1.5 py-0.5 rounded-md">
+                          Nouveau
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="font-extrabold text-stone-900 text-sm mt-1 leading-snug">
+                      {prod.name}
+                    </h4>
+                    <p className="text-xs text-stone-500 font-medium mt-0.5">
+                      {prod.format} • {prod.category === 'piments' ? 'Piments' : prod.category === 'epices' ? 'Épices' : 'Transformé'}
+                    </p>
+                    <div className="text-sm font-black text-[#2D5A27] mt-1">
+                      {prod.price || '—'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mobile Action Buttons */}
+                <div className="flex items-center gap-2 pt-1 border-t border-stone-100">
+                  <button
+                    onClick={() => {
+                      setIsAdminMode(false);
+                      openProductDetail(prod.id);
+                    }}
+                    className="flex-1 py-2 px-3 bg-stone-50 hover:bg-stone-100 text-stone-700 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Aperçu</span>
+                  </button>
+                  <button
+                    onClick={() => handleOpenEdit(prod)}
+                    className="flex-1 py-2 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Modifier</span>
+                  </button>
+                  <button
+                    onClick={() => setProductToDelete(prod)}
+                    className="py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold inline-flex items-center justify-center transition cursor-pointer"
+                    aria-label="Supprimer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="py-8 text-center text-stone-400 text-xs px-4">
+              Aucun produit ne correspond à votre filtre.
+            </div>
+          )}
+        </div>
+
+        {/* Desktop View: Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-stone-50 border-b border-stone-200 text-stone-600 font-bold uppercase tracking-wider text-[11px]">
               <tr>

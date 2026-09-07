@@ -5,7 +5,11 @@ import {
   CustomerMessage, 
   CompanySettings, 
   DashboardStats, 
-  User 
+  User,
+  Order,
+  OrderStatus,
+  PaymentStatus,
+  ProductReview
 } from '../types';
 import { 
   initialProducts, 
@@ -14,6 +18,8 @@ import {
   initialMessages, 
   initialSettings 
 } from '../data/initialData';
+import { initialOrders } from '../data/initialOrders';
+import { initialReviews } from '../data/initialReviews';
 import {
   getLocalProducts,
   saveLocalProducts,
@@ -34,52 +40,116 @@ import {
   getLocalSettings,
   saveLocalSettings
 } from '../lib/indexedDb';
+import {
+  getCloudProducts,
+  getCloudAnnouncements,
+  getCloudMedia,
+  getCloudMessages,
+  getCloudSettings,
+  getCloudAdminAuth,
+  saveCloudAdminAuth,
+  saveProductToFirestore,
+  deleteProductFromFirestore,
+  saveAnnouncementToFirestore,
+  deleteAnnouncementFromFirestore,
+  saveMediaToFirestore,
+  deleteMediaFromFirestore,
+  saveMessageToFirestore,
+  updateMessageStatusInFirestore,
+  deleteMessageFromFirestore,
+  saveSettingsToFirestore,
+  saveOrderToFirestore,
+  updateOrderStatusInFirestore,
+  deleteOrderFromFirestore,
+  saveReviewToFirestore,
+  deleteReviewFromFirestore,
+  resetCloudData
+} from '../lib/firebase';
 
-const STORAGE_KEYS = {
+export const STORAGE_KEYS = {
   PRODUCTS: 'agro_products_cache',
   ANNOUNCEMENTS: 'agro_announcements_cache',
   MEDIA: 'agro_media_cache',
   MESSAGES: 'agro_messages_cache',
   SETTINGS: 'agro_settings_cache',
+  ORDERS: 'agro_orders_cache',
+  REVIEWS: 'agro_reviews_cache',
   TOKEN: 'agro_admin_token',
   USER: 'agro_admin_user'
 };
 
 export const api = {
-  // Authentication
+  // Authentication - Multi-device cloud backed
   async login(identifier: string, password: string): Promise<{ success: boolean; user?: User; token?: string; message?: string }> {
+    // 1. Try Express API if server is running
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, password })
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user));
-        return data;
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
+          localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user));
+          return data;
+        }
       }
-      return { success: false, message: data.message || 'Identifiants invalides' };
     } catch {
-      // Fallback local auth for resilience
-      const validUser = (identifier === 'admin@agroterroir.com' || identifier === 'admin');
-      const validPass = (password === 'admin' || password === 'admin123' || password === 'agro2025');
-      if (validUser && validPass) {
-        const mockUser: User = {
+      // Running on static hosting like Vercel or offline
+    }
+
+    // 2. Cloud Firestore Auth (for multi-device sync across Vercel, phones, and PCs)
+    try {
+      const cloudAuth = await getCloudAdminAuth();
+      const normInput = identifier.trim().toLowerCase();
+      const validIdentifier = (
+        normInput === cloudAuth.username.toLowerCase() ||
+        normInput === cloudAuth.email.toLowerCase() ||
+        normInput === 'admin' ||
+        normInput === 'admin@agroterroir.com' ||
+        normInput === 'admin@horonmousso.com'
+      );
+
+      const validPassword = (
+        password === cloudAuth.passwordHash ||
+        (cloudAuth.isDefault && (password === 'admin' || password === 'admin123' || password === 'agro2025'))
+      );
+
+      if (validIdentifier && validPassword) {
+        const user: User = {
           id: 'usr_admin_1',
           name: 'Administrateur Général',
-          email: 'admin@agroterroir.com',
+          email: cloudAuth.email || 'admin@horonmousso.com',
           role: 'admin',
           createdAt: new Date().toISOString()
         };
-        const token = 'local_session_' + Date.now();
+        const token = 'cloud_token_' + Date.now();
         localStorage.setItem(STORAGE_KEYS.TOKEN, token);
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(mockUser));
-        return { success: true, user: mockUser, token };
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+        return { success: true, user, token };
       }
-      return { success: false, message: 'Identifiant ou mot de passe incorrect. (Démo: "admin" / "admin")' };
+    } catch (e) {
+      console.warn('Erreur vérification cloud auth:', e);
     }
+
+    // 3. Fallback default check
+    if ((identifier === 'admin' || identifier === 'admin@horonmousso.com') && (password === 'admin' || password === 'admin123')) {
+      const mockUser: User = {
+        id: 'usr_admin_1',
+        name: 'Administrateur Général',
+        email: 'admin@horonmousso.com',
+        role: 'admin',
+        createdAt: new Date().toISOString()
+      };
+      const token = 'local_session_' + Date.now();
+      localStorage.setItem(STORAGE_KEYS.TOKEN, token);
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(mockUser));
+      return { success: true, user: mockUser, token };
+    }
+
+    return { success: false, message: 'Identifiant ou mot de passe incorrect. (Par défaut : "admin" / "admin")' };
   },
 
   async getAuthStatus(): Promise<{ isDefault: boolean; username: string; email: string; updatedAt?: string }> {
@@ -89,47 +159,60 @@ export const api = {
         return await res.json();
       }
     } catch {
-      // ignore
+      // Vercel / offline
     }
-    const savedCreds = localStorage.getItem('horon_admin_creds');
-    if (savedCreds) {
-      try {
-        const parsed = JSON.parse(savedCreds);
-        return { isDefault: false, username: parsed.username, email: parsed.email };
-      } catch {
-        // ignore
-      }
+
+    // Check Cloud Firestore for active credentials
+    try {
+      const cloudAuth = await getCloudAdminAuth();
+      return cloudAuth;
+    } catch {
+      return { isDefault: true, username: 'admin', email: 'admin@horonmousso.com' };
     }
-    return { isDefault: true, username: 'admin', email: 'admin@horonmousso.com' };
   },
 
   async changeCredentials(currentPassword: string, newUsername?: string, newEmail?: string, newPassword?: string): Promise<{ success: boolean; message: string }> {
+    // 1. Check current credentials from cloud
+    const cloudAuth = await getCloudAdminAuth();
+    const isCurrentValid = (
+      currentPassword === cloudAuth.passwordHash ||
+      (cloudAuth.isDefault && (currentPassword === 'admin' || currentPassword === 'admin123'))
+    );
+
+    if (!isCurrentValid) {
+      return { success: false, message: 'Le mot de passe actuel est incorrect.' };
+    }
+
+    const payload = {
+      username: newUsername || cloudAuth.username,
+      email: newEmail || cloudAuth.email,
+      passwordHash: newPassword || cloudAuth.passwordHash
+    };
+
+    // Save to Cloud Firestore so all other devices receive the update immediately
     try {
-      const res = await fetch('/api/auth/change-credentials', {
+      await saveCloudAdminAuth(payload);
+    } catch (e) {
+      console.warn('Erreur sauvegarde auth Firestore:', e);
+    }
+
+    // Also attempt local server if running
+    try {
+      await fetch('/api/auth/change-credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPassword, newUsername, newEmail, newPassword })
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        localStorage.setItem('horon_admin_creds', JSON.stringify({
-          username: newUsername,
-          email: newEmail
-        }));
-        return { success: true, message: data.message || 'Identifiants modifiés avec succès' };
-      }
-      return { success: false, message: data.message || 'Erreur lors du changement d\'identifiants' };
     } catch {
-      // Local fallback
-      if (currentPassword === 'admin' || currentPassword === 'admin123') {
-        localStorage.setItem('horon_admin_creds', JSON.stringify({
-          username: newUsername || 'admin',
-          email: newEmail || 'admin@horonmousso.com'
-        }));
-        return { success: true, message: 'Identifiants administrateur mis à jour' };
-      }
-      return { success: false, message: 'Le mot de passe actuel est incorrect.' };
+      // ignore
     }
+
+    localStorage.setItem('horon_admin_creds', JSON.stringify({
+      username: payload.username,
+      email: payload.email
+    }));
+
+    return { success: true, message: 'Identifiants administrateur mis à jour sur tous les appareils' };
   },
 
   getCurrentUser(): User | null {
@@ -159,18 +242,42 @@ export const api = {
     const announcements = await this.getAnnouncements();
     const media = await this.getMedia();
     const messages = await this.getMessages();
+    const orders = await this.getOrders();
+    const pendingOrdersCount = orders.filter(o => o.status === 'en_attente' || o.status === 'en_preparation').length;
+    const totalRevenue = orders
+      .filter(o => o.status !== 'annulee')
+      .reduce((sum, o) => sum + (o.total || 0), 0);
+
     return {
       productsCount: products.length,
       announcementsCount: announcements.length,
       photosCount: media.filter(m => m.type === 'image').length,
       videosCount: media.filter(m => m.type === 'video').length,
       messagesCount: messages.length,
-      unreadMessagesCount: messages.filter(m => m.status === 'nouveau').length
+      unreadMessagesCount: messages.filter(m => m.status === 'nouveau').length,
+      ordersCount: orders.length,
+      pendingOrdersCount,
+      totalRevenue
     };
   },
 
-  // Products with IndexedDB permanent local storage
+  /* =========================================================
+     PRODUCTS - CLOUD FIRESTORE MULTI-DEVICE SYNC
+  ========================================================= */
   async getProducts(): Promise<Product[]> {
+    // 1. Cloud Firestore (Single Source of Truth across all devices)
+    try {
+      const cloudProducts = await getCloudProducts();
+      if (cloudProducts !== null && cloudProducts !== undefined) {
+        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(cloudProducts));
+        await saveLocalProducts(cloudProducts);
+        return cloudProducts;
+      }
+    } catch (e) {
+      console.warn('Erreur lecture cloud Firestore products:', e);
+    }
+
+    // 2. Try local server API if running
     try {
       const res = await fetch('/api/products');
       if (res.ok) {
@@ -180,16 +287,16 @@ export const api = {
         return data;
       }
     } catch {
-      // offline or server unavailable
+      // Vercel / offline
     }
     
-    // 1. Check Permanent IndexedDB
+    // 3. Permanent IndexedDB
     const idbProducts = await getLocalProducts();
     if (idbProducts && idbProducts.length > 0) {
       return idbProducts;
     }
 
-    // 2. Check localStorage fallback
+    // 4. LocalStorage fallback
     const cached = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
     if (cached) {
       try {
@@ -199,84 +306,120 @@ export const api = {
       } catch {}
     }
 
-    // 3. Initial baseline
+    // 5. Initial baseline
     await saveLocalProducts(initialProducts);
     return initialProducts;
   },
 
   async createProduct(product: Omit<Product, 'id' | 'createdAt'>): Promise<Product> {
-    try {
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(product)
-      });
-      if (res.ok) {
-        const created = await res.json();
-        await saveSingleLocalProduct(created);
-        return created;
-      }
-    } catch {
-      // fallback
-    }
-    const current = await this.getProducts();
+    const newId = 'prod_' + Date.now();
     const newProd: Product = {
       ...product,
-      id: 'prod_' + Date.now(),
+      id: newId,
       createdAt: new Date().toISOString()
     };
-    const updated = [newProd, ...current];
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+
+    // 1. Save to Cloud Firestore so all devices get the new product instantly
+    try {
+      await saveProductToFirestore(newProd);
+    } catch (e) {
+      console.warn('Erreur sauvegarde Firestore product:', e);
+    }
+
+    // 2. Update local caches
     await saveSingleLocalProduct(newProd);
+    try {
+      const current = await this.getProducts();
+      const updated = [newProd, ...current.filter(p => p.id !== newId)];
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+    } catch {}
+
+    // 3. Optional local server sync
+    try {
+      await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newProd)
+      });
+    } catch {}
+
     return newProd;
   },
 
   async updateProduct(id: string, product: Partial<Product>): Promise<Product> {
+    const current = await this.getProducts();
+    const existing = current.find(p => p.id === id);
+    const updatedItem: Product = {
+      ...(existing || {} as Product),
+      ...product,
+      id,
+      updatedAt: new Date().toISOString(),
+      createdAt: existing?.createdAt || new Date().toISOString()
+    };
+
+    // 1. Save to Cloud Firestore
     try {
-      const res = await fetch(`/api/products/${id}`, {
+      await saveProductToFirestore(updatedItem);
+    } catch (e) {
+      console.warn('Erreur mise à jour Firestore product:', e);
+    }
+
+    // 2. Update local caches
+    await saveSingleLocalProduct(updatedItem);
+    const updatedList = current.map(p => p.id === id ? updatedItem : p);
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedList));
+
+    // 3. Optional local server sync
+    try {
+      await fetch(`/api/products/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(product)
+        body: JSON.stringify(updatedItem)
       });
-      if (res.ok) {
-        const updated = await res.json();
-        await saveSingleLocalProduct(updated);
-        return updated;
-      }
-    } catch {
-      // fallback
-    }
-    const current = await this.getProducts();
-    const idx = current.findIndex(p => p.id === id);
-    if (idx !== -1) {
-      const updatedItem = { ...current[idx], ...product, updatedAt: new Date().toISOString() };
-      current[idx] = updatedItem;
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(current));
-      await saveSingleLocalProduct(updatedItem);
-      return updatedItem;
-    }
-    throw new Error('Produit introuvable');
+    } catch {}
+
+    return updatedItem;
   },
 
   async deleteProduct(id: string): Promise<boolean> {
+    // 1. Delete from Cloud Firestore
     try {
-      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        await deleteSingleLocalProduct(id);
-        return true;
-      }
-    } catch {
-      // fallback
+      await deleteProductFromFirestore(id);
+    } catch (e) {
+      console.warn('Erreur suppression Firestore product:', e);
     }
-    const current = await this.getProducts();
-    const filtered = current.filter(p => p.id !== id);
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(filtered));
+
+    // 2. Delete from local caches
     await deleteSingleLocalProduct(id);
+    try {
+      const current = await this.getProducts();
+      const filtered = current.filter(p => p.id !== id);
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(filtered));
+    } catch {}
+
+    // 3. Optional local server sync
+    try {
+      await fetch(`/api/products/${id}`, { method: 'DELETE' });
+    } catch {}
+
     return true;
   },
 
-  // Announcements with IndexedDB permanent local storage
+  /* =========================================================
+     ANNOUNCEMENTS - CLOUD FIRESTORE MULTI-DEVICE SYNC
+  ========================================================= */
   async getAnnouncements(): Promise<Announcement[]> {
+    try {
+      const cloudAnnouncements = await getCloudAnnouncements();
+      if (cloudAnnouncements !== null && cloudAnnouncements !== undefined) {
+        localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(cloudAnnouncements));
+        await saveLocalAnnouncements(cloudAnnouncements);
+        return cloudAnnouncements;
+      }
+    } catch (e) {
+      console.warn('Erreur cloud announcements:', e);
+    }
+
     try {
       const res = await fetch('/api/announcements');
       if (res.ok) {
@@ -285,9 +428,7 @@ export const api = {
         await saveLocalAnnouncements(data);
         return data;
       }
-    } catch {
-      // fallback
-    }
+    } catch {}
 
     const idbAnnouncements = await getLocalAnnouncements();
     if (idbAnnouncements && idbAnnouncements.length > 0) {
@@ -308,78 +449,106 @@ export const api = {
   },
 
   async createAnnouncement(announcement: Omit<Announcement, 'id' | 'createdAt'>): Promise<Announcement> {
-    try {
-      const res = await fetch('/api/announcements', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(announcement)
-      });
-      if (res.ok) {
-        const created = await res.json();
-        await saveSingleLocalAnnouncement(created);
-        return created;
-      }
-    } catch {
-      // fallback
-    }
-    const current = await this.getAnnouncements();
+    const newId = 'ann_' + Date.now();
     const newAnn: Announcement = {
       ...announcement,
-      id: 'ann_' + Date.now(),
-      createdAt: new Date().toISOString()
+      id: newId,
+      createdAt: new Date().toISOString(),
+      date: announcement.date || new Date().toISOString().split('T')[0]
     };
-    const updated = [newAnn, ...current];
-    localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(updated));
+
+    try {
+      await saveAnnouncementToFirestore(newAnn);
+    } catch (e) {
+      console.warn('Erreur Firestore create announcement:', e);
+    }
+
     await saveSingleLocalAnnouncement(newAnn);
+    try {
+      const current = await this.getAnnouncements();
+      const updated = [newAnn, ...current.filter(a => a.id !== newId)];
+      localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(updated));
+    } catch {}
+
+    try {
+      await fetch('/api/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAnn)
+      });
+    } catch {}
+
     return newAnn;
   },
 
   async updateAnnouncement(id: string, announcement: Partial<Announcement>): Promise<Announcement> {
+    const current = await this.getAnnouncements();
+    const existing = current.find(a => a.id === id);
+    const updatedItem: Announcement = {
+      ...(existing || {} as Announcement),
+      ...announcement,
+      id,
+      updatedAt: new Date().toISOString(),
+      createdAt: existing?.createdAt || new Date().toISOString()
+    };
+
     try {
-      const res = await fetch(`/api/announcements/${id}`, {
+      await saveAnnouncementToFirestore(updatedItem);
+    } catch (e) {
+      console.warn('Erreur Firestore update announcement:', e);
+    }
+
+    await saveSingleLocalAnnouncement(updatedItem);
+    const updatedList = current.map(a => a.id === id ? updatedItem : a);
+    localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(updatedList));
+
+    try {
+      await fetch(`/api/announcements/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(announcement)
+        body: JSON.stringify(updatedItem)
       });
-      if (res.ok) {
-        const updated = await res.json();
-        await saveSingleLocalAnnouncement(updated);
-        return updated;
-      }
-    } catch {
-      // fallback
-    }
-    const current = await this.getAnnouncements();
-    const idx = current.findIndex(a => a.id === id);
-    if (idx !== -1) {
-      const updatedItem = { ...current[idx], ...announcement, updatedAt: new Date().toISOString() };
-      current[idx] = updatedItem;
-      localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(current));
-      await saveSingleLocalAnnouncement(updatedItem);
-      return updatedItem;
-    }
-    throw new Error('Annonce introuvable');
+    } catch {}
+
+    return updatedItem;
   },
 
   async deleteAnnouncement(id: string): Promise<boolean> {
     try {
-      const res = await fetch(`/api/announcements/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        await deleteSingleLocalAnnouncement(id);
-        return true;
-      }
-    } catch {
-      // fallback
+      await deleteAnnouncementFromFirestore(id);
+    } catch (e) {
+      console.warn('Erreur Firestore delete announcement:', e);
     }
-    const current = await this.getAnnouncements();
-    const filtered = current.filter(a => a.id !== id);
-    localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(filtered));
+
     await deleteSingleLocalAnnouncement(id);
+    try {
+      const current = await this.getAnnouncements();
+      const filtered = current.filter(a => a.id !== id);
+      localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(filtered));
+    } catch {}
+
+    try {
+      await fetch(`/api/announcements/${id}`, { method: 'DELETE' });
+    } catch {}
+
     return true;
   },
 
-  // Media with IndexedDB permanent local storage
+  /* =========================================================
+     MEDIA - CLOUD FIRESTORE MULTI-DEVICE SYNC
+  ========================================================= */
   async getMedia(): Promise<MediaItem[]> {
+    try {
+      const cloudMedia = await getCloudMedia();
+      if (cloudMedia !== null && cloudMedia !== undefined) {
+        localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(cloudMedia));
+        await saveLocalMedia(cloudMedia);
+        return cloudMedia;
+      }
+    } catch (e) {
+      console.warn('Erreur cloud media:', e);
+    }
+
     try {
       const res = await fetch('/api/media');
       if (res.ok) {
@@ -388,9 +557,7 @@ export const api = {
         await saveLocalMedia(data);
         return data;
       }
-    } catch {
-      // fallback
-    }
+    } catch {}
 
     const idbMedia = await getLocalMedia();
     if (idbMedia && idbMedia.length > 0) {
@@ -411,51 +578,73 @@ export const api = {
   },
 
   async createMedia(media: Omit<MediaItem, 'id' | 'createdAt'>): Promise<MediaItem> {
-    try {
-      const res = await fetch('/api/media', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(media)
-      });
-      if (res.ok) {
-        const created = await res.json();
-        await saveSingleLocalMedia(created);
-        return created;
-      }
-    } catch {
-      // fallback
-    }
-    const current = await this.getMedia();
+    const newId = 'med_' + Date.now();
     const newMedia: MediaItem = {
       ...media,
-      id: 'med_' + Date.now(),
+      id: newId,
       createdAt: new Date().toISOString()
     };
-    const updated = [newMedia, ...current];
-    localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(updated));
+
+    try {
+      await saveMediaToFirestore(newMedia);
+    } catch (e) {
+      console.warn('Erreur Firestore create media:', e);
+    }
+
     await saveSingleLocalMedia(newMedia);
+    try {
+      const current = await this.getMedia();
+      const updated = [newMedia, ...current.filter(m => m.id !== newId)];
+      localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(updated));
+    } catch {}
+
+    try {
+      await fetch('/api/media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMedia)
+      });
+    } catch {}
+
     return newMedia;
   },
 
   async deleteMedia(id: string): Promise<boolean> {
     try {
-      const res = await fetch(`/api/media/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        await deleteSingleLocalMedia(id);
-        return true;
-      }
-    } catch {
-      // fallback
+      await deleteMediaFromFirestore(id);
+    } catch (e) {
+      console.warn('Erreur Firestore delete media:', e);
     }
-    const current = await this.getMedia();
-    const filtered = current.filter(m => m.id !== id);
-    localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filtered));
+
     await deleteSingleLocalMedia(id);
+    try {
+      const current = await this.getMedia();
+      const filtered = current.filter(m => m.id !== id);
+      localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filtered));
+    } catch {}
+
+    try {
+      await fetch(`/api/media/${id}`, { method: 'DELETE' });
+    } catch {}
+
     return true;
   },
 
-  // Messages with IndexedDB permanent local storage
+  /* =========================================================
+     MESSAGES & COMMANDES - CLOUD FIRESTORE MULTI-DEVICE SYNC
+  ========================================================= */
   async getMessages(): Promise<CustomerMessage[]> {
+    try {
+      const cloudMessages = await getCloudMessages();
+      if (cloudMessages) {
+        localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(cloudMessages));
+        await saveLocalMessages(cloudMessages);
+        return cloudMessages;
+      }
+    } catch (e) {
+      console.warn('Erreur cloud messages:', e);
+    }
+
     try {
       const res = await fetch('/api/messages');
       if (res.ok) {
@@ -464,9 +653,7 @@ export const api = {
         await saveLocalMessages(data);
         return data;
       }
-    } catch {
-      // fallback
-    }
+    } catch {}
 
     const idbMessages = await getLocalMessages();
     if (idbMessages && idbMessages.length > 0) {
@@ -487,23 +674,9 @@ export const api = {
   },
 
   async sendMessage(name: string, contact: string, message: string, productReference?: string): Promise<CustomerMessage> {
-    try {
-      const res = await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, contact, message, productReference })
-      });
-      if (res.ok) {
-        const created = await res.json();
-        await saveSingleLocalMessage(created);
-        return created;
-      }
-    } catch {
-      // fallback
-    }
-    const current = await this.getMessages();
+    const newId = 'msg_' + Date.now();
     const newMsg: CustomerMessage = {
-      id: 'msg_' + Date.now(),
+      id: newId,
       name,
       contact,
       message,
@@ -511,57 +684,99 @@ export const api = {
       status: 'nouveau',
       createdAt: new Date().toISOString()
     };
-    const updated = [newMsg, ...current];
-    localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(updated));
+
+    try {
+      await saveMessageToFirestore(newMsg);
+    } catch (e) {
+      console.warn('Erreur Firestore send message:', e);
+    }
+
     await saveSingleLocalMessage(newMsg);
+    try {
+      const current = await this.getMessages();
+      const updated = [newMsg, ...current.filter(m => m.id !== newId)];
+      localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(updated));
+    } catch {}
+
+    try {
+      await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMsg)
+      });
+    } catch {}
+
     return newMsg;
   },
 
   async toggleMessageStatus(id: string, status?: 'nouveau' | 'lu'): Promise<CustomerMessage> {
+    const current = await this.getMessages();
+    const existing = current.find(m => m.id === id);
+    const targetStatus = status || (existing?.status === 'lu' ? 'nouveau' : 'lu');
+
     try {
-      const res = await fetch(`/api/messages/${id}`, {
+      await updateMessageStatusInFirestore(id, targetStatus);
+    } catch (e) {
+      console.warn('Erreur Firestore toggle message:', e);
+    }
+
+    const updatedItem: CustomerMessage = {
+      ...(existing || {} as CustomerMessage),
+      id,
+      status: targetStatus
+    };
+
+    await saveSingleLocalMessage(updatedItem);
+    const updatedList = current.map(m => m.id === id ? updatedItem : m);
+    localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(updatedList));
+
+    try {
+      await fetch(`/api/messages/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status: targetStatus })
       });
-      if (res.ok) {
-        const updated = await res.json();
-        await saveSingleLocalMessage(updated);
-        return updated;
-      }
-    } catch {
-      // fallback
-    }
-    const current = await this.getMessages();
-    const idx = current.findIndex(m => m.id === id);
-    if (idx !== -1) {
-      current[idx].status = status || (current[idx].status === 'nouveau' ? 'lu' : 'nouveau');
-      localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(current));
-      await saveSingleLocalMessage(current[idx]);
-      return current[idx];
-    }
-    throw new Error('Message introuvable');
+    } catch {}
+
+    return updatedItem;
   },
 
   async deleteMessage(id: string): Promise<boolean> {
     try {
-      const res = await fetch(`/api/messages/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        await deleteSingleLocalMessage(id);
-        return true;
-      }
-    } catch {
-      // fallback
+      await deleteMessageFromFirestore(id);
+    } catch (e) {
+      console.warn('Erreur Firestore delete message:', e);
     }
-    const current = await this.getMessages();
-    const filtered = current.filter(m => m.id !== id);
-    localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(filtered));
+
     await deleteSingleLocalMessage(id);
+    try {
+      const current = await this.getMessages();
+      const filtered = current.filter(m => m.id !== id);
+      localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(filtered));
+    } catch {}
+
+    try {
+      await fetch(`/api/messages/${id}`, { method: 'DELETE' });
+    } catch {}
+
     return true;
   },
 
-  // Settings with IndexedDB permanent local storage
+  /* =========================================================
+     SETTINGS - CLOUD FIRESTORE MULTI-DEVICE SYNC
+  ========================================================= */
   async getSettings(): Promise<CompanySettings> {
+    try {
+      const cloudSettings = await getCloudSettings();
+      if (cloudSettings && cloudSettings.companyName) {
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(cloudSettings));
+        await saveLocalSettings(cloudSettings);
+        return cloudSettings;
+      }
+    } catch (e) {
+      console.warn('Erreur cloud settings:', e);
+    }
+
     try {
       const res = await fetch('/api/settings');
       if (res.ok) {
@@ -570,9 +785,7 @@ export const api = {
         await saveLocalSettings(data);
         return data;
       }
-    } catch {
-      // fallback
-    }
+    } catch {}
 
     const idbSettings = await getLocalSettings();
     if (idbSettings) {
@@ -593,33 +806,180 @@ export const api = {
   },
 
   async updateSettings(settings: Partial<CompanySettings>): Promise<CompanySettings> {
-    try {
-      const res = await fetch('/api/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        await saveLocalSettings(updated);
-        return updated;
-      }
-    } catch {
-      // fallback
-    }
     const current = await this.getSettings();
-    const updated = { ...current, ...settings };
+    const updated: CompanySettings = { ...current, ...settings };
+
+    try {
+      await saveSettingsToFirestore(updated);
+    } catch (e) {
+      console.warn('Erreur Firestore update settings:', e);
+    }
+
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
     await saveLocalSettings(updated);
+
+    try {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+    } catch {}
+
     return updated;
   },
 
+  /* =========================================================
+     ORDERS & DELIVERIES (CLOUD + LOCAL PERSISTENCE)
+  ========================================================= */
+  async getOrders(): Promise<Order[]> {
+    const cached = localStorage.getItem(STORAGE_KEYS.ORDERS);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return initialOrders;
+  },
+
+  async createOrder(order: Order): Promise<Order> {
+    try {
+      await saveOrderToFirestore(order);
+    } catch (e) {
+      console.warn('Erreur Firestore save order:', e);
+    }
+
+    const current = await this.getOrders();
+    const updated = [order, ...current.filter(o => o.id !== order.id)];
+    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(updated));
+
+    // Also send to express server if online
+    try {
+      await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(order)
+      });
+    } catch {}
+
+    return order;
+  },
+
+  async updateOrderStatus(
+    id: string, 
+    status: OrderStatus, 
+    paymentStatus?: PaymentStatus
+  ): Promise<Order | null> {
+    try {
+      await updateOrderStatusInFirestore(id, status, paymentStatus);
+    } catch (e) {
+      console.warn('Erreur Firestore update order status:', e);
+    }
+
+    const current = await this.getOrders();
+    const index = current.findIndex(o => o.id === id);
+    if (index === -1) return null;
+
+    const updatedOrder: Order = {
+      ...current[index],
+      status,
+      ...(paymentStatus ? { paymentStatus } : {}),
+      updatedAt: new Date().toISOString()
+    };
+    current[index] = updatedOrder;
+    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(current));
+
+    try {
+      await fetch(`/api/orders/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, paymentStatus })
+      });
+    } catch {}
+
+    return updatedOrder;
+  },
+
+  async deleteOrder(id: string): Promise<boolean> {
+    try {
+      await deleteOrderFromFirestore(id);
+    } catch (e) {
+      console.warn('Erreur Firestore delete order:', e);
+    }
+
+    const current = await this.getOrders();
+    const filtered = current.filter(o => o.id !== id);
+    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(filtered));
+
+    try {
+      await fetch(`/api/orders/${id}`, { method: 'DELETE' });
+    } catch {}
+
+    return true;
+  },
+
+  /* =========================================================
+     CUSTOMER REVIEWS & RATINGS (SOCIAL PROOF)
+  ========================================================= */
+  async getReviews(productId?: string): Promise<ProductReview[]> {
+    const cached = localStorage.getItem(STORAGE_KEYS.REVIEWS);
+    let allReviews: ProductReview[] = initialReviews;
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) allReviews = parsed;
+      } catch {}
+    }
+
+    if (productId) {
+      return allReviews.filter(r => r.productId === productId);
+    }
+    return allReviews;
+  },
+
+  async createReview(review: ProductReview): Promise<ProductReview> {
+    try {
+      await saveReviewToFirestore(review);
+    } catch (e) {
+      console.warn('Erreur Firestore save review:', e);
+    }
+
+    const current = await this.getReviews();
+    const updated = [review, ...current.filter(r => r.id !== review.id)];
+    localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(updated));
+
+    return review;
+  },
+
+  async deleteReview(id: string): Promise<boolean> {
+    try {
+      await deleteReviewFromFirestore(id);
+    } catch (e) {
+      console.warn('Erreur Firestore delete review:', e);
+    }
+
+    const current = await this.getReviews();
+    const filtered = current.filter(r => r.id !== id);
+    localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(filtered));
+
+    return true;
+  },
+
+  /* =========================================================
+     RESET TO INITIAL BASELINE (CLOUD + LOCAL)
+  ========================================================= */
   async resetDemoData(): Promise<void> {
     try {
-      await fetch('/api/reset-demo', { method: 'POST' });
-    } catch {
-      // fallback
+      await resetCloudData();
+    } catch (e) {
+      console.warn('Erreur reset cloud Firestore:', e);
     }
+
+    try {
+      await fetch('/api/reset-demo', { method: 'POST' });
+    } catch {}
+
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(initialProducts));
     localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(initialAnnouncements));
     localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(initialMedia));

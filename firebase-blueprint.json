@@ -93,6 +93,42 @@
         "read": "true",
         "write": "true"
       }
+    },
+    "orders": {
+      "fields": {
+        "orderNumber": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "deliveryAddress": { "type": "string" },
+        "deliveryZone": { "type": "string" },
+        "deliveryFee": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "paymentStatus": { "type": "string" },
+        "status": { "type": "string" },
+        "items": { "type": "array" },
+        "subtotal": { "type": "number" },
+        "total": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "access": {
+        "read": "true",
+        "write": "true"
+      }
+    },
+    "reviews": {
+      "fields": {
+        "productId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "location": { "type": "string" },
+        "isVerifiedPurchase": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "access": {
+        "read": "true",
+        "write": "true"
+      }
     }
   }
 }

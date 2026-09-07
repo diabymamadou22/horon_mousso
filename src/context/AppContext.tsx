@@ -8,25 +8,28 @@ import {
   DashboardStats, 
   User,
   CartItem,
-  SyncStatus 
+  SyncStatus,
+  Order,
+  OrderItem,
+  OrderStatus,
+  PaymentStatus,
+  PaymentMethod,
+  ProductReview
 } from '../types';
-import { api } from '../services/api';
-import { initialSettings } from '../data/initialData';
+import { api, STORAGE_KEYS } from '../services/api';
+import { initialSettings, initialProducts, initialAnnouncements, initialMedia } from '../data/initialData';
+import { initialOrders } from '../data/initialOrders';
+import { initialReviews } from '../data/initialReviews';
 import { parsePriceToNumber, formatFCFA } from '../utils/cartUtils';
 import {
-  getLocalProducts,
-  saveLocalProducts,
-  getLocalAnnouncements,
-  saveLocalAnnouncements,
-  getLocalMedia,
-  saveLocalMedia,
-  getLocalMessages,
-  saveLocalMessages,
-  getLocalSettings,
-  saveLocalSettings,
   getLocalCart,
   saveLocalCart,
-  saveOfflineOrder
+  saveOfflineOrder,
+  saveLocalProducts,
+  saveLocalAnnouncements,
+  saveLocalMedia,
+  saveLocalMessages,
+  saveLocalSettings
 } from '../lib/indexedDb';
 import {
   seedFirestoreIfEmpty,
@@ -35,20 +38,13 @@ import {
   subscribeToCloudMedia,
   subscribeToCloudMessages,
   subscribeToCloudSettings,
-  saveProductToFirestore,
-  deleteProductFromFirestore,
-  saveAnnouncementToFirestore,
-  deleteAnnouncementFromFirestore,
-  saveMediaToFirestore,
-  deleteMediaFromFirestore,
-  saveMessageToFirestore,
-  updateMessageStatusInFirestore,
-  deleteMessageFromFirestore,
-  saveSettingsToFirestore
+  subscribeToCloudAdminAuth,
+  subscribeToCloudOrders,
+  subscribeToCloudReviews
 } from '../lib/firebase';
 
 export type PublicTab = 'accueil' | 'produits' | 'actualites' | 'galerie' | 'a_propos' | 'contact';
-export type AdminTab = 'dashboard' | 'produits' | 'annonces' | 'medias' | 'messages' | 'parametres';
+export type AdminTab = 'dashboard' | 'commandes' | 'produits' | 'annonces' | 'medias' | 'messages' | 'avis' | 'parametres';
 
 interface Toast {
   id: string;
@@ -56,12 +52,15 @@ interface Toast {
   type: 'success' | 'error' | 'info';
 }
 
-interface CustomerOrderDetails {
+export interface CustomerOrderDetails {
   name: string;
   phone: string;
+  email?: string;
   address: string;
+  deliveryZone?: string;
+  deliveryFee?: number;
   deliveryType: 'livraison' | 'retrait';
-  paymentMethod: string;
+  paymentMethod: PaymentMethod;
   notes?: string;
 }
 
@@ -74,6 +73,19 @@ interface AppContextType {
   settings: CompanySettings;
   stats: DashboardStats | null;
   isLoading: boolean;
+
+  // Commercial Orders
+  orders: Order[];
+  lastPlacedOrder: Order | null;
+  setLastPlacedOrder: (order: Order | null) => void;
+  createDirectOrder: (details: CustomerOrderDetails & { deliveryZone?: string; deliveryFee?: number }) => Promise<Order | null>;
+  updateOrderStatus: (id: string, status: OrderStatus, paymentStatus?: PaymentStatus) => Promise<void>;
+  deleteOrder: (id: string) => Promise<void>;
+
+  // Customer Reviews
+  reviews: ProductReview[];
+  addReview: (review: Omit<ProductReview, 'id' | 'createdAt'>) => Promise<ProductReview>;
+  deleteReview: (id: string) => Promise<void>;
 
   // Shopping Cart
   cart: CartItem[];
@@ -144,14 +156,49 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Helper to safely load cached state on application boot / restart
+const loadSavedState = <T,>(key: string, fallback: T): T => {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed !== null && parsed !== undefined) return parsed;
+    }
+  } catch {}
+  return fallback;
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [media, setMedia] = useState<MediaItem[]>([]);
-  const [messages, setMessages] = useState<CustomerMessage[]>([]);
-  const [settings, setSettings] = useState<CompanySettings>(initialSettings);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [products, setProducts] = useState<Product[]>(() => loadSavedState(STORAGE_KEYS.PRODUCTS, initialProducts));
+  const [announcements, setAnnouncements] = useState<Announcement[]>(() => loadSavedState(STORAGE_KEYS.ANNOUNCEMENTS, initialAnnouncements));
+  const [media, setMedia] = useState<MediaItem[]>(() => loadSavedState(STORAGE_KEYS.MEDIA, initialMedia));
+  const [messages, setMessages] = useState<CustomerMessage[]>(() => loadSavedState(STORAGE_KEYS.MESSAGES, []));
+  const [settings, setSettings] = useState<CompanySettings>(() => loadSavedState(STORAGE_KEYS.SETTINGS, initialSettings));
+  const [orders, setOrders] = useState<Order[]>(() => loadSavedState(STORAGE_KEYS.ORDERS, initialOrders));
+  const [reviews, setReviews] = useState<ProductReview[]>(() => loadSavedState(STORAGE_KEYS.REVIEWS, initialReviews));
+  const [lastPlacedOrder, setLastPlacedOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Computed Real-Time Stats directly reactive to Firestore onSnapshot
+  const stats: DashboardStats = useMemo(() => {
+    const pendingOrdersCount = orders.filter(o => o.status === 'en_attente' || o.status === 'en_preparation').length;
+    const totalRevenue = orders
+      .filter(o => o.status !== 'annulee')
+      .reduce((sum, o) => sum + (o.total || 0), 0);
+
+    return {
+      productsCount: products.length,
+      announcementsCount: announcements.length,
+      photosCount: media.filter(m => m.type === 'image').length,
+      videosCount: media.filter(m => m.type === 'video').length,
+      messagesCount: messages.length,
+      unreadMessagesCount: messages.filter(m => m.status === 'nouveau').length,
+      ordersCount: orders.length,
+      pendingOrdersCount,
+      totalRevenue
+    };
+  }, [products, announcements, media, messages, orders]);
 
   // Multi-Device & Online/Offline Database Sync State
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
@@ -315,14 +362,7 @@ Merci de confirmer la prise en charge et le délai !`;
     };
 
     try {
-      // 1. Cloud Firestore Real-time multi-device sync
-      await saveMessageToFirestore(orderMessagePayload);
-    } catch (e) {
-      console.warn('Note sur sauvegarde Firestore commande:', e);
-    }
-
-    try {
-      // 2. Local Express server backup
+      // 1. Cloud Firestore + Local Cache via unified api
       await api.sendMessage(
         orderMessagePayload.name,
         orderMessagePayload.contact,
@@ -330,11 +370,11 @@ Merci de confirmer la prise en charge et le délai !`;
         orderMessagePayload.productReference
       );
     } catch (e) {
-      console.error('Erreur enregistrement commande messages serveur local:', e);
+      console.warn('Note sur enregistrement commande:', e);
     }
 
     try {
-      // 3. Permanent IndexedDB local order archiving
+      // 2. Permanent IndexedDB local order archiving
       await saveOfflineOrder({
         id: orderMessagePayload.id,
         name: orderMessagePayload.name,
@@ -402,7 +442,7 @@ Merci de confirmer la prise en charge et le délai !`;
       if (hash.startsWith('admin')) {
         setIsAdminMode(true);
         const sub = hash.split('/')[1] as AdminTab;
-        if (sub && ['dashboard', 'produits', 'annonces', 'medias', 'messages', 'parametres'].includes(sub)) {
+        if (sub && ['dashboard', 'commandes', 'produits', 'annonces', 'medias', 'messages', 'avis', 'parametres'].includes(sub)) {
           setAdminTab(sub);
         }
       } else if (['accueil', 'produits', 'actualites', 'galerie', 'a_propos', 'contact'].includes(hash)) {
@@ -468,36 +508,35 @@ Merci de confirmer la prise en charge et le délai !`;
   useEffect(() => {
     let unsubs: (() => void)[] = [];
 
-    const initializeCloudSync = async () => {
+    const initializeCloudSync = () => {
       try {
-        // 1. Live Products Subscription
+        // 1. Live Products Subscription (Single Source of Truth across all devices)
         const unsubProds = subscribeToCloudProducts((cloudProds) => {
-          if (cloudProds && cloudProds.length > 0) {
+          if (cloudProds) {
             setProducts(cloudProds);
-            try { localStorage.setItem('horon_cache_products', JSON.stringify(cloudProds)); } catch {}
-            saveLocalProducts(cloudProds).catch(() => {});
+            setIsLoading(false);
             setSyncStatus(prev => ({
               ...prev,
               cloudConnected: true,
               lastSyncTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
             }));
+            // Background passive persistence mirror
+            saveLocalProducts(cloudProds).catch(() => {});
           }
         });
 
         // 2. Live Announcements Subscription
         const unsubAnns = subscribeToCloudAnnouncements((cloudAnns) => {
-          if (cloudAnns && cloudAnns.length > 0) {
+          if (cloudAnns) {
             setAnnouncements(cloudAnns);
-            try { localStorage.setItem('horon_cache_announcements', JSON.stringify(cloudAnns)); } catch {}
             saveLocalAnnouncements(cloudAnns).catch(() => {});
           }
         });
 
         // 3. Live Media Gallery Subscription
         const unsubMedia = subscribeToCloudMedia((cloudMedia) => {
-          if (cloudMedia && cloudMedia.length > 0) {
+          if (cloudMedia) {
             setMedia(cloudMedia);
-            try { localStorage.setItem('horon_cache_media', JSON.stringify(cloudMedia)); } catch {}
             saveLocalMedia(cloudMedia).catch(() => {});
           }
         });
@@ -506,7 +545,6 @@ Merci de confirmer la prise en charge et le délai !`;
         const unsubMsgs = subscribeToCloudMessages((cloudMsgs) => {
           if (cloudMsgs) {
             setMessages(cloudMsgs);
-            try { localStorage.setItem('horon_cache_messages', JSON.stringify(cloudMsgs)); } catch {}
             saveLocalMessages(cloudMsgs).catch(() => {});
           }
         });
@@ -515,17 +553,40 @@ Merci de confirmer la prise en charge et le délai !`;
         const unsubSettings = subscribeToCloudSettings((cloudSettings) => {
           if (cloudSettings && cloudSettings.companyName) {
             setSettings(cloudSettings);
-            try { localStorage.setItem('horon_cache_settings', JSON.stringify(cloudSettings)); } catch {}
             saveLocalSettings(cloudSettings).catch(() => {});
           }
         });
 
-        unsubs = [unsubProds, unsubAnns, unsubMedia, unsubMsgs, unsubSettings];
+        // 6. Live Admin Auth Subscription
+        const unsubAuth = subscribeToCloudAdminAuth((cloudAuth) => {
+          if (cloudAuth) {
+            setAuthStatus(cloudAuth);
+          }
+        });
 
-        // Background non-blocking cloud seed if collection is empty
+        // 7. Live Commercial Orders Subscription
+        const unsubOrders = subscribeToCloudOrders((cloudOrders) => {
+          if (cloudOrders) {
+            setOrders(cloudOrders);
+            localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(cloudOrders));
+          }
+        });
+
+        // 8. Live Customer Reviews Subscription
+        const unsubReviews = subscribeToCloudReviews((cloudReviews) => {
+          if (cloudReviews) {
+            setReviews(cloudReviews);
+            localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(cloudReviews));
+          }
+        });
+
+        unsubs = [unsubProds, unsubAnns, unsubMedia, unsubMsgs, unsubSettings, unsubAuth, unsubOrders, unsubReviews];
+
+        // Seed initial data to cloud if collections are empty
         seedFirestoreIfEmpty().catch(() => {});
       } catch (err) {
         console.warn('Initialisation Firestore realtime fallback:', err);
+        setIsLoading(false);
       }
     };
 
@@ -538,72 +599,20 @@ Merci de confirmer la prise en charge et le délai !`;
     };
   }, []);
 
-  // Load initial dataset with fallback
-  const refreshAllData = useCallback(async () => {
-    // Instant local restore from permanent IndexedDB (zero latency)
-    try {
-      const [idbProds, idbAnns, idbMed, idbMsgs, idbSets] = await Promise.all([
-        getLocalProducts(),
-        getLocalAnnouncements(),
-        getLocalMedia(),
-        getLocalMessages(),
-        getLocalSettings()
-      ]);
-      if (idbProds && idbProds.length > 0) setProducts(idbProds);
-      if (idbAnns && idbAnns.length > 0) setAnnouncements(idbAnns);
-      if (idbMed && idbMed.length > 0) setMedia(idbMed);
-      if (idbMsgs && idbMsgs.length > 0) setMessages(idbMsgs);
-      if (idbSets) setSettings(idbSets);
-    } catch (e) {
-      console.warn('Initialisation locale IndexedDB:', e);
-    }
-
-    setIsLoading(true);
-    try {
-      const [prods, anns, med, msgs, sets, st] = await Promise.all([
-        api.getProducts(),
-        api.getAnnouncements(),
-        api.getMedia(),
-        api.getMessages(),
-        api.getSettings(),
-        api.getStats()
-      ]);
-      setProducts(prods);
-      setAnnouncements(anns);
-      setMedia(med);
-      setMessages(msgs);
-      setSettings(sets);
-      setStats(st);
-      setSyncStatus(prev => ({
-        ...prev,
-        lastSyncTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      }));
-    } catch (err) {
-      console.error('Erreur chargement données:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshAllData();
-  }, [refreshAllData]);
-
   // Force Manual Synchronization
   const forceSync = async () => {
     setIsLoading(true);
     try {
       await seedFirestoreIfEmpty();
-      await refreshAllData();
       setSyncStatus(prev => ({
         ...prev,
         cloudConnected: true,
         lastSyncTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       }));
-      showToast('Données synchronisées entre le cloud et cet appareil', 'success');
+      showToast('Données synchronisées avec Firestore', 'success');
     } catch (e) {
       console.warn('Erreur forceSync:', e);
-      showToast('Synchronisation locale réussie', 'info');
+      showToast('Erreur lors de la synchronisation', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -628,319 +637,299 @@ Merci de confirmer la prise en charge et le délai !`;
     showToast('Déconnexion effectuée', 'info');
   };
 
-  // CRUD Implementations - Dual Storage (Cloud Firestore + Local Database)
+  // CRUD Implementations - Direct Firestore write + instant optimistic state updates
   const addProduct = async (productData: Omit<Product, 'id' | 'createdAt'>) => {
-    const newId = 'prod_' + Date.now();
-    const newProduct: Product = {
-      ...productData,
-      id: newId,
-      createdAt: new Date().toISOString()
-    };
-
     try {
-      // 1. Cloud Firestore Real-time multi-device sync
-      await saveProductToFirestore(newProduct);
-    } catch (err) {
-      console.warn('Sauvegarde Firestore cloud (utilisation du cache local):', err);
-    }
-
-    try {
-      // 2. Local Express server persistence
       const created = await api.createProduct(productData);
-      setProducts(prev => {
-        const filtered = prev.filter(p => p.id !== newId && p.id !== created.id);
-        return [created, ...filtered];
-      });
-      showToast(`Produit « ${created.name} » synchronisé avec succès`);
-      api.getStats().then(s => setStats(s));
+      // Instant optimistic local state update
+      setProducts(prev => [created, ...prev.filter(p => p.id !== created.id)]);
+      showToast(`Produit « ${created.name} » synchronisé sur tous vos appareils`, 'success');
       return created;
     } catch (err) {
-      // If server is offline, keep optimistic update
-      setProducts(prev => [newProduct, ...prev]);
-      showToast(`Produit « ${newProduct.name} » enregistré en local`);
-      return newProduct;
+      showToast('Erreur lors de l’enregistrement du produit', 'error');
+      throw err;
     }
   };
 
   const updateProduct = async (id: string, productData: Partial<Product>) => {
-    const existing = products.find(p => p.id === id);
-    const updatedPayload: Product = {
-      ...(existing || {} as Product),
-      ...productData,
-      id,
-      updatedAt: new Date().toISOString(),
-      createdAt: existing?.createdAt || new Date().toISOString(),
-      name: productData.name || existing?.name || '',
-      category: productData.category || existing?.category || 'epices',
-      description: productData.description || existing?.description || '',
-      format: productData.format || existing?.format || '',
-      availability: productData.availability || existing?.availability || 'disponible',
-      mainImage: productData.mainImage || existing?.mainImage || ''
-    };
-
     try {
-      // 1. Cloud Firestore Real-time multi-device sync
-      await saveProductToFirestore(updatedPayload);
-    } catch (err) {
-      console.warn('Mise à jour Firestore cloud (cache local actif):', err);
-    }
-
-    try {
-      // 2. Local Express server
       const updated = await api.updateProduct(id, productData);
+      // Instant optimistic local state update
       setProducts(prev => prev.map(p => p.id === id ? updated : p));
-      showToast(`Produit « ${updated.name} » mis à jour et synchronisé`);
+      showToast(`Produit « ${updated.name} » mis à jour sur tous vos appareils`, 'success');
       return updated;
     } catch (err) {
-      setProducts(prev => prev.map(p => p.id === id ? updatedPayload : p));
-      showToast(`Produit « ${updatedPayload.name} » mis à jour localement`);
-      return updatedPayload;
+      showToast('Erreur lors de la mise à jour', 'error');
+      throw err;
     }
   };
 
   const deleteProduct = async (id: string) => {
     try {
-      // 1. Cloud Firestore
-      await deleteProductFromFirestore(id);
-    } catch (err) {
-      console.warn('Suppression Firestore:', err);
-    }
-
-    try {
-      // 2. Local Express server
-      await api.deleteProduct(id);
+      // Instant optimistic local state update so it disappears immediately
       setProducts(prev => prev.filter(p => p.id !== id));
       if (selectedProductId === id) setSelectedProductId(null);
-      showToast('Produit supprimé sur tous les appareils');
-      api.getStats().then(s => setStats(s));
+      await api.deleteProduct(id);
+      showToast('Produit supprimé sur tous vos appareils', 'info');
       return true;
     } catch (err) {
-      setProducts(prev => prev.filter(p => p.id !== id));
-      showToast('Produit supprimé localement');
-      return true;
+      // If error, reload from api
+      api.getProducts().then(setProducts).catch(() => {});
+      showToast('Erreur lors de la suppression', 'error');
+      return false;
     }
   };
 
   const addAnnouncement = async (annData: Omit<Announcement, 'id' | 'createdAt'>) => {
-    const newId = 'ann_' + Date.now();
-    const newAnn: Announcement = {
-      ...annData,
-      id: newId,
-      createdAt: new Date().toISOString(),
-      date: annData.date || new Date().toISOString().split('T')[0]
-    };
-
-    try {
-      await saveAnnouncementToFirestore(newAnn);
-    } catch (err) {
-      console.warn('Sauvegarde annonce Firestore:', err);
-    }
-
     try {
       const created = await api.createAnnouncement(annData);
-      setAnnouncements(prev => [created, ...prev.filter(a => a.id !== newId)]);
-      showToast(`Actualité « ${created.title} » publiée`);
-      api.getStats().then(s => setStats(s));
+      setAnnouncements(prev => [created, ...prev.filter(a => a.id !== created.id)]);
+      showToast(`Actualité « ${created.title} » synchronisée sur tous vos appareils`, 'success');
       return created;
     } catch (err) {
-      setAnnouncements(prev => [newAnn, ...prev]);
-      showToast(`Actualité « ${newAnn.title} » enregistrée localement`);
-      return newAnn;
+      showToast('Erreur lors de la publication', 'error');
+      throw err;
     }
   };
 
   const updateAnnouncement = async (id: string, annData: Partial<Announcement>) => {
-    const existing = announcements.find(a => a.id === id);
-    const updatedPayload: Announcement = {
-      ...(existing || {} as Announcement),
-      ...annData,
-      id,
-      updatedAt: new Date().toISOString(),
-      createdAt: existing?.createdAt || new Date().toISOString(),
-      title: annData.title || existing?.title || '',
-      description: annData.description || existing?.description || '',
-      category: annData.category || existing?.category || 'Actualité',
-      status: annData.status || existing?.status || 'publie',
-      date: annData.date || existing?.date || new Date().toISOString().split('T')[0]
-    };
-
-    try {
-      await saveAnnouncementToFirestore(updatedPayload);
-    } catch (err) {
-      console.warn('Mise à jour annonce Firestore:', err);
-    }
-
     try {
       const updated = await api.updateAnnouncement(id, annData);
       setAnnouncements(prev => prev.map(a => a.id === id ? updated : a));
-      showToast('Actualité mise à jour avec succès');
+      showToast('Actualité mise à jour sur tous vos appareils', 'success');
       return updated;
     } catch (err) {
-      setAnnouncements(prev => prev.map(a => a.id === id ? updatedPayload : a));
-      return updatedPayload;
+      showToast('Erreur lors de la mise à jour', 'error');
+      throw err;
     }
   };
 
   const deleteAnnouncement = async (id: string) => {
     try {
-      await deleteAnnouncementFromFirestore(id);
-    } catch (err) {
-      console.warn('Suppression annonce Firestore:', err);
-    }
-
-    try {
+      setAnnouncements(prev => prev.filter(a => a.id !== id));
       await api.deleteAnnouncement(id);
-      setAnnouncements(prev => prev.filter(a => a.id !== id));
-      showToast('Actualité supprimée');
-      api.getStats().then(s => setStats(s));
+      showToast('Actualité supprimée sur tous vos appareils', 'info');
       return true;
     } catch (err) {
-      setAnnouncements(prev => prev.filter(a => a.id !== id));
-      return true;
+      api.getAnnouncements().then(setAnnouncements).catch(() => {});
+      showToast('Erreur lors de la suppression', 'error');
+      return false;
     }
   };
 
   const addMedia = async (mediaData: Omit<MediaItem, 'id' | 'createdAt'>) => {
-    const newId = 'med_' + Date.now();
-    const newMedia: MediaItem = {
-      ...mediaData,
-      id: newId,
-      createdAt: new Date().toISOString()
-    };
-
-    try {
-      await saveMediaToFirestore(newMedia);
-    } catch (err) {
-      console.warn('Sauvegarde média Firestore:', err);
-    }
-
     try {
       const created = await api.createMedia(mediaData);
-      setMedia(prev => [created, ...prev.filter(m => m.id !== newId)]);
-      showToast('Média synchronisé avec succès');
-      api.getStats().then(s => setStats(s));
+      setMedia(prev => [created, ...prev.filter(m => m.id !== created.id)]);
+      showToast('Média synchronisé sur tous vos appareils', 'success');
       return created;
     } catch (err) {
-      setMedia(prev => [newMedia, ...prev]);
-      return newMedia;
+      showToast('Erreur lors de l’ajout du média', 'error');
+      throw err;
     }
   };
 
   const deleteMedia = async (id: string) => {
     try {
-      await deleteMediaFromFirestore(id);
-    } catch (err) {
-      console.warn('Suppression média Firestore:', err);
-    }
-
-    try {
+      setMedia(prev => prev.filter(m => m.id !== id));
       await api.deleteMedia(id);
-      setMedia(prev => prev.filter(m => m.id !== id));
-      showToast('Média supprimé');
-      api.getStats().then(s => setStats(s));
+      showToast('Média supprimé sur tous vos appareils', 'info');
       return true;
     } catch (err) {
-      setMedia(prev => prev.filter(m => m.id !== id));
-      return true;
+      api.getMedia().then(setMedia).catch(() => {});
+      showToast('Erreur lors de la suppression', 'error');
+      return false;
     }
   };
 
   const sendContactMessage = async (name: string, contact: string, message: string, productRef?: string) => {
-    const newId = 'msg_' + Date.now();
-    const newMsg: CustomerMessage = {
-      id: newId,
-      name,
-      contact,
-      message,
-      productReference: productRef,
-      status: 'nouveau',
-      createdAt: new Date().toISOString()
-    };
-
     try {
-      await saveMessageToFirestore(newMsg);
-    } catch (err) {
-      console.warn('Envoi message Firestore:', err);
-    }
-
-    try {
-      const created = await api.sendMessage(name, contact, message, productRef);
-      setMessages(prev => [created, ...prev.filter(m => m.id !== newId)]);
-      showToast('Votre message a été envoyé à l’équipe. Nous vous répondrons très rapidement !');
-      api.getStats().then(s => setStats(s));
+      const sent = await api.sendMessage(name, contact, message, productRef);
+      setMessages(prev => [sent, ...prev]);
+      showToast('Votre message a été transmis à l’équipe !', 'success');
       return true;
     } catch {
-      setMessages(prev => [newMsg, ...prev]);
-      showToast('Message enregistré localement !');
-      return true;
+      showToast('Erreur lors de l’envoi', 'error');
+      return false;
     }
   };
 
   const toggleMessageStatus = async (id: string) => {
-    const existing = messages.find(m => m.id === id);
-    const newStatus = existing?.status === 'lu' ? 'nouveau' : 'lu';
-
     try {
-      await updateMessageStatusInFirestore(id, newStatus);
+      setMessages(prev => prev.map(m => m.id === id ? { ...m, status: m.status === 'nouveau' ? 'traite' : 'nouveau' } : m));
+      await api.toggleMessageStatus(id);
     } catch (err) {
-      console.warn('Statut message Firestore:', err);
-    }
-
-    try {
-      const updated = await api.toggleMessageStatus(id);
-      setMessages(prev => prev.map(m => m.id === id ? updated : m));
-      api.getStats().then(s => setStats(s));
-    } catch {
-      setMessages(prev => prev.map(m => m.id === id ? { ...m, status: newStatus } : m));
+      console.warn('Erreur toggleMessageStatus:', err);
     }
   };
 
   const deleteMessage = async (id: string) => {
     try {
-      await deleteMessageFromFirestore(id);
-    } catch (err) {
-      console.warn('Suppression message Firestore:', err);
-    }
-
-    try {
+      setMessages(prev => prev.filter(m => m.id !== id));
       await api.deleteMessage(id);
-      setMessages(prev => prev.filter(m => m.id !== id));
-      showToast('Message supprimé');
-      api.getStats().then(s => setStats(s));
-    } catch {
-      setMessages(prev => prev.filter(m => m.id !== id));
+      showToast('Message supprimé sur tous vos appareils', 'info');
+    } catch (err) {
+      console.warn('Erreur deleteMessage:', err);
     }
   };
 
   const updateSettings = async (newSettings: Partial<CompanySettings>) => {
-    const updatedPayload: CompanySettings = {
-      ...settings,
-      ...newSettings
-    };
-
     try {
-      await saveSettingsToFirestore(updatedPayload);
-    } catch (err) {
-      console.warn('Sauvegarde settings Firestore:', err);
-    }
-
-    try {
-      const updated = await api.updateSettings(newSettings);
-      setSettings(updated);
-      showToast('Paramètres de l’entreprise enregistrés et synchronisés');
+      setSettings(prev => ({ ...prev, ...newSettings }));
+      await api.updateSettings(newSettings);
+      showToast('Paramètres mis à jour et synchronisés sur tous vos appareils', 'success');
     } catch {
-      setSettings(updatedPayload);
-      showToast('Paramètres enregistrés en local');
+      showToast('Erreur lors de la mise à jour des paramètres', 'error');
     }
   };
 
   const resetDemoData = async () => {
     try {
       await api.resetDemoData();
-      await refreshAllData();
-      showToast('Données de démonstration restaurées avec succès', 'info');
+      showToast('Données restaurées et synchronisées avec le Cloud', 'info');
     } catch {
       showToast('Erreur lors de la réinitialisation', 'error');
+    }
+  };
+
+  /* =========================================================
+     COMMERCIAL ORDERS & CLIENT CHECKOUT
+  ========================================================= */
+  const createDirectOrder = async (
+    details: CustomerOrderDetails & { deliveryZone?: string; deliveryFee?: number }
+  ): Promise<Order | null> => {
+    if (cart.length === 0) {
+      showToast('Votre panier est vide', 'error');
+      return null;
+    }
+
+    const orderNumber = `HM-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const deliveryFee = details.deliveryType === 'retrait' ? 0 : (details.deliveryFee ?? 1000);
+    const subtotal = cartTotalAmount;
+    const total = subtotal + deliveryFee;
+
+    const orderItems: OrderItem[] = cart.map(item => ({
+      productId: item.productId,
+      productName: item.product.name,
+      format: item.format,
+      quantity: item.quantity,
+      unitPrice: item.unitPriceNumeric,
+      totalPrice: item.unitPriceNumeric * item.quantity
+    }));
+
+    const newOrder: Order = {
+      id: 'ord_' + Date.now(),
+      orderNumber,
+      customerName: details.name,
+      customerPhone: details.phone,
+      customerEmail: details.email || undefined,
+      deliveryAddress: details.deliveryType === 'retrait' ? "Retrait en Boutique / Atelier Horon Mousso" : details.address,
+      deliveryZone: details.deliveryType === 'retrait' ? "Retrait en Boutique" : (details.deliveryZone || "Bamako"),
+      deliveryFee,
+      deliveryType: details.deliveryType,
+      paymentMethod: details.paymentMethod,
+      paymentStatus: details.paymentMethod === 'especes_livraison' ? 'en_attente' : 'en_attente',
+      status: 'en_attente',
+      items: orderItems,
+      subtotal,
+      total,
+      notes: details.notes,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      await api.createOrder(newOrder);
+      setOrders(prev => [newOrder, ...prev.filter(o => o.id !== newOrder.id)]);
+
+      // Decrement stock for tracked products
+      for (const item of cart) {
+        if (typeof item.product.stockQuantity === 'number') {
+          const newQty = Math.max(0, item.product.stockQuantity - item.quantity);
+          updateProduct(item.productId, {
+            stockQuantity: newQty,
+            availability: newQty === 0 ? 'rupture' : item.product.availability
+          }).catch(() => {});
+        }
+      }
+
+      setLastPlacedOrder(newOrder);
+      clearCart();
+      setIsCartOpen(false);
+      showToast(`Commande ${orderNumber} validée avec succès !`, 'success');
+      return newOrder;
+    } catch (e) {
+      console.error('Erreur création commande:', e);
+      showToast('Erreur lors de la validation de la commande', 'error');
+      return null;
+    }
+  };
+
+  const updateOrderStatus = async (
+    id: string, 
+    status: OrderStatus, 
+    paymentStatus?: PaymentStatus
+  ) => {
+    try {
+      const updated = await api.updateOrderStatus(id, status, paymentStatus);
+      if (updated) {
+        setOrders(prev => prev.map(o => o.id === id ? updated : o));
+        showToast(`Statut mis à jour : ${status.replace('_', ' ')}`, 'success');
+      }
+    } catch (e) {
+      showToast('Erreur mise à jour commande', 'error');
+    }
+  };
+
+  const deleteOrder = async (id: string) => {
+    try {
+      await api.deleteOrder(id);
+      setOrders(prev => prev.filter(o => o.id !== id));
+      showToast('Commande supprimée', 'info');
+    } catch (e) {
+      showToast('Erreur suppression commande', 'error');
+    }
+  };
+
+  /* =========================================================
+     CUSTOMER REVIEWS & SOCIAL PROOF
+  ========================================================= */
+  const addReview = async (
+    reviewData: Omit<ProductReview, 'id' | 'createdAt'>
+  ): Promise<ProductReview> => {
+    const newReview: ProductReview = {
+      ...reviewData,
+      id: 'rev_' + Date.now(),
+      createdAt: new Date().toISOString()
+    };
+    try {
+      await api.createReview(newReview);
+      setReviews(prev => [newReview, ...prev]);
+
+      // Recalculate and update product rating and count
+      const prodReviews = [...reviews.filter(r => r.productId === reviewData.productId), newReview];
+      const avgRating = Math.round((prodReviews.reduce((sum, r) => sum + r.rating, 0) / prodReviews.length) * 10) / 10;
+      await updateProduct(reviewData.productId, {
+        rating: avgRating,
+        reviewsCount: prodReviews.length
+      });
+
+      showToast('Votre avis a été publié avec succès ! Merci pour votre confiance.', 'success');
+      return newReview;
+    } catch (e) {
+      console.error('Erreur addReview:', e);
+      showToast('Erreur lors de l’envoi de votre avis', 'error');
+      return newReview;
+    }
+  };
+
+  const deleteReview = async (id: string) => {
+    try {
+      await api.deleteReview(id);
+      setReviews(prev => prev.filter(r => r.id !== id));
+      showToast('Avis supprimé', 'info');
+    } catch (e) {
+      showToast('Erreur suppression avis', 'error');
     }
   };
 
@@ -975,6 +964,15 @@ Merci de confirmer la prise en charge et le délai !`;
         cartTotalCount,
         cartTotalAmount,
         submitCartOrderWhatsApp,
+        orders,
+        lastPlacedOrder,
+        setLastPlacedOrder,
+        createDirectOrder,
+        updateOrderStatus,
+        deleteOrder,
+        reviews,
+        addReview,
+        deleteReview,
         activeTab,
         setActiveTab,
         selectedProductId,

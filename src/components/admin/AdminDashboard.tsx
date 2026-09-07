@@ -18,8 +18,11 @@ import {
   CheckCircle2,
   Wifi,
   Smartphone,
-  Layers
+  Layers,
+  ShoppingBag,
+  Star
 } from 'lucide-react';
+import { formatFCFA } from '../../utils/cartUtils';
 
 interface AdminDashboardProps {
   onOpenAddProduct: () => void;
@@ -37,6 +40,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     announcements, 
     media, 
     messages, 
+    orders,
+    reviews,
     setAdminTab, 
     settings,
     syncStatus,
@@ -47,8 +52,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const photosCount = media.filter(m => m.type === 'image').length;
   const videosCount = media.filter(m => m.type === 'video').length;
   const unreadMessagesCount = messages.filter(m => m.status === 'nouveau').length;
+  const pendingOrdersCount = orders.filter(o => o.status === 'en_attente' || o.status === 'en_preparation').length;
+  const totalRevenue = orders
+    .filter(o => o.status !== 'annulee')
+    .reduce((sum, o) => sum + (o.total || 0), 0);
 
   const stats = [
+    {
+      label: 'Commandes Enregistrées',
+      value: orders.length,
+      subValue: pendingOrdersCount > 0 ? `${pendingOrdersCount} à traiter` : 'Toutes traitées',
+      icon: ShoppingBag,
+      color: 'text-indigo-700',
+      bg: 'bg-indigo-50 border-indigo-200',
+      action: () => setAdminTab('commandes')
+    },
+    {
+      label: 'Chiffre d\'Affaires Réalisé',
+      value: formatFCFA(totalRevenue),
+      subValue: 'Sur commandes actives',
+      icon: CheckCircle2,
+      color: 'text-emerald-700',
+      bg: 'bg-emerald-50 border-emerald-200',
+      action: () => setAdminTab('commandes')
+    },
     {
       label: 'Produits au Catalogue',
       value: products.length,
@@ -58,28 +85,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       action: () => setAdminTab('produits')
     },
     {
+      label: 'Avis Consommateurs',
+      value: reviews.length,
+      subValue: reviews.length > 0 ? `${(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)} ★ moyenne` : '0 avis',
+      icon: Star,
+      color: 'text-amber-700',
+      bg: 'bg-amber-50 border-amber-200',
+      action: () => setAdminTab('avis')
+    },
+    {
       label: 'Annonces & Actualités',
       value: announcements.length,
       icon: Megaphone,
       color: 'text-amber-700',
       bg: 'bg-amber-50 border-amber-200',
       action: () => setAdminTab('annonces')
-    },
-    {
-      label: 'Photos Répertoire',
-      value: photosCount,
-      icon: ImageIcon,
-      color: 'text-sky-700',
-      bg: 'bg-sky-50 border-sky-200',
-      action: () => setAdminTab('medias')
-    },
-    {
-      label: 'Vidéos de Production',
-      value: videosCount,
-      icon: Video,
-      color: 'text-purple-700',
-      bg: 'bg-purple-50 border-purple-200',
-      action: () => setAdminTab('medias')
     },
     {
       label: 'Messages Clients',
@@ -205,6 +225,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <button
+            onClick={() => setAdminTab('commandes')}
+            className="flex items-center gap-3 p-3.5 rounded-xl border border-indigo-200 hover:border-indigo-600 hover:bg-indigo-50/50 transition text-left group"
+          >
+            <div className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+              <ShoppingBag className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-stone-900">Gérer les commandes</div>
+              <div className="text-[11px] text-stone-400">
+                {pendingOrdersCount > 0 ? `${pendingOrdersCount} en attente` : 'Suivi des livraisons'}
+              </div>
+            </div>
+          </button>
+
+          <button
             onClick={onOpenAddProduct}
             className="flex items-center gap-3 p-3.5 rounded-xl border border-stone-200 hover:border-emerald-600 hover:bg-emerald-50/50 transition text-left group"
           >
@@ -227,6 +262,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div>
               <div className="text-xs font-bold text-stone-900">Publier une annonce</div>
               <div className="text-[11px] text-stone-400">Stock, foire, atelier</div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setAdminTab('avis')}
+            className="flex items-center gap-3 p-3.5 rounded-xl border border-amber-200 hover:border-amber-600 hover:bg-amber-50/50 transition text-left group"
+          >
+            <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+              <Star className="w-4 h-4 fill-amber-700" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-stone-900">Modérer les avis</div>
+              <div className="text-[11px] text-stone-400">{reviews.length} retours clients</div>
             </div>
           </button>
 
