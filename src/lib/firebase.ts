@@ -507,13 +507,49 @@ export function subscribeToCloudReviews(
   });
 }
 
+// Cloud deleted IDs tracking for multi-device synchronization
+export async function saveDeletedIdToFirestore(id: string): Promise<void> {
+  if (!id || typeof id !== 'string') return;
+  const cleanId = id.trim();
+  if (!cleanId) return;
+  try {
+    const docRef = doc(firestoreDb, 'settings', 'deleted_ids');
+    const snap = await getDoc(docRef);
+    const existing: string[] = snap.exists() ? (snap.data().ids || []) : [];
+    if (!existing.includes(cleanId)) {
+      await setDoc(docRef, { 
+        ids: [...existing, cleanId], 
+        updatedAt: new Date().toISOString() 
+      }, { merge: true });
+      setFirestoreQuotaExceeded(false);
+    }
+  } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+    }
+  }
+}
+
+export function subscribeToCloudDeletedIds(
+  onUpdate: (deletedIds: string[]) => void
+): Unsubscribe {
+  const docRef = doc(firestoreDb, 'settings', 'deleted_ids');
+  return onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      if (Array.isArray(data.ids)) {
+        onUpdate(data.ids);
+      }
+    }
+  }, () => {});
+}
+
 /* =========================================================
    MUTATION OPERATIONS (WRITE TO CLOUD + LOCAL CACHE)
 ========================================================= */
 
 // Products
 export async function saveProductToFirestore(product: Product): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const path = `products/${product.id}`;
   try {
     const docRef = doc(firestoreDb, 'products', product.id);
@@ -521,6 +557,7 @@ export async function saveProductToFirestore(product: Product): Promise<void> {
       ...product,
       updatedAt: new Date().toISOString()
     }, { merge: true });
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);
@@ -531,11 +568,12 @@ export async function saveProductToFirestore(product: Product): Promise<void> {
 }
 
 export async function deleteProductFromFirestore(id: string): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const path = `products/${id}`;
   try {
     const docRef = doc(firestoreDb, 'products', id);
     await deleteDoc(docRef);
+    await saveDeletedIdToFirestore(id);
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);
@@ -547,7 +585,6 @@ export async function deleteProductFromFirestore(id: string): Promise<void> {
 
 // Announcements
 export async function saveAnnouncementToFirestore(announcement: Announcement): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const path = `announcements/${announcement.id}`;
   try {
     const docRef = doc(firestoreDb, 'announcements', announcement.id);
@@ -555,6 +592,7 @@ export async function saveAnnouncementToFirestore(announcement: Announcement): P
       ...announcement,
       updatedAt: new Date().toISOString()
     }, { merge: true });
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);
@@ -565,11 +603,12 @@ export async function saveAnnouncementToFirestore(announcement: Announcement): P
 }
 
 export async function deleteAnnouncementFromFirestore(id: string): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const path = `announcements/${id}`;
   try {
     const docRef = doc(firestoreDb, 'announcements', id);
     await deleteDoc(docRef);
+    await saveDeletedIdToFirestore(id);
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);
@@ -581,11 +620,11 @@ export async function deleteAnnouncementFromFirestore(id: string): Promise<void>
 
 // Media
 export async function saveMediaToFirestore(media: MediaItem): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const path = `media/${media.id}`;
   try {
     const docRef = doc(firestoreDb, 'media', media.id);
     await setDoc(docRef, media, { merge: true });
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);
@@ -596,11 +635,12 @@ export async function saveMediaToFirestore(media: MediaItem): Promise<void> {
 }
 
 export async function deleteMediaFromFirestore(id: string): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const path = `media/${id}`;
   try {
     const docRef = doc(firestoreDb, 'media', id);
     await deleteDoc(docRef);
+    await saveDeletedIdToFirestore(id);
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);
@@ -612,11 +652,11 @@ export async function deleteMediaFromFirestore(id: string): Promise<void> {
 
 // Messages
 export async function saveMessageToFirestore(message: CustomerMessage): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const path = `messages/${message.id}`;
   try {
     const docRef = doc(firestoreDb, 'messages', message.id);
     await setDoc(docRef, message, { merge: true });
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);
@@ -627,11 +667,11 @@ export async function saveMessageToFirestore(message: CustomerMessage): Promise<
 }
 
 export async function updateMessageStatusInFirestore(id: string, status: 'nouveau' | 'lu'): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const path = `messages/${id}`;
   try {
     const docRef = doc(firestoreDb, 'messages', id);
     await setDoc(docRef, { status }, { merge: true });
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);
@@ -642,11 +682,12 @@ export async function updateMessageStatusInFirestore(id: string, status: 'nouvea
 }
 
 export async function deleteMessageFromFirestore(id: string): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const path = `messages/${id}`;
   try {
     const docRef = doc(firestoreDb, 'messages', id);
     await deleteDoc(docRef);
+    await saveDeletedIdToFirestore(id);
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);
@@ -658,7 +699,6 @@ export async function deleteMessageFromFirestore(id: string): Promise<void> {
 
 // Settings
 export async function saveSettingsToFirestore(settings: CompanySettings): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const path = 'settings/main';
   try {
     const docRef = doc(firestoreDb, 'settings', 'main');
@@ -666,6 +706,7 @@ export async function saveSettingsToFirestore(settings: CompanySettings): Promis
       ...settings,
       updatedAt: new Date().toISOString()
     }, { merge: true });
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);
@@ -677,7 +718,6 @@ export async function saveSettingsToFirestore(settings: CompanySettings): Promis
 
 // Orders
 export async function saveOrderToFirestore(order: Order): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const path = `orders/${order.id}`;
   try {
     const docRef = doc(firestoreDb, 'orders', order.id);
@@ -685,6 +725,7 @@ export async function saveOrderToFirestore(order: Order): Promise<void> {
       ...order,
       updatedAt: new Date().toISOString()
     }, { merge: true });
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);
@@ -699,7 +740,6 @@ export async function updateOrderStatusInFirestore(
   status: Order['status'], 
   paymentStatus?: Order['paymentStatus']
 ): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const path = `orders/${id}`;
   try {
     const docRef = doc(firestoreDb, 'orders', id);
@@ -711,6 +751,7 @@ export async function updateOrderStatusInFirestore(
       updateData.paymentStatus = paymentStatus;
     }
     await setDoc(docRef, updateData, { merge: true });
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);
@@ -721,11 +762,12 @@ export async function updateOrderStatusInFirestore(
 }
 
 export async function deleteOrderFromFirestore(id: string): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const path = `orders/${id}`;
   try {
     const docRef = doc(firestoreDb, 'orders', id);
     await deleteDoc(docRef);
+    await saveDeletedIdToFirestore(id);
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);
@@ -737,11 +779,11 @@ export async function deleteOrderFromFirestore(id: string): Promise<void> {
 
 // Reviews
 export async function saveReviewToFirestore(review: ProductReview): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const path = `reviews/${review.id}`;
   try {
     const docRef = doc(firestoreDb, 'reviews', review.id);
     await setDoc(docRef, review, { merge: true });
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);
@@ -752,11 +794,12 @@ export async function saveReviewToFirestore(review: ProductReview): Promise<void
 }
 
 export async function deleteReviewFromFirestore(id: string): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const path = `reviews/${id}`;
   try {
     const docRef = doc(firestoreDb, 'reviews', id);
     await deleteDoc(docRef);
+    await saveDeletedIdToFirestore(id);
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);
@@ -874,13 +917,13 @@ export async function getCloudAdminAuth(): Promise<{ username: string; email: st
 }
 
 export async function saveCloudAdminAuth(data: { username: string; email: string; passwordHash?: string }): Promise<void> {
-  if (isFirestoreQuotaExceeded()) return;
   const docRef = doc(firestoreDb, 'settings', 'admin_auth');
   try {
     await setDoc(docRef, {
       ...data,
       updatedAt: new Date().toISOString()
     }, { merge: true });
+    setFirestoreQuotaExceeded(false);
   } catch (err) {
     if (isQuotaError(err)) {
       setFirestoreQuotaExceeded(true);

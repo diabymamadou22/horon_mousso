@@ -44,10 +44,16 @@ import {
   subscribeToCloudAdminAuth,
   subscribeToCloudOrders,
   subscribeToCloudReviews,
+  subscribeToCloudDeletedIds,
   isFirestoreQuotaExceeded,
   onFirestoreQuotaChange,
   isQuotaError
 } from '../lib/firebase';
+import {
+  filterDeleted,
+  syncDeletedIdsFromCloud,
+  onDeletedIdsChange
+} from '../lib/deletionTracker';
 
 export type PublicTab = 'accueil' | 'produits' | 'actualites' | 'galerie' | 'a_propos' | 'contact';
 export type AdminTab = 'dashboard' | 'commandes' | 'produits' | 'annonces' | 'medias' | 'messages' | 'avis' | 'parametres';
@@ -721,7 +727,203 @@ Merci de confirmer la prise en charge et le délai !`;
           }
         }, handleSubError);
 
-        unsubs = [unsubProds, unsubAnns, unsubMedia, unsubMsgs, unsubSettings, unsubAuth, unsubOrders, unsubReviews];
+        // 9. Live Cloud Deleted IDs Subscription (removes deleted items on all devices)
+        const unsubDeleted = subscribeToCloudDeletedIds((cloudDeletedIds) => {
+          if (Array.isArray(cloudDeletedIds) && cloudDeletedIds.length > 0) {
+            const changed = syncDeletedIdsFromCloud(cloudDeletedIds);
+            if (changed) {
+              setProducts(prev => filterDeleted(prev));
+              setAnnouncements(prev => filterDeleted(prev));
+              setMedia(prev => filterDeleted(prev));
+              setMessages(prev => filterDeleted(prev));
+              setOrders(prev => filterDeleted(prev));
+              setReviews(prev => filterDeleted(prev));
+            }
+          }
+        });
+
+        // 10. Local deleted IDs reactive filter
+        const unsubLocalDeleted = onDeletedIdsChange((deletedIds) => {
+          if (deletedIds && deletedIds.length > 0) {
+            setProducts(prev => prev.filter(p => !deletedIds.includes(p.id)));
+            setAnnouncements(prev => prev.filter(a => !deletedIds.includes(a.id)));
+            setMedia(prev => prev.filter(m => !deletedIds.includes(m.id)));
+            setMessages(prev => prev.filter(m => !deletedIds.includes(m.id)));
+            setOrders(prev => prev.filter(o => !deletedIds.includes(o.id)));
+            setReviews(prev => prev.filter(r => !deletedIds.includes(r.id)));
+          }
+        });
+
+        unsubs = [
+          unsubProds, 
+          unsubAnns, 
+          unsubMedia, 
+          unsubMsgs, 
+          unsubSettings, 
+          unsubAuth, 
+          unsubOrders, 
+          unsubReviews, 
+          unsubDeleted, 
+          unsubLocalDeleted
+        ];
+
+        // 11. Multi-Device Real-time Synchronization via Server-Sent Events (SSE)
+        try {
+          const evtSource = new EventSource('/api/sync/events');
+
+          evtSource.addEventListener('products', (e) => {
+            try {
+              const data = JSON.parse(e.data);
+              if (Array.isArray(data)) {
+                const filtered = filterDeleted<Product>(data as Product[]);
+                setProducts(filtered);
+                saveLocalProducts(filtered).catch(() => {});
+                setSyncStatus(prev => ({
+                  ...prev,
+                  lastSyncTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                }));
+              }
+            } catch {}
+          });
+
+          evtSource.addEventListener('announcements', (e) => {
+            try {
+              const data = JSON.parse(e.data);
+              if (Array.isArray(data)) {
+                const filtered = filterDeleted<Announcement>(data as Announcement[]);
+                setAnnouncements(filtered);
+                saveLocalAnnouncements(filtered).catch(() => {});
+              }
+            } catch {}
+          });
+
+          evtSource.addEventListener('media', (e) => {
+            try {
+              const data = JSON.parse(e.data);
+              if (Array.isArray(data)) {
+                const filtered = filterDeleted<MediaItem>(data as MediaItem[]);
+                setMedia(filtered);
+                saveLocalMedia(filtered).catch(() => {});
+              }
+            } catch {}
+          });
+
+          evtSource.addEventListener('messages', (e) => {
+            try {
+              const data = JSON.parse(e.data);
+              if (Array.isArray(data)) {
+                const filtered = filterDeleted<CustomerMessage>(data as CustomerMessage[]);
+                setMessages(filtered);
+                saveLocalMessages(filtered).catch(() => {});
+              }
+            } catch {}
+          });
+
+          evtSource.addEventListener('orders', (e) => {
+            try {
+              const data = JSON.parse(e.data);
+              if (Array.isArray(data)) {
+                const filtered = filterDeleted<Order>(data as Order[]);
+                setOrders(filtered);
+                saveLocalOrders(filtered).catch(() => {});
+              }
+            } catch {}
+          });
+
+          evtSource.addEventListener('reviews', (e) => {
+            try {
+              const data = JSON.parse(e.data);
+              if (Array.isArray(data)) {
+                const filtered = filterDeleted<ProductReview>(data as ProductReview[]);
+                setReviews(filtered);
+                saveLocalReviews(filtered).catch(() => {});
+              }
+            } catch {}
+          });
+
+          evtSource.addEventListener('settings', (e) => {
+            try {
+              const data = JSON.parse(e.data);
+              if (data && data.companyName) {
+                setSettings(data);
+                saveLocalSettings(data).catch(() => {});
+              }
+            } catch {}
+          });
+
+          evtSource.addEventListener('deleted-ids', (e) => {
+            try {
+              const data = JSON.parse(e.data);
+              if (Array.isArray(data)) {
+                syncDeletedIdsFromCloud(data);
+              }
+            } catch {}
+          });
+
+          unsubs.push(() => evtSource.close());
+        } catch {}
+
+        // 12. Instant Multi-Device Reconciliation on tab focus / wake up
+        const reconcileState = async () => {
+          try {
+            const res = await fetch('/api/sync/snapshot');
+            if (res.ok) {
+              const snap = await res.json();
+              if (snap.deletedIds && Array.isArray(snap.deletedIds)) {
+                syncDeletedIdsFromCloud(snap.deletedIds);
+              }
+              if (Array.isArray(snap.products) && snap.products.length > 0) {
+                const filtered = filterDeleted<Product>(snap.products as Product[]);
+                setProducts(filtered);
+                saveLocalProducts(filtered).catch(() => {});
+              }
+              if (Array.isArray(snap.announcements)) {
+                const filtered = filterDeleted<Announcement>(snap.announcements as Announcement[]);
+                setAnnouncements(filtered);
+                saveLocalAnnouncements(filtered).catch(() => {});
+              }
+              if (Array.isArray(snap.media)) {
+                const filtered = filterDeleted<MediaItem>(snap.media as MediaItem[]);
+                setMedia(filtered);
+                saveLocalMedia(filtered).catch(() => {});
+              }
+              if (Array.isArray(snap.messages)) {
+                const filtered = filterDeleted<CustomerMessage>(snap.messages as CustomerMessage[]);
+                setMessages(filtered);
+                saveLocalMessages(filtered).catch(() => {});
+              }
+              if (Array.isArray(snap.orders)) {
+                const filtered = filterDeleted<Order>(snap.orders as Order[]);
+                setOrders(filtered);
+                saveLocalOrders(filtered).catch(() => {});
+              }
+              if (Array.isArray(snap.reviews)) {
+                const filtered = filterDeleted<ProductReview>(snap.reviews as ProductReview[]);
+                setReviews(filtered);
+                saveLocalReviews(filtered).catch(() => {});
+              }
+              if (snap.settings && snap.settings.companyName) {
+                setSettings(snap.settings);
+                saveLocalSettings(snap.settings).catch(() => {});
+              }
+            }
+          } catch {}
+        };
+
+        const handleVisibility = () => {
+          if (document.visibilityState === 'visible') {
+            reconcileState();
+          }
+        };
+        document.addEventListener('visibilitychange', handleVisibility);
+        window.addEventListener('focus', reconcileState);
+        const pollTimer = setInterval(reconcileState, 8000);
+
+        unsubs.push(() => {
+          document.removeEventListener('visibilitychange', handleVisibility);
+          window.removeEventListener('focus', reconcileState);
+          clearInterval(pollTimer);
+        });
 
         // Test Cloud Connection and update state
         testFirestoreConnection().then(conn => {

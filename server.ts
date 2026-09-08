@@ -244,6 +244,61 @@ app.get('/api/stats', (_req, res) => {
   });
 });
 
+// Real-time synchronization across all devices via Server-Sent Events (SSE)
+const sseClients = new Set<express.Response>();
+
+function broadcastSync(event: string, data: any) {
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const client of sseClients) {
+    try {
+      client.write(payload);
+    } catch {
+      sseClients.delete(client);
+    }
+  }
+}
+
+// SSE endpoint for live multi-device syncing
+app.get('/api/sync/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders?.();
+
+  res.write(`event: connected\ndata: ${JSON.stringify({ time: Date.now() })}\n\n`);
+  sseClients.add(res);
+
+  const keepAlive = setInterval(() => {
+    try {
+      res.write(`: keepalive\n\n`);
+    } catch {
+      clearInterval(keepAlive);
+      sseClients.delete(res);
+    }
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(keepAlive);
+    sseClients.delete(res);
+  });
+});
+
+// Full state sync snapshot endpoint for instant multi-device reconciliation
+app.get('/api/sync/snapshot', (_req, res) => {
+  res.json({
+    products: db.products || [],
+    announcements: db.announcements || [],
+    media: db.media || [],
+    messages: db.messages || [],
+    orders: db.orders || [],
+    reviews: db.reviews || [],
+    settings: db.settings,
+    deletedIds: db.deletedIds || [],
+    timestamp: Date.now()
+  });
+});
+
 // Deleted IDs Tracking Endpoints
 app.get('/api/deleted-ids', (_req, res) => {
   res.json(db.deletedIds || []);
@@ -264,6 +319,10 @@ app.post('/api/deleted-ids', (req, res) => {
     db.orders = (db.orders || []).filter(o => o.id !== cleanId);
     db.reviews = (db.reviews || []).filter(r => r.id !== cleanId);
     saveDB(db);
+    broadcastSync('deleted-ids', db.deletedIds);
+    broadcastSync('products', db.products);
+    broadcastSync('announcements', db.announcements);
+    broadcastSync('media', db.media);
   }
   res.json({ success: true, deletedIds: db.deletedIds || [] });
 });
@@ -290,6 +349,7 @@ app.post('/api/products', (req, res) => {
     db.products.unshift(newProduct);
   }
   saveDB(db);
+  broadcastSync('products', db.products);
   res.status(201).json(newProduct);
 });
 
@@ -305,6 +365,7 @@ app.put('/api/products/:id', (req, res) => {
     updatedAt: new Date().toISOString()
   };
   saveDB(db);
+  broadcastSync('products', db.products);
   res.json(db.products[index]);
 });
 
@@ -316,6 +377,8 @@ app.delete('/api/products/:id', (req, res) => {
   }
   db.products = db.products.filter(p => p.id !== id);
   saveDB(db);
+  broadcastSync('deleted-ids', db.deletedIds);
+  broadcastSync('products', db.products);
   res.json({ success: true, id });
 });
 
@@ -340,6 +403,7 @@ app.post('/api/announcements', (req, res) => {
     db.announcements.unshift(newAnnouncement);
   }
   saveDB(db);
+  broadcastSync('announcements', db.announcements);
   res.status(201).json(newAnnouncement);
 });
 
@@ -355,6 +419,7 @@ app.put('/api/announcements/:id', (req, res) => {
     updatedAt: new Date().toISOString()
   };
   saveDB(db);
+  broadcastSync('announcements', db.announcements);
   res.json(db.announcements[index]);
 });
 
@@ -366,6 +431,8 @@ app.delete('/api/announcements/:id', (req, res) => {
   }
   db.announcements = db.announcements.filter(a => a.id !== id);
   saveDB(db);
+  broadcastSync('deleted-ids', db.deletedIds);
+  broadcastSync('announcements', db.announcements);
   res.json({ success: true, id });
 });
 
@@ -390,6 +457,7 @@ app.post('/api/media', (req, res) => {
     db.media.unshift(newMedia);
   }
   saveDB(db);
+  broadcastSync('media', db.media);
   res.status(201).json(newMedia);
 });
 
@@ -401,6 +469,8 @@ app.delete('/api/media/:id', (req, res) => {
   }
   db.media = db.media.filter(m => m.id !== id);
   saveDB(db);
+  broadcastSync('deleted-ids', db.deletedIds);
+  broadcastSync('media', db.media);
   res.json({ success: true, id });
 });
 
@@ -429,6 +499,7 @@ app.post('/api/messages', (req, res) => {
   };
   db.messages.unshift(newMessage);
   saveDB(db);
+  broadcastSync('messages', db.messages);
   res.status(201).json(newMessage);
 });
 
@@ -441,6 +512,7 @@ app.patch('/api/messages/:id', (req, res) => {
   }
   msg.status = status || (msg.status === 'nouveau' ? 'lu' : 'nouveau');
   saveDB(db);
+  broadcastSync('messages', db.messages);
   res.json(msg);
 });
 
@@ -452,6 +524,8 @@ app.delete('/api/messages/:id', (req, res) => {
   }
   db.messages = db.messages.filter(m => m.id !== id);
   saveDB(db);
+  broadcastSync('deleted-ids', db.deletedIds);
+  broadcastSync('messages', db.messages);
   res.json({ success: true, id });
 });
 
@@ -478,6 +552,7 @@ app.post('/api/orders', (req, res) => {
     db.orders.unshift(newOrder);
   }
   saveDB(db);
+  broadcastSync('orders', db.orders);
   res.status(201).json(newOrder);
 });
 
@@ -493,6 +568,7 @@ app.patch('/api/orders/:id/status', (req, res) => {
   if (paymentStatus) order.paymentStatus = paymentStatus;
   order.updatedAt = new Date().toISOString();
   saveDB(db);
+  broadcastSync('orders', db.orders);
   res.json(order);
 });
 
@@ -506,6 +582,8 @@ app.delete('/api/orders/:id', (req, res) => {
     db.orders = db.orders.filter(o => o.id !== id);
     saveDB(db);
   }
+  broadcastSync('deleted-ids', db.deletedIds);
+  broadcastSync('orders', db.orders);
   res.json({ success: true, id });
 });
 
@@ -526,6 +604,7 @@ app.post('/api/reviews', (req, res) => {
   }
   db.reviews.unshift(newReview);
   saveDB(db);
+  broadcastSync('reviews', db.reviews);
   res.status(201).json(newReview);
 });
 
@@ -539,6 +618,8 @@ app.delete('/api/reviews/:id', (req, res) => {
     db.reviews = db.reviews.filter(r => r.id !== id);
     saveDB(db);
   }
+  broadcastSync('deleted-ids', db.deletedIds);
+  broadcastSync('reviews', db.reviews);
   res.json({ success: true, id });
 });
 
@@ -553,6 +634,7 @@ app.put('/api/settings', (req, res) => {
     ...req.body
   };
   saveDB(db);
+  broadcastSync('settings', db.settings);
   res.json(db.settings);
 });
 

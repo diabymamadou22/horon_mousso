@@ -27,6 +27,46 @@ if (typeof window !== 'undefined') {
   }
 }
 
+const listeners = new Set<(deletedIds: string[]) => void>();
+
+export function onDeletedIdsChange(callback: (deletedIds: string[]) => void): () => void {
+  listeners.add(callback);
+  callback(Array.from(memoryDeletedIds));
+  return () => {
+    listeners.delete(callback);
+  };
+}
+
+function notifyListeners() {
+  const list = Array.from(memoryDeletedIds);
+  listeners.forEach(cb => {
+    try { cb(list); } catch {}
+  });
+}
+
+/**
+ * Sync deleted IDs from Cloud Firestore or SSE across devices
+ */
+export function syncDeletedIdsFromCloud(ids: string[]): boolean {
+  if (!Array.isArray(ids)) return false;
+  let changed = false;
+  ids.forEach(id => {
+    if (typeof id === 'string' && id.trim() && !memoryDeletedIds.has(id.trim())) {
+      memoryDeletedIds.add(id.trim());
+      changed = true;
+    }
+  });
+  if (changed) {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(memoryDeletedIds)));
+      } catch {}
+    }
+    notifyListeners();
+  }
+  return changed;
+}
+
 /**
  * Check if an ID has been deleted
  */
@@ -59,6 +99,7 @@ export async function markIdAsDeleted(id: string): Promise<void> {
   if (!cleanId) return;
 
   memoryDeletedIds.add(cleanId);
+  notifyListeners();
 
   // 1. Save to localStorage
   if (typeof window !== 'undefined') {
