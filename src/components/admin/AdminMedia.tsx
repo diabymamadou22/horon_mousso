@@ -26,6 +26,7 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
 
   const [isModalOpen, setIsModalOpen] = useState(isAddModalOpenInitially);
   const [mediaToDelete, setMediaToDelete] = useState<MediaItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form states
   const [title, setTitle] = useState('');
@@ -85,9 +86,16 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
   };
 
   const handleConfirmDelete = async () => {
-    if (!mediaToDelete) return;
-    await deleteMedia(mediaToDelete.id);
-    setMediaToDelete(null);
+    if (!mediaToDelete || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      const success = await deleteMedia(mediaToDelete.id);
+      if (success) {
+        setMediaToDelete(null);
+      }
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Local file upload for media
@@ -205,16 +213,20 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
             </div>
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button
+                type="button"
+                disabled={isDeleting}
                 onClick={() => setMediaToDelete(null)}
-                className="py-2.5 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition"
+                className="py-2.5 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition disabled:opacity-50"
               >
                 Annuler
               </button>
               <button
+                type="button"
+                disabled={isDeleting}
                 onClick={handleConfirmDelete}
-                className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition"
+                className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
               >
-                Supprimer
+                {isDeleting ? 'Suppression...' : 'Supprimer'}
               </button>
             </div>
           </div>

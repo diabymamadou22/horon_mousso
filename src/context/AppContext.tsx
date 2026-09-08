@@ -625,7 +625,7 @@ Merci de confirmer la prise en charge et le délai !`;
       try {
         // 1. Live Products Subscription (Single Source of Truth across all devices)
         const unsubProds = subscribeToCloudProducts((cloudProds) => {
-          if (cloudProds && cloudProds.length > 0) {
+          if (Array.isArray(cloudProds)) {
             setProducts(cloudProds);
             setIsLoading(false);
             setSyncStatus(prev => ({
@@ -639,7 +639,7 @@ Merci de confirmer la prise en charge et le délai !`;
 
         // 2. Live Announcements Subscription
         const unsubAnns = subscribeToCloudAnnouncements((cloudAnns) => {
-          if (cloudAnns && cloudAnns.length > 0) {
+          if (Array.isArray(cloudAnns)) {
             setAnnouncements(cloudAnns);
             saveLocalAnnouncements(cloudAnns).catch(() => {});
           }
@@ -647,7 +647,7 @@ Merci de confirmer la prise en charge et le délai !`;
 
         // 3. Live Media Gallery Subscription
         const unsubMedia = subscribeToCloudMedia((cloudMedia) => {
-          if (cloudMedia && cloudMedia.length > 0) {
+          if (Array.isArray(cloudMedia)) {
             setMedia(cloudMedia);
             saveLocalMedia(cloudMedia).catch(() => {});
           }
@@ -820,15 +820,16 @@ Merci de confirmer la prise en charge et le délai !`;
 
   const deleteProduct = async (id: string) => {
     try {
-      // Instant optimistic local state update so it disappears immediately
-      setProducts(prev => prev.filter(p => p.id !== id));
-      if (selectedProductId === id) setSelectedProductId(null);
-      await api.deleteProduct(id);
-      showToast('Produit supprimé sur tous vos appareils', 'info');
-      return true;
+      const success = await api.deleteProduct(id);
+      if (success) {
+        setProducts(prev => prev.filter(p => p.id !== id));
+        if (selectedProductId === id) setSelectedProductId(null);
+        showToast('Produit supprimé sur tous vos appareils', 'info');
+        return true;
+      }
+      throw new Error('Échec de suppression du produit');
     } catch (err) {
-      // If error, reload from api
-      api.getProducts().then(setProducts).catch(() => {});
+      console.error('Erreur lors de la suppression du produit:', err);
       showToast('Erreur lors de la suppression', 'error');
       return false;
     }
@@ -860,12 +861,16 @@ Merci de confirmer la prise en charge et le délai !`;
 
   const deleteAnnouncement = async (id: string) => {
     try {
-      setAnnouncements(prev => prev.filter(a => a.id !== id));
-      await api.deleteAnnouncement(id);
-      showToast('Actualité supprimée sur tous vos appareils', 'info');
-      return true;
+      const success = await api.deleteAnnouncement(id);
+      if (success) {
+        setAnnouncements(prev => prev.filter(a => a.id !== id));
+        if (selectedAnnouncementId === id) setSelectedAnnouncementId(null);
+        showToast('Actualité supprimée sur tous vos appareils', 'info');
+        return true;
+      }
+      throw new Error('Échec de suppression de l\'annonce');
     } catch (err) {
-      api.getAnnouncements().then(setAnnouncements).catch(() => {});
+      console.error('Erreur lors de la suppression de l’annonce:', err);
       showToast('Erreur lors de la suppression', 'error');
       return false;
     }
@@ -885,12 +890,16 @@ Merci de confirmer la prise en charge et le délai !`;
 
   const deleteMedia = async (id: string) => {
     try {
-      setMedia(prev => prev.filter(m => m.id !== id));
-      await api.deleteMedia(id);
-      showToast('Média supprimé sur tous vos appareils', 'info');
-      return true;
+      const success = await api.deleteMedia(id);
+      if (success) {
+        setMedia(prev => prev.filter(m => m.id !== id));
+        if (selectedMedia?.id === id) setSelectedMedia(null);
+        showToast('Média supprimé sur tous vos appareils', 'info');
+        return true;
+      }
+      throw new Error('Échec de suppression du média');
     } catch (err) {
-      api.getMedia().then(setMedia).catch(() => {});
+      console.error('Erreur lors de la suppression du média:', err);
       showToast('Erreur lors de la suppression', 'error');
       return false;
     }

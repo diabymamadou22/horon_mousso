@@ -32,6 +32,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(isAddModalOpenInitially);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form states
   const [name, setName] = useState('');
@@ -153,9 +154,16 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   };
 
   const handleConfirmDelete = async () => {
-    if (!productToDelete) return;
-    await deleteProduct(productToDelete.id);
-    setProductToDelete(null);
+    if (!productToDelete || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      const success = await deleteProduct(productToDelete.id);
+      if (success) {
+        setProductToDelete(null);
+      }
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Image upload simulation / preview
@@ -446,16 +454,20 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
 
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button
+                type="button"
+                disabled={isDeleting}
                 onClick={() => setProductToDelete(null)}
-                className="py-2.5 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition"
+                className="py-2.5 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition disabled:opacity-50"
               >
                 Annuler
               </button>
               <button
+                type="button"
+                disabled={isDeleting}
                 onClick={handleConfirmDelete}
-                className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition"
+                className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
               >
-                Confirmer la suppression
+                {isDeleting ? 'Suppression...' : 'Confirmer la suppression'}
               </button>
             </div>
           </div>

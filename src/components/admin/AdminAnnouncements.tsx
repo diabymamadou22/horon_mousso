@@ -29,6 +29,7 @@ export const AdminAnnouncements: React.FC<AdminAnnouncementsProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(isAddModalOpenInitially);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
   const [itemToDelete, setItemToDelete] = useState<Announcement | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form states
   const [title, setTitle] = useState('');
@@ -115,9 +116,16 @@ export const AdminAnnouncements: React.FC<AdminAnnouncementsProps> = ({
   };
 
   const handleConfirmDelete = async () => {
-    if (!itemToDelete) return;
-    await deleteAnnouncement(itemToDelete.id);
-    setItemToDelete(null);
+    if (!itemToDelete || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      const success = await deleteAnnouncement(itemToDelete.id);
+      if (success) {
+        setItemToDelete(null);
+      }
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Local file upload preview helper
@@ -255,16 +263,20 @@ export const AdminAnnouncements: React.FC<AdminAnnouncementsProps> = ({
             </div>
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button
+                type="button"
+                disabled={isDeleting}
                 onClick={() => setItemToDelete(null)}
-                className="py-2.5 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition"
+                className="py-2.5 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition disabled:opacity-50"
               >
                 Annuler
               </button>
               <button
+                type="button"
+                disabled={isDeleting}
                 onClick={handleConfirmDelete}
-                className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition"
+                className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
               >
-                Supprimer
+                {isDeleting ? 'Suppression...' : 'Supprimer'}
               </button>
             </div>
           </div>
