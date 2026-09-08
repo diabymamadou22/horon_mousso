@@ -39,6 +39,8 @@ interface DBStructure {
   orders: Order[];
   reviews: ProductReview[];
   adminCredentials?: AdminCredentials;
+  deletedIds?: string[];
+  isInitialized?: boolean;
 }
 
 const defaultAdminCreds: AdminCredentials = {
@@ -57,25 +59,51 @@ function loadDB(): DBStructure {
     if (fs.existsSync(DB_FILE)) {
       const data = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed: DBStructure = JSON.parse(data);
-      // Ensure products and announcements are never empty on boot
-      if (!parsed.products || parsed.products.length === 0) {
-        parsed.products = initialProducts;
+      const deletedSet = new Set<string>(parsed.deletedIds || []);
+
+      if (!parsed.isInitialized) {
+        // First boot ever - populate baseline
+        if (!parsed.products || parsed.products.length === 0) {
+          parsed.products = initialProducts;
+        }
+        if (!parsed.announcements || parsed.announcements.length === 0) {
+          parsed.announcements = initialAnnouncements;
+        }
+        if (!parsed.media || parsed.media.length === 0) {
+          parsed.media = initialMedia;
+        }
+        if (!parsed.messages) {
+          parsed.messages = initialMessages;
+        }
+        if (!parsed.orders || parsed.orders.length === 0) {
+          parsed.orders = initialOrders;
+        }
+        if (!parsed.reviews || parsed.reviews.length === 0) {
+          parsed.reviews = initialReviews;
+        }
+        parsed.isInitialized = true;
+      } else {
+        // Already initialized: NEVER restore deleted items or empty arrays
+        if (!parsed.products) parsed.products = [];
+        if (!parsed.announcements) parsed.announcements = [];
+        if (!parsed.media) parsed.media = [];
+        if (!parsed.messages) parsed.messages = [];
+        if (!parsed.orders) parsed.orders = [];
+        if (!parsed.reviews) parsed.reviews = [];
       }
-      if (!parsed.announcements || parsed.announcements.length === 0) {
-        parsed.announcements = initialAnnouncements;
+
+      // Filter out any IDs that were ever deleted
+      if (deletedSet.size > 0) {
+        parsed.products = parsed.products.filter(p => !deletedSet.has(p.id));
+        parsed.announcements = parsed.announcements.filter(a => !deletedSet.has(a.id));
+        parsed.media = parsed.media.filter(m => !deletedSet.has(m.id));
+        parsed.messages = parsed.messages.filter(m => !deletedSet.has(m.id));
+        parsed.orders = parsed.orders.filter(o => !deletedSet.has(o.id));
+        parsed.reviews = parsed.reviews.filter(r => !deletedSet.has(r.id));
       }
-      if (!parsed.media || parsed.media.length === 0) {
-        parsed.media = initialMedia;
-      }
-      if (!parsed.messages) {
-        parsed.messages = initialMessages;
-      }
-      if (!parsed.orders || parsed.orders.length === 0) {
-        parsed.orders = initialOrders;
-      }
-      if (!parsed.reviews || parsed.reviews.length === 0) {
-        parsed.reviews = initialReviews;
-      }
+
+      parsed.deletedIds = Array.from(deletedSet);
+
       // Migrate company name if previous placeholder
       if (parsed.settings && (parsed.settings.companyName.includes('AgroTerroir') || !parsed.settings.companyName)) {
         parsed.settings = { ...initialSettings, ...parsed.settings, companyName: 'Horon Mousso' };
@@ -99,7 +127,9 @@ function loadDB(): DBStructure {
     settings: initialSettings,
     orders: initialOrders,
     reviews: initialReviews,
-    adminCredentials: defaultAdminCreds
+    adminCredentials: defaultAdminCreds,
+    deletedIds: [],
+    isInitialized: true
   };
   saveDB(defaultDB);
   return defaultDB;
@@ -214,9 +244,33 @@ app.get('/api/stats', (_req, res) => {
   });
 });
 
+// Deleted IDs Tracking Endpoints
+app.get('/api/deleted-ids', (_req, res) => {
+  res.json(db.deletedIds || []);
+});
+
+app.post('/api/deleted-ids', (req, res) => {
+  const { id } = req.body;
+  if (typeof id === 'string' && id.trim()) {
+    const cleanId = id.trim();
+    if (!db.deletedIds) db.deletedIds = [];
+    if (!db.deletedIds.includes(cleanId)) {
+      db.deletedIds.push(cleanId);
+    }
+    db.products = (db.products || []).filter(p => p.id !== cleanId);
+    db.announcements = (db.announcements || []).filter(a => a.id !== cleanId);
+    db.media = (db.media || []).filter(m => m.id !== cleanId);
+    db.messages = (db.messages || []).filter(m => m.id !== cleanId);
+    db.orders = (db.orders || []).filter(o => o.id !== cleanId);
+    db.reviews = (db.reviews || []).filter(r => r.id !== cleanId);
+    saveDB(db);
+  }
+  res.json({ success: true, deletedIds: db.deletedIds || [] });
+});
+
 // Products CRUD
 app.get('/api/products', (_req, res) => {
-  res.json(db.products);
+  res.json(db.products || []);
 });
 
 app.post('/api/products', (req, res) => {
@@ -225,7 +279,10 @@ app.post('/api/products', (req, res) => {
     id: req.body.id || ('prod_' + Date.now()),
     createdAt: req.body.createdAt || new Date().toISOString()
   };
-  // Replace if exists, or unshift
+  // If this ID was previously marked as deleted, un-delete it since user is explicitly creating it
+  if (db.deletedIds && db.deletedIds.includes(newProduct.id)) {
+    db.deletedIds = db.deletedIds.filter(id => id !== newProduct.id);
+  }
   const existingIdx = db.products.findIndex(p => p.id === newProduct.id);
   if (existingIdx > -1) {
     db.products[existingIdx] = newProduct;
@@ -253,6 +310,10 @@ app.put('/api/products/:id', (req, res) => {
 
 app.delete('/api/products/:id', (req, res) => {
   const { id } = req.params;
+  if (!db.deletedIds) db.deletedIds = [];
+  if (!db.deletedIds.includes(id)) {
+    db.deletedIds.push(id);
+  }
   db.products = db.products.filter(p => p.id !== id);
   saveDB(db);
   res.json({ success: true, id });
@@ -260,7 +321,7 @@ app.delete('/api/products/:id', (req, res) => {
 
 // Announcements CRUD
 app.get('/api/announcements', (_req, res) => {
-  res.json(db.announcements);
+  res.json(db.announcements || []);
 });
 
 app.post('/api/announcements', (req, res) => {
@@ -269,6 +330,9 @@ app.post('/api/announcements', (req, res) => {
     id: req.body.id || ('ann_' + Date.now()),
     createdAt: req.body.createdAt || new Date().toISOString()
   };
+  if (db.deletedIds && db.deletedIds.includes(newAnnouncement.id)) {
+    db.deletedIds = db.deletedIds.filter(id => id !== newAnnouncement.id);
+  }
   const existingIdx = db.announcements.findIndex(a => a.id === newAnnouncement.id);
   if (existingIdx > -1) {
     db.announcements[existingIdx] = newAnnouncement;
@@ -296,6 +360,10 @@ app.put('/api/announcements/:id', (req, res) => {
 
 app.delete('/api/announcements/:id', (req, res) => {
   const { id } = req.params;
+  if (!db.deletedIds) db.deletedIds = [];
+  if (!db.deletedIds.includes(id)) {
+    db.deletedIds.push(id);
+  }
   db.announcements = db.announcements.filter(a => a.id !== id);
   saveDB(db);
   res.json({ success: true, id });
@@ -303,7 +371,7 @@ app.delete('/api/announcements/:id', (req, res) => {
 
 // Media CRUD
 app.get('/api/media', (_req, res) => {
-  res.json(db.media);
+  res.json(db.media || []);
 });
 
 app.post('/api/media', (req, res) => {
@@ -312,6 +380,9 @@ app.post('/api/media', (req, res) => {
     id: req.body.id || ('med_' + Date.now()),
     createdAt: req.body.createdAt || new Date().toISOString()
   };
+  if (db.deletedIds && db.deletedIds.includes(newMedia.id)) {
+    db.deletedIds = db.deletedIds.filter(id => id !== newMedia.id);
+  }
   const existingIdx = db.media.findIndex(m => m.id === newMedia.id);
   if (existingIdx > -1) {
     db.media[existingIdx] = newMedia;
@@ -324,6 +395,10 @@ app.post('/api/media', (req, res) => {
 
 app.delete('/api/media/:id', (req, res) => {
   const { id } = req.params;
+  if (!db.deletedIds) db.deletedIds = [];
+  if (!db.deletedIds.includes(id)) {
+    db.deletedIds.push(id);
+  }
   db.media = db.media.filter(m => m.id !== id);
   saveDB(db);
   res.json({ success: true, id });
@@ -331,7 +406,7 @@ app.delete('/api/media/:id', (req, res) => {
 
 // Messages CRUD
 app.get('/api/messages', (_req, res) => {
-  res.json(db.messages);
+  res.json(db.messages || []);
 });
 
 app.post('/api/messages', (req, res) => {
@@ -339,8 +414,12 @@ app.post('/api/messages', (req, res) => {
   if (!name || !contact || !message) {
     return res.status(400).json({ error: 'Champs obligatoires manquants (nom, contact, message).' });
   }
+  const cleanId = id || ('msg_' + Date.now());
+  if (db.deletedIds && db.deletedIds.includes(cleanId)) {
+    db.deletedIds = db.deletedIds.filter(dId => dId !== cleanId);
+  }
   const newMessage: CustomerMessage = {
-    id: id || ('msg_' + Date.now()),
+    id: cleanId,
     name,
     contact,
     message,
@@ -367,6 +446,10 @@ app.patch('/api/messages/:id', (req, res) => {
 
 app.delete('/api/messages/:id', (req, res) => {
   const { id } = req.params;
+  if (!db.deletedIds) db.deletedIds = [];
+  if (!db.deletedIds.includes(id)) {
+    db.deletedIds.push(id);
+  }
   db.messages = db.messages.filter(m => m.id !== id);
   saveDB(db);
   res.json({ success: true, id });
@@ -374,7 +457,7 @@ app.delete('/api/messages/:id', (req, res) => {
 
 // Orders CRUD
 app.get('/api/orders', (_req, res) => {
-  res.json(db.orders || initialOrders);
+  res.json(db.orders || []);
 });
 
 app.post('/api/orders', (req, res) => {
@@ -385,6 +468,9 @@ app.post('/api/orders', (req, res) => {
     updatedAt: new Date().toISOString()
   };
   if (!db.orders) db.orders = [];
+  if (db.deletedIds && db.deletedIds.includes(newOrder.id)) {
+    db.deletedIds = db.deletedIds.filter(id => id !== newOrder.id);
+  }
   const existingIdx = db.orders.findIndex(o => o.id === newOrder.id);
   if (existingIdx > -1) {
     db.orders[existingIdx] = newOrder;
@@ -412,6 +498,10 @@ app.patch('/api/orders/:id/status', (req, res) => {
 
 app.delete('/api/orders/:id', (req, res) => {
   const { id } = req.params;
+  if (!db.deletedIds) db.deletedIds = [];
+  if (!db.deletedIds.includes(id)) {
+    db.deletedIds.push(id);
+  }
   if (db.orders) {
     db.orders = db.orders.filter(o => o.id !== id);
     saveDB(db);
@@ -421,7 +511,7 @@ app.delete('/api/orders/:id', (req, res) => {
 
 // Reviews CRUD
 app.get('/api/reviews', (_req, res) => {
-  res.json(db.reviews || initialReviews);
+  res.json(db.reviews || []);
 });
 
 app.post('/api/reviews', (req, res) => {
@@ -431,6 +521,9 @@ app.post('/api/reviews', (req, res) => {
     createdAt: req.body.createdAt || new Date().toISOString()
   };
   if (!db.reviews) db.reviews = [];
+  if (db.deletedIds && db.deletedIds.includes(newReview.id)) {
+    db.deletedIds = db.deletedIds.filter(id => id !== newReview.id);
+  }
   db.reviews.unshift(newReview);
   saveDB(db);
   res.status(201).json(newReview);
@@ -438,6 +531,10 @@ app.post('/api/reviews', (req, res) => {
 
 app.delete('/api/reviews/:id', (req, res) => {
   const { id } = req.params;
+  if (!db.deletedIds) db.deletedIds = [];
+  if (!db.deletedIds.includes(id)) {
+    db.deletedIds.push(id);
+  }
   if (db.reviews) {
     db.reviews = db.reviews.filter(r => r.id !== id);
     saveDB(db);

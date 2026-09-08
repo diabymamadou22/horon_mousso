@@ -21,6 +21,7 @@ import { Product, Announcement, MediaItem, CustomerMessage, CompanySettings, Ord
 import { initialProducts, initialAnnouncements, initialMedia, initialMessages, initialSettings } from '../data/initialData';
 import { initialOrders } from '../data/initialOrders';
 import { initialReviews } from '../data/initialReviews';
+import { filterDeleted, isIdDeleted } from './deletionTracker';
 
 // Suppress transient backend unreachable notices in environments where offline caching or long-polling handles connection
 setLogLevel('error');
@@ -146,8 +147,10 @@ let isSeeding = false;
 
 export async function seedFirestoreIfEmpty(forceCheck: boolean = false): Promise<boolean> {
   if (isSeeding) return false;
-  if (!forceCheck && typeof window !== 'undefined' && sessionStorage.getItem('horon_firestore_seeded')) {
-    return false;
+  if (!forceCheck && typeof window !== 'undefined') {
+    if (localStorage.getItem('horon_firestore_initialized_v2') === 'true') {
+      return false;
+    }
   }
   
   try {
@@ -156,51 +159,60 @@ export async function seedFirestoreIfEmpty(forceCheck: boolean = false): Promise
 
     if (!forceCheck) {
       // Resilient check: see if system was already initialized
-      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500));
-      const queryPromise = getDoc(systemDocRef);
-      const existingSnap = await Promise.race([queryPromise, timeoutPromise]);
+      try {
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+        const queryPromise = getDoc(systemDocRef);
+        const existingSnap = await Promise.race([queryPromise, timeoutPromise]);
 
-      if (existingSnap && existingSnap.exists()) {
-        // Already initialized, never overwrite user data
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('horon_firestore_seeded', 'true');
+        if (existingSnap && existingSnap.exists()) {
+          // Already initialized, never overwrite user data
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('horon_firestore_initialized_v2', 'true');
+          }
+          return false;
         }
+      } catch {
+        // If Firestore read fails (e.g. quota or offline), never blind-seed and recreate deleted data!
         return false;
       }
     }
 
     console.log('🌱 Initializing Horon Mousso cloud database for the first time...');
     
-    // Seed products
+    // Seed products (skipping any deleted IDs)
     for (const prod of initialProducts) {
+      if (isIdDeleted(prod.id)) continue;
       await setDoc(doc(firestoreDb, 'products', prod.id), {
         ...prod,
         syncedAt: new Date().toISOString()
-      });
+      }, { merge: true });
     }
 
-    // Seed announcements
+    // Seed announcements (skipping any deleted IDs)
     for (const ann of initialAnnouncements) {
+      if (isIdDeleted(ann.id)) continue;
       await setDoc(doc(firestoreDb, 'announcements', ann.id), {
         ...ann,
         syncedAt: new Date().toISOString()
-      });
+      }, { merge: true });
     }
 
-    // Seed media
+    // Seed media (skipping any deleted IDs)
     for (const med of initialMedia) {
+      if (isIdDeleted(med.id)) continue;
       await setDoc(doc(firestoreDb, 'media', med.id), {
         ...med,
         syncedAt: new Date().toISOString()
-      });
+      }, { merge: true });
     }
 
-    // Seed messages
+    // Seed messages (skipping any deleted IDs)
     for (const msg of initialMessages) {
+      if (isIdDeleted(msg.id)) continue;
       await setDoc(doc(firestoreDb, 'messages', msg.id), {
         ...msg,
         syncedAt: new Date().toISOString()
-      });
+      }, { merge: true });
     }
 
     // Seed settings safely (preserve local settings if user customized them)
@@ -224,6 +236,7 @@ export async function seedFirestoreIfEmpty(forceCheck: boolean = false): Promise
 
     // Seed initial orders
     for (const ord of initialOrders) {
+      if (isIdDeleted(ord.id)) continue;
       await setDoc(doc(firestoreDb, 'orders', ord.id), {
         ...ord,
         syncedAt: new Date().toISOString()
@@ -232,6 +245,7 @@ export async function seedFirestoreIfEmpty(forceCheck: boolean = false): Promise
 
     // Seed initial reviews
     for (const rev of initialReviews) {
+      if (isIdDeleted(rev.id)) continue;
       await setDoc(doc(firestoreDb, 'reviews', rev.id), {
         ...rev,
         syncedAt: new Date().toISOString()
@@ -243,10 +257,10 @@ export async function seedFirestoreIfEmpty(forceCheck: boolean = false): Promise
       isInitialized: true,
       initializedAt: new Date().toISOString(),
       version: '1.0'
-    });
+    }, { merge: true });
 
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem('horon_firestore_seeded', 'true');
+      localStorage.setItem('horon_firestore_initialized_v2', 'true');
     }
     return true;
   } catch (error) {
@@ -267,18 +281,13 @@ export function subscribeToCloudProducts(
 ): Unsubscribe {
   const colRef = collection(firestoreDb, 'products');
   return onSnapshot(colRef, (snapshot) => {
-    if (snapshot.empty) {
-      // Do not overwrite local products if collection is unseeded or empty
-      return;
-    }
     const list: Product[] = [];
     snapshot.forEach(docSnap => {
       list.push(docSnap.data() as Product);
     });
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    onUpdate(list);
+    onUpdate(filterDeleted(list));
   }, (err) => {
-    // Graceful handling when offline: SDK automatically serves from local cache
     if (onError) onError(err);
   });
 }
@@ -289,15 +298,12 @@ export function subscribeToCloudAnnouncements(
 ): Unsubscribe {
   const colRef = collection(firestoreDb, 'announcements');
   return onSnapshot(colRef, (snapshot) => {
-    if (snapshot.empty) {
-      return;
-    }
     const list: Announcement[] = [];
     snapshot.forEach(docSnap => {
       list.push(docSnap.data() as Announcement);
     });
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    onUpdate(list);
+    onUpdate(filterDeleted(list));
   }, (err) => {
     if (onError) onError(err);
   });
@@ -309,15 +315,12 @@ export function subscribeToCloudMedia(
 ): Unsubscribe {
   const colRef = collection(firestoreDb, 'media');
   return onSnapshot(colRef, (snapshot) => {
-    if (snapshot.empty) {
-      return;
-    }
     const list: MediaItem[] = [];
     snapshot.forEach(docSnap => {
       list.push(docSnap.data() as MediaItem);
     });
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    onUpdate(list);
+    onUpdate(filterDeleted(list));
   }, (err) => {
     if (onError) onError(err);
   });
@@ -334,7 +337,7 @@ export function subscribeToCloudMessages(
       list.push(docSnap.data() as CustomerMessage);
     });
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    onUpdate(list);
+    onUpdate(filterDeleted(list));
   }, (err) => {
     if (onError) onError(err);
   });
@@ -385,15 +388,12 @@ export function subscribeToCloudOrders(
 ): Unsubscribe {
   const colRef = collection(firestoreDb, 'orders');
   return onSnapshot(colRef, (snapshot) => {
-    if (snapshot.empty) {
-      return;
-    }
     const list: Order[] = [];
     snapshot.forEach(docSnap => {
       list.push(docSnap.data() as Order);
     });
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    onUpdate(list);
+    onUpdate(filterDeleted(list));
   }, (err) => {
     if (onError) onError(err);
   });
@@ -405,15 +405,12 @@ export function subscribeToCloudReviews(
 ): Unsubscribe {
   const colRef = collection(firestoreDb, 'reviews');
   return onSnapshot(colRef, (snapshot) => {
-    if (snapshot.empty) {
-      return;
-    }
     const list: ProductReview[] = [];
     snapshot.forEach(docSnap => {
       list.push(docSnap.data() as ProductReview);
     });
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    onUpdate(list);
+    onUpdate(filterDeleted(list));
   }, (err) => {
     if (onError) onError(err);
   });
@@ -611,19 +608,10 @@ export async function getCloudProducts(): Promise<Product[]> {
   try {
     const colRef = collection(firestoreDb, 'products');
     const snap = await getDocs(colRef);
-    if (snap.empty) {
-      // Seed if empty
-      await seedFirestoreIfEmpty();
-      const freshSnap = await getDocs(colRef);
-      const list: Product[] = [];
-      freshSnap.forEach(d => list.push(d.data() as Product));
-      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      return list.length > 0 ? list : initialProducts;
-    }
     const list: Product[] = [];
     snap.forEach(d => list.push(d.data() as Product));
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return list;
+    return filterDeleted(list);
   } catch (err) {
     console.warn('Firestore getCloudProducts fallback to local:', err);
     return [];
@@ -634,13 +622,10 @@ export async function getCloudAnnouncements(): Promise<Announcement[]> {
   try {
     const colRef = collection(firestoreDb, 'announcements');
     const snap = await getDocs(colRef);
-    if (snap.empty) {
-      return initialAnnouncements;
-    }
     const list: Announcement[] = [];
     snap.forEach(d => list.push(d.data() as Announcement));
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return list;
+    return filterDeleted(list);
   } catch (err) {
     console.warn('Firestore getCloudAnnouncements fallback:', err);
     return [];
@@ -651,13 +636,10 @@ export async function getCloudMedia(): Promise<MediaItem[]> {
   try {
     const colRef = collection(firestoreDb, 'media');
     const snap = await getDocs(colRef);
-    if (snap.empty) {
-      return initialMedia;
-    }
     const list: MediaItem[] = [];
     snap.forEach(d => list.push(d.data() as MediaItem));
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return list;
+    return filterDeleted(list);
   } catch (err) {
     console.warn('Firestore getCloudMedia fallback:', err);
     return [];
@@ -671,7 +653,7 @@ export async function getCloudMessages(): Promise<CustomerMessage[]> {
     const list: CustomerMessage[] = [];
     snap.forEach(d => list.push(d.data() as CustomerMessage));
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return list;
+    return filterDeleted(list);
   } catch (err) {
     console.warn('Firestore getCloudMessages fallback:', err);
     return [];

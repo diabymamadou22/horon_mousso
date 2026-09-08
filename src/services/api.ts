@@ -42,9 +42,12 @@ import {
   getLocalOrders,
   saveLocalOrders,
   saveSingleLocalOrder,
+  deleteSingleLocalOrder,
   getLocalReviews,
-  saveLocalReviews
+  saveLocalReviews,
+  deleteSingleLocalReview
 } from '../lib/indexedDb';
+import { filterDeleted, markIdAsDeleted, initDeletionTracker, clearDeletedIds } from '../lib/deletionTracker';
 import {
   getCloudProducts,
   getCloudAnnouncements,
@@ -82,6 +85,10 @@ export const STORAGE_KEYS = {
   TOKEN: 'agro_admin_token',
   USER: 'agro_admin_user'
 };
+
+if (typeof window !== 'undefined') {
+  initDeletionTracker();
+}
 
 export const api = {
   // Authentication - Multi-device cloud backed
@@ -273,10 +280,11 @@ export const api = {
     // 1. Cloud Firestore (Single Source of Truth across all devices)
     try {
       const cloudProducts = await getCloudProducts();
-      if (cloudProducts !== null && cloudProducts !== undefined && cloudProducts.length > 0) {
-        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(cloudProducts));
-        await saveLocalProducts(cloudProducts);
-        return cloudProducts;
+      if (Array.isArray(cloudProducts) && cloudProducts.length > 0) {
+        const filtered = filterDeleted(cloudProducts);
+        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(filtered));
+        await saveLocalProducts(filtered);
+        return filtered;
       }
     } catch (e) {
       console.warn('Erreur lecture cloud Firestore products:', e);
@@ -287,10 +295,11 @@ export const api = {
       const res = await fetch('/api/products');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(data));
-          await saveLocalProducts(data);
-          return data;
+        if (Array.isArray(data)) {
+          const filtered = filterDeleted(data);
+          localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(filtered));
+          await saveLocalProducts(filtered);
+          return filtered;
         }
       }
     } catch {
@@ -300,8 +309,9 @@ export const api = {
     // 3. Permanent IndexedDB
     const idbProducts = await getLocalProducts();
     if (idbProducts && idbProducts.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(idbProducts));
-      return idbProducts;
+      const filtered = filterDeleted(idbProducts);
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(filtered));
+      return filtered;
     }
 
     // 4. LocalStorage fallback
@@ -309,17 +319,25 @@ export const api = {
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          await saveLocalProducts(parsed);
-          return parsed;
+        if (Array.isArray(parsed)) {
+          const filtered = filterDeleted(parsed);
+          await saveLocalProducts(filtered);
+          return filtered;
         }
       } catch {}
     }
 
-    // 5. Initial baseline
-    await saveLocalProducts(initialProducts);
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(initialProducts));
-    return initialProducts;
+    // 5. Initial baseline - only if not already initialized
+    if (typeof window !== 'undefined' && localStorage.getItem('horon_db_initialized')) {
+      return [];
+    }
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('horon_db_initialized', 'true');
+    }
+    const filteredBaseline = filterDeleted(initialProducts);
+    await saveLocalProducts(filteredBaseline);
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(filteredBaseline));
+    return filteredBaseline;
   },
 
   async createProduct(product: Omit<Product, 'id' | 'createdAt'>): Promise<Product> {
@@ -393,6 +411,9 @@ export const api = {
   },
 
   async deleteProduct(id: string): Promise<boolean> {
+    // 0. Track deletion permanently
+    await markIdAsDeleted(id);
+
     // 1. Delete from Cloud Firestore
     try {
       await deleteProductFromFirestore(id);
@@ -403,12 +424,17 @@ export const api = {
     // 2. Delete from local caches
     await deleteSingleLocalProduct(id);
     try {
-      const current = await this.getProducts();
-      const filtered = current.filter(p => p.id !== id);
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(filtered));
+      const cached = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter((p: Product) => p.id !== id);
+          localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(filtered));
+        }
+      }
     } catch {}
 
-    // 3. Optional local server sync
+    // 3. Delete from local server
     try {
       await fetch(`/api/products/${id}`, { method: 'DELETE' });
     } catch {}
@@ -422,10 +448,11 @@ export const api = {
   async getAnnouncements(): Promise<Announcement[]> {
     try {
       const cloudAnnouncements = await getCloudAnnouncements();
-      if (cloudAnnouncements !== null && cloudAnnouncements !== undefined && cloudAnnouncements.length > 0) {
-        localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(cloudAnnouncements));
-        await saveLocalAnnouncements(cloudAnnouncements);
-        return cloudAnnouncements;
+      if (Array.isArray(cloudAnnouncements) && cloudAnnouncements.length > 0) {
+        const filtered = filterDeleted(cloudAnnouncements);
+        localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(filtered));
+        await saveLocalAnnouncements(filtered);
+        return filtered;
       }
     } catch (e) {
       console.warn('Erreur cloud announcements:', e);
@@ -435,34 +462,40 @@ export const api = {
       const res = await fetch('/api/announcements');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(data));
-          await saveLocalAnnouncements(data);
-          return data;
+        if (Array.isArray(data)) {
+          const filtered = filterDeleted(data);
+          localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(filtered));
+          await saveLocalAnnouncements(filtered);
+          return filtered;
         }
       }
     } catch {}
 
     const idbAnnouncements = await getLocalAnnouncements();
     if (idbAnnouncements && idbAnnouncements.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(idbAnnouncements));
-      return idbAnnouncements;
+      const filtered = filterDeleted(idbAnnouncements);
+      localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(filtered));
+      return filtered;
     }
 
     const cached = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          await saveLocalAnnouncements(parsed);
-          return parsed;
+        if (Array.isArray(parsed)) {
+          const filtered = filterDeleted(parsed);
+          return filtered;
         }
       } catch {}
     }
 
-    await saveLocalAnnouncements(initialAnnouncements);
-    localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(initialAnnouncements));
-    return initialAnnouncements;
+    if (typeof window !== 'undefined' && localStorage.getItem('horon_db_initialized')) {
+      return [];
+    }
+    const filteredBaseline = filterDeleted(initialAnnouncements);
+    await saveLocalAnnouncements(filteredBaseline);
+    localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(filteredBaseline));
+    return filteredBaseline;
   },
 
   async createAnnouncement(announcement: Omit<Announcement, 'id' | 'createdAt'>): Promise<Announcement> {
@@ -531,6 +564,8 @@ export const api = {
   },
 
   async deleteAnnouncement(id: string): Promise<boolean> {
+    await markIdAsDeleted(id);
+
     try {
       await deleteAnnouncementFromFirestore(id);
     } catch (e) {
@@ -539,9 +574,14 @@ export const api = {
 
     await deleteSingleLocalAnnouncement(id);
     try {
-      const current = await this.getAnnouncements();
-      const filtered = current.filter(a => a.id !== id);
-      localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(filtered));
+      const cached = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter((a: Announcement) => a.id !== id);
+          localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(filtered));
+        }
+      }
     } catch {}
 
     try {
@@ -557,10 +597,11 @@ export const api = {
   async getMedia(): Promise<MediaItem[]> {
     try {
       const cloudMedia = await getCloudMedia();
-      if (cloudMedia !== null && cloudMedia !== undefined && cloudMedia.length > 0) {
-        localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(cloudMedia));
-        await saveLocalMedia(cloudMedia);
-        return cloudMedia;
+      if (Array.isArray(cloudMedia) && cloudMedia.length > 0) {
+        const filtered = filterDeleted(cloudMedia);
+        localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filtered));
+        await saveLocalMedia(filtered);
+        return filtered;
       }
     } catch (e) {
       console.warn('Erreur cloud media:', e);
@@ -570,34 +611,41 @@ export const api = {
       const res = await fetch('/api/media');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(data));
-          await saveLocalMedia(data);
-          return data;
+        if (Array.isArray(data)) {
+          const filtered = filterDeleted(data);
+          localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filtered));
+          await saveLocalMedia(filtered);
+          return filtered;
         }
       }
     } catch {}
 
     const idbMedia = await getLocalMedia();
     if (idbMedia && idbMedia.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(idbMedia));
-      return idbMedia;
+      const filtered = filterDeleted(idbMedia);
+      localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filtered));
+      return filtered;
     }
 
     const cached = localStorage.getItem(STORAGE_KEYS.MEDIA);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          await saveLocalMedia(parsed);
-          return parsed;
+        if (Array.isArray(parsed)) {
+          const filtered = filterDeleted(parsed);
+          await saveLocalMedia(filtered);
+          return filtered;
         }
       } catch {}
     }
 
-    await saveLocalMedia(initialMedia);
-    localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(initialMedia));
-    return initialMedia;
+    if (typeof window !== 'undefined' && localStorage.getItem('horon_db_initialized')) {
+      return [];
+    }
+    const filteredBaseline = filterDeleted(initialMedia);
+    await saveLocalMedia(filteredBaseline);
+    localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filteredBaseline));
+    return filteredBaseline;
   },
 
   async createMedia(media: Omit<MediaItem, 'id' | 'createdAt'>): Promise<MediaItem> {
@@ -633,6 +681,8 @@ export const api = {
   },
 
   async deleteMedia(id: string): Promise<boolean> {
+    await markIdAsDeleted(id);
+
     try {
       await deleteMediaFromFirestore(id);
     } catch (e) {
@@ -641,9 +691,14 @@ export const api = {
 
     await deleteSingleLocalMedia(id);
     try {
-      const current = await this.getMedia();
-      const filtered = current.filter(m => m.id !== id);
-      localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filtered));
+      const cached = localStorage.getItem(STORAGE_KEYS.MEDIA);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter((m: MediaItem) => m.id !== id);
+          localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filtered));
+        }
+      }
     } catch {}
 
     try {
@@ -659,10 +714,11 @@ export const api = {
   async getMessages(): Promise<CustomerMessage[]> {
     try {
       const cloudMessages = await getCloudMessages();
-      if (cloudMessages) {
-        localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(cloudMessages));
-        await saveLocalMessages(cloudMessages);
-        return cloudMessages;
+      if (Array.isArray(cloudMessages) && cloudMessages.length > 0) {
+        const filtered = filterDeleted(cloudMessages);
+        localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(filtered));
+        await saveLocalMessages(filtered);
+        return filtered;
       }
     } catch (e) {
       console.warn('Erreur cloud messages:', e);
@@ -672,28 +728,39 @@ export const api = {
       const res = await fetch('/api/messages');
       if (res.ok) {
         const data = await res.json();
-        localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(data));
-        await saveLocalMessages(data);
-        return data;
+        if (Array.isArray(data)) {
+          const filtered = filterDeleted(data);
+          localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(filtered));
+          await saveLocalMessages(filtered);
+          return filtered;
+        }
       }
     } catch {}
 
     const idbMessages = await getLocalMessages();
     if (idbMessages && idbMessages.length > 0) {
-      return idbMessages;
+      const filtered = filterDeleted(idbMessages);
+      return filtered;
     }
 
     const cached = localStorage.getItem(STORAGE_KEYS.MESSAGES);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        await saveLocalMessages(parsed);
-        return parsed;
+        if (Array.isArray(parsed)) {
+          const filtered = filterDeleted(parsed);
+          await saveLocalMessages(filtered);
+          return filtered;
+        }
       } catch {}
     }
 
-    await saveLocalMessages(initialMessages);
-    return initialMessages;
+    if (typeof window !== 'undefined' && localStorage.getItem('horon_db_initialized')) {
+      return [];
+    }
+    const filteredBaseline = filterDeleted(initialMessages);
+    await saveLocalMessages(filteredBaseline);
+    return filteredBaseline;
   },
 
   async sendMessage(name: string, contact: string, message: string, productReference?: string): Promise<CustomerMessage> {
@@ -765,6 +832,8 @@ export const api = {
   },
 
   async deleteMessage(id: string): Promise<boolean> {
+    await markIdAsDeleted(id);
+
     try {
       await deleteMessageFromFirestore(id);
     } catch (e) {
@@ -773,9 +842,14 @@ export const api = {
 
     await deleteSingleLocalMessage(id);
     try {
-      const current = await this.getMessages();
-      const filtered = current.filter(m => m.id !== id);
-      localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(filtered));
+      const cached = localStorage.getItem(STORAGE_KEYS.MESSAGES);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter((m: CustomerMessage) => m.id !== id);
+          localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(filtered));
+        }
+      }
     } catch {}
 
     try {
@@ -861,10 +935,11 @@ export const api = {
       const res = await fetch('/api/orders');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(data));
-          await saveLocalOrders(data);
-          return data;
+        if (Array.isArray(data)) {
+          const filtered = filterDeleted(data);
+          localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(filtered));
+          await saveLocalOrders(filtered);
+          return filtered;
         }
       }
     } catch {}
@@ -872,8 +947,9 @@ export const api = {
     // 2. IndexedDB
     const idbOrders = await getLocalOrders();
     if (idbOrders && idbOrders.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(idbOrders));
-      return idbOrders;
+      const filtered = filterDeleted(idbOrders);
+      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(filtered));
+      return filtered;
     }
 
     // 3. LocalStorage
@@ -881,16 +957,21 @@ export const api = {
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          await saveLocalOrders(parsed);
-          return parsed;
+        if (Array.isArray(parsed)) {
+          const filtered = filterDeleted(parsed);
+          await saveLocalOrders(filtered);
+          return filtered;
         }
       } catch {}
     }
 
-    await saveLocalOrders(initialOrders);
-    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(initialOrders));
-    return initialOrders;
+    if (typeof window !== 'undefined' && localStorage.getItem('horon_db_initialized')) {
+      return [];
+    }
+    const filteredBaseline = filterDeleted(initialOrders);
+    await saveLocalOrders(filteredBaseline);
+    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(filteredBaseline));
+    return filteredBaseline;
   },
 
   async createOrder(order: Order): Promise<Order> {
@@ -955,16 +1036,26 @@ export const api = {
   },
 
   async deleteOrder(id: string): Promise<boolean> {
+    await markIdAsDeleted(id);
+
     try {
       await deleteOrderFromFirestore(id);
     } catch (e) {
       console.warn('Erreur Firestore delete order:', e);
     }
 
-    const current = await this.getOrders();
-    const filtered = current.filter(o => o.id !== id);
-    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(filtered));
-    await saveLocalOrders(filtered);
+    await deleteSingleLocalOrder(id);
+    try {
+      const cached = localStorage.getItem(STORAGE_KEYS.ORDERS);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter((o: Order) => o.id !== id);
+          localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(filtered));
+          await saveLocalOrders(filtered);
+        }
+      }
+    } catch {}
 
     try {
       await fetch(`/api/orders/${id}`, { method: 'DELETE' });
@@ -983,10 +1074,10 @@ export const api = {
       const res = await fetch('/api/reviews');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          allReviews = data;
-          localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(data));
-          await saveLocalReviews(data);
+        if (Array.isArray(data)) {
+          allReviews = filterDeleted(data);
+          localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(allReviews));
+          await saveLocalReviews(allReviews);
         }
       }
     } catch {}
@@ -995,8 +1086,8 @@ export const api = {
     if (allReviews.length === 0) {
       const idbReviews = await getLocalReviews();
       if (idbReviews && idbReviews.length > 0) {
-        allReviews = idbReviews;
-        localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(idbReviews));
+        allReviews = filterDeleted(idbReviews);
+        localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(allReviews));
       }
     }
 
@@ -1006,9 +1097,9 @@ export const api = {
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            allReviews = parsed;
-            await saveLocalReviews(parsed);
+          if (Array.isArray(parsed)) {
+            allReviews = filterDeleted(parsed);
+            await saveLocalReviews(allReviews);
           }
         } catch {}
       }
@@ -1016,9 +1107,12 @@ export const api = {
 
     // 4. Default fallback
     if (allReviews.length === 0) {
-      allReviews = initialReviews;
-      await saveLocalReviews(initialReviews);
-      localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(initialReviews));
+      if (typeof window !== 'undefined' && localStorage.getItem('horon_db_initialized')) {
+        return [];
+      }
+      allReviews = filterDeleted(initialReviews);
+      await saveLocalReviews(allReviews);
+      localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(allReviews));
     }
 
     if (productId) {
@@ -1051,16 +1145,26 @@ export const api = {
   },
 
   async deleteReview(id: string): Promise<boolean> {
+    await markIdAsDeleted(id);
+
     try {
       await deleteReviewFromFirestore(id);
     } catch (e) {
       console.warn('Erreur Firestore delete review:', e);
     }
 
-    const current = await this.getReviews();
-    const filtered = current.filter(r => r.id !== id);
-    localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(filtered));
-    await saveLocalReviews(filtered);
+    await deleteSingleLocalReview(id);
+    try {
+      const cached = localStorage.getItem(STORAGE_KEYS.REVIEWS);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter((r: ProductReview) => r.id !== id);
+          localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(filtered));
+          await saveLocalReviews(filtered);
+        }
+      }
+    } catch {}
 
     try {
       await fetch(`/api/reviews/${id}`, { method: 'DELETE' });
@@ -1073,6 +1177,8 @@ export const api = {
      RESET TO INITIAL BASELINE (CLOUD + LOCAL)
   ========================================================= */
   async resetDemoData(): Promise<void> {
+    clearDeletedIds();
+
     try {
       await resetCloudData();
     } catch (e) {

@@ -344,6 +344,15 @@ export async function saveSingleLocalOrder(order: Order): Promise<void> {
   }
 }
 
+export async function deleteSingleLocalOrder(id: string): Promise<void> {
+  try {
+    const db = await getDB();
+    await db.delete('orders', id);
+  } catch (err) {
+    console.warn('IndexedDB deleteSingleLocalOrder fallback:', err);
+  }
+}
+
 export async function getLocalReviews(): Promise<ProductReview[]> {
   try {
     const db = await getDB();
@@ -366,6 +375,15 @@ export async function saveLocalReviews(reviews: ProductReview[]): Promise<void> 
     await tx.done;
   } catch (err) {
     console.warn('IndexedDB saveLocalReviews fallback:', err);
+  }
+}
+
+export async function deleteSingleLocalReview(id: string): Promise<void> {
+  try {
+    const db = await getDB();
+    await db.delete('reviews', id);
+  } catch (err) {
+    console.warn('IndexedDB deleteSingleLocalReview fallback:', err);
   }
 }
 
