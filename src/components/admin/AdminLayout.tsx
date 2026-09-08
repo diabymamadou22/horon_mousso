@@ -86,12 +86,22 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           <div className="flex items-center gap-3 sm:gap-4">
             <button
               onClick={() => setIsSyncModalOpen(true)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-300 hover:text-white bg-white/10 hover:bg-white/20 py-1.5 px-3 rounded-full transition cursor-pointer"
-              title="Statut Base Cloud & Locale (Multi-Appareils)"
+              className={`inline-flex items-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-full transition cursor-pointer ${
+                syncStatus.isQuotaExceeded 
+                  ? 'text-amber-300 hover:text-white bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/30' 
+                  : 'text-emerald-300 hover:text-white bg-white/10 hover:bg-white/20'
+              }`}
+              title={syncStatus.isQuotaExceeded ? "Quota Cloud Spark atteint - Relais local actif" : "Statut Base Cloud & Locale (Multi-Appareils)"}
             >
-              <Cloud className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden sm:inline">Synchro Multi-Appareils</span>
-              <span className={`w-2 h-2 rounded-full ${syncStatus.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+              <Cloud className={`w-3.5 h-3.5 ${syncStatus.isQuotaExceeded ? 'text-amber-400' : 'text-emerald-400'}`} />
+              <span className="hidden sm:inline">
+                {syncStatus.isQuotaExceeded ? 'Relais Local (Quota Spark)' : 'Synchro Multi-Appareils'}
+              </span>
+              <span className={`w-2 h-2 rounded-full ${
+                syncStatus.isQuotaExceeded 
+                  ? 'bg-amber-400' 
+                  : syncStatus.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+              }`}></span>
             </button>
 
             <button

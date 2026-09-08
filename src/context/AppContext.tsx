@@ -43,7 +43,10 @@ import {
   subscribeToCloudSettings,
   subscribeToCloudAdminAuth,
   subscribeToCloudOrders,
-  subscribeToCloudReviews
+  subscribeToCloudReviews,
+  isFirestoreQuotaExceeded,
+  onFirestoreQuotaChange,
+  isQuotaError
 } from '../lib/firebase';
 
 export type PublicTab = 'accueil' | 'produits' | 'actualites' | 'galerie' | 'a_propos' | 'contact';
@@ -209,8 +212,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     cloudConnected: false,
     localCacheActive: true,
     lastSyncTime: null,
-    mode: 'cloud_and_local'
+    mode: isFirestoreQuotaExceeded() ? 'local_only' : 'cloud_and_local',
+    isQuotaExceeded: isFirestoreQuotaExceeded()
   });
+
+  // Listen to Firestore quota change notifications
+  useEffect(() => {
+    return onFirestoreQuotaChange((exceeded) => {
+      setSyncStatus(prev => ({
+        ...prev,
+        isQuotaExceeded: exceeded,
+        mode: exceeded ? 'local_only' : (prev.isOnline ? 'cloud_and_local' : 'local_only'),
+        cloudConnected: exceeded ? false : prev.cloudConnected
+      }));
+    });
+  }, []);
 
   // Cart State
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -623,6 +639,17 @@ Merci de confirmer la prise en charge et le délai !`;
 
     const initializeCloudSync = () => {
       try {
+        const handleSubError = (err: unknown) => {
+          if (isQuotaError(err)) {
+            setSyncStatus(prev => ({
+              ...prev,
+              isQuotaExceeded: true,
+              mode: 'local_only',
+              cloudConnected: false
+            }));
+          }
+        };
+
         // 1. Live Products Subscription (Single Source of Truth across all devices)
         const unsubProds = subscribeToCloudProducts((cloudProds) => {
           if (Array.isArray(cloudProds)) {
@@ -635,7 +662,7 @@ Merci de confirmer la prise en charge et le délai !`;
             }));
             saveLocalProducts(cloudProds).catch(() => {});
           }
-        });
+        }, handleSubError);
 
         // 2. Live Announcements Subscription
         const unsubAnns = subscribeToCloudAnnouncements((cloudAnns) => {
@@ -643,7 +670,7 @@ Merci de confirmer la prise en charge et le délai !`;
             setAnnouncements(cloudAnns);
             saveLocalAnnouncements(cloudAnns).catch(() => {});
           }
-        });
+        }, handleSubError);
 
         // 3. Live Media Gallery Subscription
         const unsubMedia = subscribeToCloudMedia((cloudMedia) => {
@@ -651,7 +678,7 @@ Merci de confirmer la prise en charge et le délai !`;
             setMedia(cloudMedia);
             saveLocalMedia(cloudMedia).catch(() => {});
           }
-        });
+        }, handleSubError);
 
         // 4. Live Messages & Orders Subscription
         const unsubMsgs = subscribeToCloudMessages((cloudMsgs) => {
@@ -659,7 +686,7 @@ Merci de confirmer la prise en charge et le délai !`;
             setMessages(cloudMsgs);
             saveLocalMessages(cloudMsgs).catch(() => {});
           }
-        });
+        }, handleSubError);
 
         // 5. Live Company Settings Subscription
         const unsubSettings = subscribeToCloudSettings((cloudSettings) => {
@@ -667,14 +694,14 @@ Merci de confirmer la prise en charge et le délai !`;
             setSettings(cloudSettings);
             saveLocalSettings(cloudSettings).catch(() => {});
           }
-        });
+        }, handleSubError);
 
         // 6. Live Admin Auth Subscription
         const unsubAuth = subscribeToCloudAdminAuth((cloudAuth) => {
           if (cloudAuth) {
             setAuthStatus(cloudAuth);
           }
-        });
+        }, handleSubError);
 
         // 7. Live Commercial Orders Subscription
         const unsubOrders = subscribeToCloudOrders((cloudOrders) => {
@@ -683,7 +710,7 @@ Merci de confirmer la prise en charge et le délai !`;
             localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(cloudOrders));
             saveLocalOrders(cloudOrders).catch(() => {});
           }
-        });
+        }, handleSubError);
 
         // 8. Live Customer Reviews Subscription
         const unsubReviews = subscribeToCloudReviews((cloudReviews) => {
@@ -692,16 +719,21 @@ Merci de confirmer la prise en charge et le délai !`;
             localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(cloudReviews));
             saveLocalReviews(cloudReviews).catch(() => {});
           }
-        });
+        }, handleSubError);
 
         unsubs = [unsubProds, unsubAnns, unsubMedia, unsubMsgs, unsubSettings, unsubAuth, unsubOrders, unsubReviews];
 
-        // Seed initial data to cloud if collections are empty
-        seedFirestoreIfEmpty().catch(() => {});
-
         // Test Cloud Connection and update state
         testFirestoreConnection().then(conn => {
-          if (conn.ok) {
+          if (conn.isQuotaExceeded) {
+            setSyncStatus(prev => ({
+              ...prev,
+              isQuotaExceeded: true,
+              cloudConnected: false,
+              mode: 'local_only',
+              lastSyncTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            }));
+          } else if (conn.ok) {
             setSyncStatus(prev => ({
               ...prev,
               cloudConnected: true,
@@ -729,7 +761,9 @@ Merci de confirmer la prise en charge et le délai !`;
     setIsLoading(true);
     try {
       const conn = await testFirestoreConnection();
-      await seedFirestoreIfEmpty(true);
+      if (!conn.isQuotaExceeded && !isFirestoreQuotaExceeded()) {
+        await seedFirestoreIfEmpty(true);
+      }
 
       // Re-hydrate all data to guarantee 100% operational sync
       const [
@@ -758,12 +792,25 @@ Merci de confirmer la prise en charge et le délai !`;
       if (ordersRes.status === 'fulfilled' && ordersRes.value?.length) setOrders(ordersRes.value);
       if (reviewsRes.status === 'fulfilled' && reviewsRes.value?.length) setReviews(reviewsRes.value);
 
-      setSyncStatus(prev => ({
-        ...prev,
-        cloudConnected: conn.ok,
-        lastSyncTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      }));
-      showToast(conn.ok ? 'Base Cloud Firebase & Stockage Local 100% opérationnels !' : 'Base locale 100% opérationnelle', 'success');
+      if (conn.isQuotaExceeded) {
+        setSyncStatus(prev => ({
+          ...prev,
+          cloudConnected: false,
+          isQuotaExceeded: true,
+          mode: 'local_only',
+          lastSyncTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        }));
+        showToast('Quota journalier gratuit Cloud Firestore atteint. Données stockées en local.', 'info');
+      } else {
+        setSyncStatus(prev => ({
+          ...prev,
+          cloudConnected: conn.ok,
+          isQuotaExceeded: false,
+          mode: conn.ok ? 'cloud_and_local' : 'local_only',
+          lastSyncTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        }));
+        showToast(conn.ok ? 'Base Cloud Firebase & Stockage Local 100% opérationnels !' : 'Base locale 100% opérationnelle', 'success');
+      }
     } catch (e) {
       console.warn('Erreur forceSync:', e);
       showToast('Données locales 100% sécurisées', 'info');

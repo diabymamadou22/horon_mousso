@@ -199,4 +199,5 @@ export interface SyncStatus {
   localCacheActive: boolean;
   lastSyncTime: string | null;
   mode: 'cloud_and_local' | 'local_only';
+  isQuotaExceeded?: boolean;
 }

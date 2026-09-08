@@ -11,7 +11,9 @@ import {
   CheckCircle2, 
   X,
   Layers,
-  ShieldCheck
+  ShieldCheck,
+  AlertTriangle,
+  ExternalLink
 } from 'lucide-react';
 
 interface SyncStatusModalProps {
@@ -55,19 +57,54 @@ export const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ isOpen, onClos
 
         {/* Modal Content */}
         <div className="p-6 space-y-5 text-stone-700 max-h-[80vh] overflow-y-auto">
+          {/* Quota Exceeded Alert (if active) */}
+          {syncStatus.isQuotaExceeded && (
+            <div className="p-4 rounded-xl border border-amber-300 bg-amber-50/90 text-amber-950 space-y-2">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <div className="text-sm font-bold">Quota Cloud Firestore gratuit atteint (Plan Spark)</div>
+                  <p className="text-xs text-amber-900 leading-relaxed">
+                    Le plafond journalier gratuit d'écritures/lectures de la base Firebase a été atteint pour aujourd'hui. L'application a automatiquement basculé sur le <strong>stockage local persistant (IndexedDB)</strong> : vous pouvez continuer à gérer vos produits, commandes et messages sans interruption.
+                  </p>
+                  <div className="pt-1.5 flex items-center gap-2">
+                    <a 
+                      href="https://console.firebase.google.com/project/crucial-spider-zhh41/firestore/databases/ai-studio-horonmousso-47c91ee4-7e9d-4a4c-a991-6fa525d8b386/data?openUpgradeDialog=true" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-bold text-amber-950 bg-amber-200/80 hover:bg-amber-300/80 px-2.5 py-1 rounded-md transition"
+                    >
+                      <span>Activer le plan Blaze / Gérer les quotas</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Status summary banner */}
           <div className={`p-4 rounded-xl border flex items-center justify-between ${
-            syncStatus.isOnline 
-              ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950' 
-              : 'bg-amber-50/70 border-amber-200 text-amber-950'
+            syncStatus.isQuotaExceeded
+              ? 'bg-amber-50/70 border-amber-200 text-amber-950'
+              : syncStatus.isOnline 
+                ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950' 
+                : 'bg-amber-50/70 border-amber-200 text-amber-950'
           }`}>
             <div className="flex items-center gap-3">
               <div className={`w-3 h-3 rounded-full ${
-                syncStatus.isOnline ? 'bg-emerald-500 animate-ping' : 'bg-amber-500'
+                syncStatus.isQuotaExceeded 
+                  ? 'bg-amber-500' 
+                  : syncStatus.isOnline ? 'bg-emerald-500 animate-ping' : 'bg-amber-500'
               }`} />
               <div>
                 <div className="text-sm font-bold flex items-center gap-1.5">
-                  {syncStatus.isOnline ? (
+                  {syncStatus.isQuotaExceeded ? (
+                    <>
+                      <Database className="w-4 h-4 text-amber-600" />
+                      <span>Mode Local Actif (Quota Cloud atteint)</span>
+                    </>
+                  ) : syncStatus.isOnline ? (
                     <>
                       <Wifi className="w-4 h-4 text-emerald-600" />
                       <span>Mode En Ligne & Cloud Actif</span>
@@ -81,7 +118,7 @@ export const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ isOpen, onClos
                 </div>
                 <div className="text-xs opacity-80 mt-0.5">
                   {syncStatus.lastSyncTime 
-                    ? `Dernière synchronisation réussie à ${syncStatus.lastSyncTime}` 
+                    ? `Dernière vérification à ${syncStatus.lastSyncTime}` 
                     : 'Synchronisation automatique en tâche de fond'}
                 </div>
               </div>
@@ -102,15 +139,21 @@ export const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ isOpen, onClos
             <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5">
               <Cloud className="w-5 h-5" />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 flex-1">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-sm text-stone-900">Base En Ligne (Cloud Firestore)</span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
-                  <CheckCircle2 className="w-3 h-3" /> Connecté
-                </span>
+                {syncStatus.isQuotaExceeded ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                    Quota gratuit atteint
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                    <CheckCircle2 className="w-3 h-3" /> Connecté
+                  </span>
+                )}
               </div>
               <p className="text-xs text-stone-600 leading-relaxed">
-                Hébergée sur Google Cloud Firebase. Lorsqu'un administrateur met à jour un produit, publie une annonce ou reçoit un message, la mise à jour est diffusée instantanément à tous les appareils connectés.
+                Hébergée sur Google Cloud Firebase. Lorsqu'un administrateur met à jour un produit, publie une annonce ou reçoit un message, la mise à jour est synchronisée. Si le quota gratuit est atteint, le relais local garantit 100% de disponibilité.
               </p>
             </div>
           </div>

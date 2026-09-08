@@ -3,8 +3,7 @@ import { getAuth, Auth } from 'firebase/auth';
 import { 
   getFirestore, 
   initializeFirestore, 
-  persistentLocalCache, 
-  persistentMultipleTabManager,
+  memoryLocalCache,
   collection, 
   doc, 
   setDoc, 
@@ -23,8 +22,8 @@ import { initialOrders } from '../data/initialOrders';
 import { initialReviews } from '../data/initialReviews';
 import { filterDeleted, isIdDeleted } from './deletionTracker';
 
-// Suppress transient backend unreachable notices in environments where offline caching or long-polling handles connection
-setLogLevel('error');
+// Silence Firestore internal log messages (including backoff delays for quota exceedance)
+setLogLevel('silent');
 
 // Configuration from Firebase provisioning
 export const firebaseConfig = {
@@ -55,31 +54,21 @@ try {
 }
 
 try {
-  // Initialize Firestore with auto-detect long polling and persistent offline cache
+  // Use memory local cache to prevent rejected quota writes from persisting in Firestore's internal queue
+  // and causing repetitive backoff loops. Permanent local persistence is fully managed by our IndexedDB engine.
   firestoreDb = initializeFirestore(
     app,
     {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      }),
+      localCache: memoryLocalCache(),
       experimentalAutoDetectLongPolling: true
     },
     firebaseConfig.firestoreDatabaseId
   );
 } catch (e) {
-  // Fallback if already initialized or persistent cache not supported in browser environment (e.g. Safari private)
   try {
-    firestoreDb = initializeFirestore(
-      app,
-      { experimentalAutoDetectLongPolling: true },
-      firebaseConfig.firestoreDatabaseId
-    );
-  } catch (err) {
-    try {
-      firestoreDb = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-    } catch {
-      firestoreDb = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-    }
+    firestoreDb = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  } catch {
+    firestoreDb = getFirestore(app);
   }
 }
 
@@ -88,6 +77,83 @@ export { app, firestoreDb, firestoreDb as db, auth };
 /* =========================================================
    FIRESTORE ERROR HANDLING & CONNECTION VALIDATION
 ========================================================= */
+
+const QUOTA_STORAGE_KEY = 'horon_firestore_quota_exceeded';
+const QUOTA_TS_KEY = 'horon_firestore_quota_exceeded_ts';
+const QUOTA_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function checkStoredQuota(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const isExceeded = localStorage.getItem(QUOTA_STORAGE_KEY) === 'true' || 
+                       sessionStorage.getItem(QUOTA_STORAGE_KEY) === 'true';
+    if (isExceeded) {
+      const tsStr = localStorage.getItem(QUOTA_TS_KEY);
+      if (tsStr) {
+        const ts = parseInt(tsStr, 10);
+        if (!isNaN(ts) && (Date.now() - ts < QUOTA_DURATION_MS)) {
+          return true;
+        }
+      } else {
+        return true;
+      }
+    }
+  } catch {}
+  return false;
+}
+
+let isQuotaExceededState: boolean = checkStoredQuota();
+
+const quotaListeners = new Set<(exceeded: boolean) => void>();
+
+export function isFirestoreQuotaExceeded(): boolean {
+  if (!isQuotaExceededState && checkStoredQuota()) {
+    isQuotaExceededState = true;
+  }
+  return isQuotaExceededState;
+}
+
+export function setFirestoreQuotaExceeded(exceeded: boolean = true) {
+  if (isQuotaExceededState === exceeded) return;
+  isQuotaExceededState = exceeded;
+  if (typeof window !== 'undefined') {
+    try {
+      if (exceeded) {
+        localStorage.setItem(QUOTA_STORAGE_KEY, 'true');
+        localStorage.setItem(QUOTA_TS_KEY, Date.now().toString());
+        sessionStorage.setItem(QUOTA_STORAGE_KEY, 'true');
+      } else {
+        localStorage.removeItem(QUOTA_STORAGE_KEY);
+        localStorage.removeItem(QUOTA_TS_KEY);
+        sessionStorage.removeItem(QUOTA_STORAGE_KEY);
+      }
+    } catch {}
+  }
+  quotaListeners.forEach(listener => {
+    try { listener(exceeded); } catch {}
+  });
+}
+
+export function onFirestoreQuotaChange(callback: (exceeded: boolean) => void): () => void {
+  quotaListeners.add(callback);
+  callback(isFirestoreQuotaExceeded());
+  return () => {
+    quotaListeners.delete(callback);
+  };
+}
+
+export function isQuotaError(error: unknown): boolean {
+  if (!error) return false;
+  const err = error as { code?: string; message?: string };
+  if (err.code === 'resource-exhausted') return true;
+  if (typeof err.message === 'string') {
+    const msg = err.message.toLowerCase();
+    return msg.includes('quota limit exceeded') || 
+           msg.includes('resource-exhausted') || 
+           msg.includes('quota exceeded');
+  }
+  return false;
+}
 
 export enum OperationType {
   CREATE = 'create',
@@ -110,6 +176,10 @@ export interface FirestoreErrorInfo {
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
   const err = error as { code?: string; message?: string };
+  if (isQuotaError(error)) {
+    setFirestoreQuotaExceeded(true);
+    console.warn(`⚠️ Quota Firestore gratuit atteint lors de l'opération ${operationType} (${path || ''}). Le système bascule automatiquement sur le stockage local et le serveur.`);
+  }
   if (err && err.code === 'permission-denied') {
     const errorInfo: FirestoreErrorInfo = {
       error: `Missing or insufficient permissions: ${err.message || 'Permission denied'}`,
@@ -126,16 +196,29 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw error;
 }
 
-export async function testFirestoreConnection(): Promise<{ ok: boolean; message: string }> {
+export async function testFirestoreConnection(): Promise<{ ok: boolean; message: string; isQuotaExceeded?: boolean }> {
+  if (isFirestoreQuotaExceeded()) {
+    return { 
+      ok: false, 
+      message: 'Quota journalier Firestore gratuit atteint (relais local et serveur actif)', 
+      isQuotaExceeded: true 
+    };
+  }
   try {
     await getDocFromServer(doc(firestoreDb, 'test', 'connection'));
     return { ok: true, message: 'Connecté à Google Cloud Firestore' };
   } catch (error) {
+    if (isQuotaError(error)) {
+      setFirestoreQuotaExceeded(true);
+      return { 
+        ok: false, 
+        message: 'Quota journalier Firestore gratuit atteint (relais local et serveur actif)', 
+        isQuotaExceeded: true 
+      };
+    }
     if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firebase client is offline, local cache is operational.');
       return { ok: false, message: 'Client Firestore en cache hors-ligne' };
     }
-    // Document not existing or any other non-offline error confirms the server was reached!
     return { ok: true, message: 'Connecté à Google Cloud Firestore' };
   }
 }
@@ -146,13 +229,19 @@ export async function testFirestoreConnection(): Promise<{ ok: boolean; message:
 let isSeeding = false;
 
 export async function seedFirestoreIfEmpty(forceCheck: boolean = false): Promise<boolean> {
+  if (isFirestoreQuotaExceeded()) return false;
+  // Never auto-seed write units on normal application boots - all initial catalogue data
+  // is pre-populated in application memory and persisted permanently in IndexedDB.
+  if (!forceCheck) return false;
   if (isSeeding) return false;
-  if (!forceCheck && typeof window !== 'undefined') {
+  
+  if (typeof window !== 'undefined') {
     if (localStorage.getItem('horon_firestore_initialized_v2') === 'true') {
       return false;
     }
+    localStorage.setItem('horon_firestore_initialized_v2', 'true');
   }
-  
+
   try {
     isSeeding = true;
     const systemDocRef = doc(firestoreDb, 'settings', 'system');
@@ -160,22 +249,22 @@ export async function seedFirestoreIfEmpty(forceCheck: boolean = false): Promise
     if (!forceCheck) {
       // Resilient check: see if system was already initialized
       try {
-        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500));
         const queryPromise = getDoc(systemDocRef);
         const existingSnap = await Promise.race([queryPromise, timeoutPromise]);
 
         if (existingSnap && existingSnap.exists()) {
-          // Already initialized, never overwrite user data
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('horon_firestore_initialized_v2', 'true');
-          }
           return false;
         }
-      } catch {
-        // If Firestore read fails (e.g. quota or offline), never blind-seed and recreate deleted data!
+      } catch (err) {
+        if (isQuotaError(err)) {
+          setFirestoreQuotaExceeded(true);
+        }
         return false;
       }
     }
+
+    if (isFirestoreQuotaExceeded()) return false;
 
     console.log('🌱 Initializing Horon Mousso cloud database for the first time...');
     
@@ -259,12 +348,14 @@ export async function seedFirestoreIfEmpty(forceCheck: boolean = false): Promise
       version: '1.0'
     }, { merge: true });
 
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('horon_firestore_initialized_v2', 'true');
-    }
     return true;
   } catch (error) {
-    console.warn('Note on Firestore seeding (continuing with local/cached state):', error);
+    if (isQuotaError(error)) {
+      setFirestoreQuotaExceeded(true);
+      console.warn('⚠️ Quota Firestore gratuit atteint pendant l\'initialisation. Mode local/serveur actif.');
+    } else {
+      console.warn('Note on Firestore seeding (continuing with local/cached state):', error);
+    }
     return false;
   } finally {
     isSeeding = false;
@@ -422,6 +513,7 @@ export function subscribeToCloudReviews(
 
 // Products
 export async function saveProductToFirestore(product: Product): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const path = `products/${product.id}`;
   try {
     const docRef = doc(firestoreDb, 'products', product.id);
@@ -430,22 +522,32 @@ export async function saveProductToFirestore(product: Product): Promise<void> {
       updatedAt: new Date().toISOString()
     }, { merge: true });
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
     handleFirestoreError(err, OperationType.WRITE, path);
   }
 }
 
 export async function deleteProductFromFirestore(id: string): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const path = `products/${id}`;
   try {
     const docRef = doc(firestoreDb, 'products', id);
     await deleteDoc(docRef);
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
     handleFirestoreError(err, OperationType.DELETE, path);
   }
 }
 
 // Announcements
 export async function saveAnnouncementToFirestore(announcement: Announcement): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const path = `announcements/${announcement.id}`;
   try {
     const docRef = doc(firestoreDb, 'announcements', announcement.id);
@@ -454,74 +556,109 @@ export async function saveAnnouncementToFirestore(announcement: Announcement): P
       updatedAt: new Date().toISOString()
     }, { merge: true });
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
     handleFirestoreError(err, OperationType.WRITE, path);
   }
 }
 
 export async function deleteAnnouncementFromFirestore(id: string): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const path = `announcements/${id}`;
   try {
     const docRef = doc(firestoreDb, 'announcements', id);
     await deleteDoc(docRef);
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
     handleFirestoreError(err, OperationType.DELETE, path);
   }
 }
 
 // Media
 export async function saveMediaToFirestore(media: MediaItem): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const path = `media/${media.id}`;
   try {
     const docRef = doc(firestoreDb, 'media', media.id);
     await setDoc(docRef, media, { merge: true });
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
     handleFirestoreError(err, OperationType.WRITE, path);
   }
 }
 
 export async function deleteMediaFromFirestore(id: string): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const path = `media/${id}`;
   try {
     const docRef = doc(firestoreDb, 'media', id);
     await deleteDoc(docRef);
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
     handleFirestoreError(err, OperationType.DELETE, path);
   }
 }
 
 // Messages
 export async function saveMessageToFirestore(message: CustomerMessage): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const path = `messages/${message.id}`;
   try {
     const docRef = doc(firestoreDb, 'messages', message.id);
     await setDoc(docRef, message, { merge: true });
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
     handleFirestoreError(err, OperationType.WRITE, path);
   }
 }
 
 export async function updateMessageStatusInFirestore(id: string, status: 'nouveau' | 'lu'): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const path = `messages/${id}`;
   try {
     const docRef = doc(firestoreDb, 'messages', id);
     await setDoc(docRef, { status }, { merge: true });
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
     handleFirestoreError(err, OperationType.UPDATE, path);
   }
 }
 
 export async function deleteMessageFromFirestore(id: string): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const path = `messages/${id}`;
   try {
     const docRef = doc(firestoreDb, 'messages', id);
     await deleteDoc(docRef);
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
     handleFirestoreError(err, OperationType.DELETE, path);
   }
 }
 
 // Settings
 export async function saveSettingsToFirestore(settings: CompanySettings): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const path = 'settings/main';
   try {
     const docRef = doc(firestoreDb, 'settings', 'main');
@@ -530,12 +667,17 @@ export async function saveSettingsToFirestore(settings: CompanySettings): Promis
       updatedAt: new Date().toISOString()
     }, { merge: true });
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
     handleFirestoreError(err, OperationType.WRITE, path);
   }
 }
 
 // Orders
 export async function saveOrderToFirestore(order: Order): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const path = `orders/${order.id}`;
   try {
     const docRef = doc(firestoreDb, 'orders', order.id);
@@ -544,6 +686,10 @@ export async function saveOrderToFirestore(order: Order): Promise<void> {
       updatedAt: new Date().toISOString()
     }, { merge: true });
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
     handleFirestoreError(err, OperationType.WRITE, path);
   }
 }
@@ -553,6 +699,7 @@ export async function updateOrderStatusInFirestore(
   status: Order['status'], 
   paymentStatus?: Order['paymentStatus']
 ): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const path = `orders/${id}`;
   try {
     const docRef = doc(firestoreDb, 'orders', id);
@@ -565,37 +712,56 @@ export async function updateOrderStatusInFirestore(
     }
     await setDoc(docRef, updateData, { merge: true });
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
     handleFirestoreError(err, OperationType.UPDATE, path);
   }
 }
 
 export async function deleteOrderFromFirestore(id: string): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const path = `orders/${id}`;
   try {
     const docRef = doc(firestoreDb, 'orders', id);
     await deleteDoc(docRef);
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
     handleFirestoreError(err, OperationType.DELETE, path);
   }
 }
 
 // Reviews
 export async function saveReviewToFirestore(review: ProductReview): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const path = `reviews/${review.id}`;
   try {
     const docRef = doc(firestoreDb, 'reviews', review.id);
     await setDoc(docRef, review, { merge: true });
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
     handleFirestoreError(err, OperationType.WRITE, path);
   }
 }
 
 export async function deleteReviewFromFirestore(id: string): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const path = `reviews/${id}`;
   try {
     const docRef = doc(firestoreDb, 'reviews', id);
     await deleteDoc(docRef);
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
     handleFirestoreError(err, OperationType.DELETE, path);
   }
 }
@@ -655,6 +821,9 @@ export async function getCloudMessages(): Promise<CustomerMessage[]> {
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return filterDeleted(list);
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+    }
     console.warn('Firestore getCloudMessages fallback:', err);
     return [];
   }
@@ -669,6 +838,9 @@ export async function getCloudSettings(): Promise<CompanySettings | null> {
     }
     return null;
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+    }
     console.warn('Firestore getCloudSettings fallback:', err);
     return null;
   }
@@ -688,6 +860,9 @@ export async function getCloudAdminAuth(): Promise<{ username: string; email: st
       };
     }
   } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+    }
     console.warn('Firestore getCloudAdminAuth fallback:', err);
   }
   return {
@@ -699,11 +874,20 @@ export async function getCloudAdminAuth(): Promise<{ username: string; email: st
 }
 
 export async function saveCloudAdminAuth(data: { username: string; email: string; passwordHash?: string }): Promise<void> {
+  if (isFirestoreQuotaExceeded()) return;
   const docRef = doc(firestoreDb, 'settings', 'admin_auth');
-  await setDoc(docRef, {
-    ...data,
-    updatedAt: new Date().toISOString()
-  }, { merge: true });
+  try {
+    await setDoc(docRef, {
+      ...data,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
+    handleFirestoreError(err, OperationType.WRITE, 'settings/admin_auth');
+  }
 }
 
 export async function resetCloudData(): Promise<void> {
