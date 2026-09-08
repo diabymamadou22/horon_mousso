@@ -189,59 +189,59 @@ export const ProductDetailModal: React.FC = () => {
                 {getAvailabilityBadge(product.availability)}
               </div>
 
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#1B3022] leading-tight">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B1E11] leading-tight font-serif-heading">
                 {product.name}
               </h2>
 
               {product.price && (
                 <div className="flex items-baseline gap-3">
-                  <span className="text-sm font-semibold text-gray-500">Tarif indicatif :</span>
-                  <span className="text-2xl font-black text-[#2D5A27]">
+                  <span className="text-xs font-bold uppercase tracking-wider text-stone-500">Tarif unitaire :</span>
+                  <span className="text-2xl sm:text-3xl font-black text-[#0F2916] tracking-tight">
                     {product.price}
                   </span>
                 </div>
               )}
 
               {/* Format / Conditioning */}
-              <div className="p-3.5 rounded-xl bg-[#FAF9F6] border border-[#E0E0E0] text-xs space-y-1">
-                <div className="flex items-center gap-1.5 font-bold text-[#1B3022]">
-                  <Package className="w-4 h-4 text-[#2D5A27]" />
+              <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-stone-200 text-xs space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-[#0B1E11]">
+                  <Package className="w-4 h-4 text-amber-600" />
                   <span>Conditionnements & Formats disponibles :</span>
                 </div>
-                <div className="font-semibold text-gray-700 pl-5">
+                <div className="font-semibold text-stone-700 pl-5">
                   {product.format}
                 </div>
               </div>
 
               {/* Descriptions */}
-              <div className="space-y-2 text-gray-700 text-sm leading-relaxed">
-                <p className="font-medium text-[#1B3022]">
+              <div className="space-y-2 text-stone-700 text-sm leading-relaxed">
+                <p className="font-medium text-[#0B1E11]">
                   {product.description}
                 </p>
                 {product.fullDescription && (
-                  <p className="text-gray-600 pt-1">
+                  <p className="text-stone-600 pt-1 font-normal">
                     {product.fullDescription}
                   </p>
                 )}
               </div>
 
               {/* Additional Specs */}
-              <div className="pt-3 border-t border-gray-100 space-y-2 text-xs">
+              <div className="pt-3 border-t border-stone-100 space-y-2 text-xs">
                 {product.composition && (
                   <div className="flex items-start gap-2">
-                    <Leaf className="w-3.5 h-3.5 text-[#2D5A27] shrink-0 mt-0.5" />
+                    <Leaf className="w-3.5 h-3.5 text-emerald-700 shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-bold text-[#1B3022]">Composition : </span>
-                      <span className="text-gray-600">{product.composition}</span>
+                      <span className="font-bold text-[#0B1E11]">Composition : </span>
+                      <span className="text-stone-600">{product.composition}</span>
                     </div>
                   </div>
                 )}
                 {product.origin && (
                   <div className="flex items-start gap-2">
-                    <Tag className="w-3.5 h-3.5 text-[#2D5A27] shrink-0 mt-0.5" />
+                    <Tag className="w-3.5 h-3.5 text-emerald-700 shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-bold text-[#1B3022]">Origine : </span>
-                      <span className="text-gray-600">{product.origin}</span>
+                      <span className="font-bold text-[#0B1E11]">Origine : </span>
+                      <span className="text-stone-600">{product.origin}</span>
                     </div>
                   </div>
                 )}
@@ -249,8 +249,8 @@ export const ProductDetailModal: React.FC = () => {
                   <div className="flex items-start gap-2">
                     <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-bold text-[#1B3022]">Conseil d’utilisation : </span>
-                      <span className="text-gray-600">{product.usageAdvice}</span>
+                      <span className="font-bold text-[#0B1E11]">Conseil d’utilisation : </span>
+                      <span className="text-stone-600">{product.usageAdvice}</span>
                     </div>
                   </div>
                 )}
@@ -258,11 +258,11 @@ export const ProductDetailModal: React.FC = () => {
             </div>
 
             {/* Commander / Contact Section */}
-            <div className="pt-6 border-t border-[#E0E0E0] space-y-4">
+            <div className="pt-6 border-t border-stone-200 space-y-4">
               {/* Format selection if available */}
               {availableFormats.length > 1 && (
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-2">
                     Sélectionnez le format / conditionnement :
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -271,10 +271,10 @@ export const ProductDetailModal: React.FC = () => {
                         key={idx}
                         type="button"
                         onClick={() => setSelectedFormat(fmt)}
-                        className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition cursor-pointer ${
+                        className={`text-xs px-3.5 py-2 rounded-xl border font-bold transition cursor-pointer ${
                           selectedFormat === fmt
-                            ? 'border-[#2D5A27] bg-[#2D5A27] text-white shadow-xs'
-                            : 'border-gray-200 text-gray-700 hover:border-gray-300 bg-white'
+                            ? 'border-[#0F2916] bg-[#0F2916] text-amber-300 shadow-xs'
+                            : 'border-stone-200 text-stone-700 hover:border-emerald-600/40 bg-white'
                         }`}
                       >
                         {fmt}
@@ -286,24 +286,24 @@ export const ProductDetailModal: React.FC = () => {
 
               {/* Quantity selector */}
               {product.availability !== 'rupture' && (
-                <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200">
-                  <span className="text-xs font-bold text-gray-700">Quantité souhaitée :</span>
-                  <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden shadow-xs">
+                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#FAF7F2] border border-stone-200">
+                  <span className="text-xs font-bold text-stone-700">Quantité souhaitée :</span>
+                  <div className="flex items-center bg-white border border-stone-300 rounded-xl overflow-hidden shadow-xs">
                     <button
                       type="button"
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="p-1.5 px-3 hover:bg-gray-100 text-gray-700 font-bold transition cursor-pointer"
+                      className="p-2 px-3.5 hover:bg-stone-100 text-stone-700 font-bold transition cursor-pointer"
                       aria-label="Diminuer"
                     >
                       <Minus className="w-4 h-4" />
                     </button>
-                    <span className="px-4 text-sm font-extrabold text-gray-900">
+                    <span className="px-4 text-sm font-extrabold text-stone-900">
                       {quantity}
                     </span>
                     <button
                       type="button"
                       onClick={() => setQuantity(quantity + 1)}
-                      className="p-1.5 px-3 hover:bg-gray-100 text-gray-700 font-bold transition cursor-pointer"
+                      className="p-2 px-3.5 hover:bg-stone-100 text-stone-700 font-bold transition cursor-pointer"
                       aria-label="Augmenter"
                     >
                       <Plus className="w-4 h-4" />
@@ -313,15 +313,15 @@ export const ProductDetailModal: React.FC = () => {
               )}
 
               {/* Action Buttons */}
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {product.availability !== 'rupture' && (
                   <button
                     onClick={() => {
                       addToCart(product, quantity, selectedFormat);
                     }}
-                    className="w-full flex items-center justify-center gap-2 bg-[#2D5A27] hover:bg-[#23471f] text-white font-extrabold text-sm py-3.5 px-6 rounded-xl shadow-md transition transform active:scale-98 cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2.5 bg-[#0F2916] hover:bg-[#184424] text-white font-extrabold text-sm py-4 px-6 rounded-2xl shadow-md transition transform active:scale-98 cursor-pointer border border-emerald-600/30"
                   >
-                    <ShoppingBag className="w-5 h-5 text-amber-300" />
+                    <ShoppingBag className="w-5 h-5 text-amber-400" />
                     <span>Ajouter au Panier ({quantity})</span>
                   </button>
                 )}
@@ -329,7 +329,7 @@ export const ProductDetailModal: React.FC = () => {
                 {/* Direct WhatsApp button */}
                 <button
                   onClick={() => openOrderWhatsApp(product)}
-                  className="w-full flex items-center justify-center gap-2.5 bg-[#C53030] hover:bg-[#A62828] text-white font-extrabold text-sm py-3.5 px-6 rounded-xl shadow-md transition transform active:scale-98 cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-[#B82B2B] to-[#D93838] hover:from-[#A02222] hover:to-[#C02E2E] text-white font-extrabold text-sm py-4 px-6 rounded-2xl shadow-md transition transform active:scale-98 cursor-pointer border border-red-400/30"
                 >
                   <MessageCircle className="w-5 h-5" />
                   <span>Commander directement sur WhatsApp</span>

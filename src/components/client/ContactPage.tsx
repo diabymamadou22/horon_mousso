@@ -43,15 +43,16 @@ export const ContactPage: React.FC = () => {
     <div className="py-12 px-4 sm:px-8 lg:px-10 max-w-7xl mx-auto space-y-12">
       {/* Header */}
       <FadeInView direction="up" distance={20} duration={0.6}>
-        <div className="space-y-3 text-center max-w-2xl mx-auto">
-          <span className="inline-block px-3 py-1 bg-[#E8F5E9] text-[#2D5A27] text-xs font-bold uppercase tracking-widest rounded-md">
-            Contact & Commandes
+        <div className="space-y-3.5 text-center max-w-3xl mx-auto">
+          <span className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-emerald-100/80 text-[#0F2916] text-xs font-black uppercase tracking-wider rounded-full border border-emerald-300/40">
+            <MessageCircle className="w-3.5 h-3.5 text-amber-600" />
+            <span>Service Client & Relations Partenaires</span>
           </span>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1B3022] tracking-tight">
-            Prenez Contact avec Notre Équipe Commerciale
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-[#0B1E11] tracking-tight font-serif-heading">
+            Prenez Contact avec Notre Équipe
           </h1>
-          <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
-            Que vous soyez un particulier, un restaurateur, un grossiste ou une coopérative, nous sommes à votre disposition pour vous conseiller et traiter vos commandes avec réactivité.
+          <p className="text-stone-600 text-sm sm:text-base leading-relaxed font-medium">
+            Particulier amateur de saveurs, chef de restaurant ou distributeur, nous sommes à votre disposition pour vous conseiller et expédier vos commandes avec réactivité.
           </p>
         </div>
       </FadeInView>
@@ -63,22 +64,22 @@ export const ContactPage: React.FC = () => {
           <FadeInView direction="up" distance={20} delay={0.1} duration={0.6}>
             <div className="space-y-6">
               {/* Quick WhatsApp Banner */}
-              <div className="bg-[#2D5A27] text-white rounded-3xl p-6 shadow-md space-y-4">
+              <div className="bg-gradient-to-r from-[#0A180E] via-[#0F2916] to-[#163D20] text-white rounded-3xl p-7 shadow-xl border border-emerald-600/30 space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-emerald-200">
+                  <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-amber-300 border border-white/10">
                     <MessageCircle className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg">Contact WhatsApp Direct</h3>
-                    <p className="text-xs text-emerald-100">Réponse rapide garantie en quelques minutes</p>
+                    <h3 className="font-extrabold text-lg font-serif-heading text-white">Contact WhatsApp Direct</h3>
+                    <p className="text-xs text-stone-300">Réponse rapide en quelques instants</p>
                   </div>
                 </div>
-                <p className="text-xs text-emerald-100 leading-relaxed">
-                  Pour une question urgente, un devis de gros ou une confirmation de stock immédiate, démarrez un échange direct avec notre équipe commerciale.
+                <p className="text-xs text-stone-300 leading-relaxed font-medium">
+                  Pour une question urgente, une précision sur les piments ou une commande sur-mesure, écrivez-nous directement sur WhatsApp.
                 </p>
                 <button
                   onClick={() => openOrderWhatsApp()}
-                  className="w-full flex items-center justify-center gap-2 bg-[#C53030] text-white hover:bg-[#A62828] font-bold text-sm py-3 px-4 rounded-full shadow-lg shadow-red-950/20 transition transform active:scale-98 cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#B82B2B] to-[#D93838] hover:from-[#A02222] hover:to-[#C02E2E] text-white font-extrabold text-sm py-3.5 px-5 rounded-2xl shadow-lg transition cursor-pointer border border-red-400/30"
                 >
                   <MessageCircle className="w-4 h-4" />
                   <span>Ouvrir WhatsApp ({settings.whatsapp || settings.phone})</span>

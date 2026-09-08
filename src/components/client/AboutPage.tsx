@@ -34,14 +34,15 @@ export const AboutPage: React.FC = () => {
 
       {/* Header / Intro */}
       <FadeInView direction="up" distance={20} duration={0.6}>
-        <div className="text-center max-w-2xl mx-auto space-y-3">
-          <span className="inline-block px-3 py-1 bg-[#E8F5E9] text-[#2D5A27] text-xs font-bold uppercase tracking-widest rounded-md">
-            À Propos de l'Entreprise
+        <div className="text-center max-w-3xl mx-auto space-y-3.5">
+          <span className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-emerald-100/80 text-[#0F2916] text-xs font-black uppercase tracking-wider rounded-full border border-emerald-300/40">
+            <Leaf className="w-3.5 h-3.5 text-amber-600" />
+            <span>À Propos de la Maison Horon Mousso</span>
           </span>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#1B3022] tracking-tight">
-            L’Art de Sublimer les Trésors Agricoles de Notre Terroir
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-[#0B1E11] tracking-tight font-serif-heading">
+            L’Art de Sublimer les Trésors Agricoles du Mali
           </h1>
-          <p className="text-gray-600 text-base sm:text-lg leading-relaxed">
+          <p className="text-stone-600 text-base sm:text-lg leading-relaxed font-medium">
             {settings.slogan}
           </p>
         </div>
@@ -51,34 +52,34 @@ export const AboutPage: React.FC = () => {
       <FadeInView direction="up" distance={25} duration={0.7}>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           <div className="lg:col-span-6 space-y-6">
-            <span className="inline-block px-3 py-1 bg-[#E8F5E9] text-[#2D5A27] text-xs font-bold uppercase tracking-widest rounded-md">
-              Qui sommes-nous ?
+            <span className="inline-block px-3 py-1 bg-amber-100/80 text-amber-950 text-xs font-black uppercase tracking-wider rounded-full border border-amber-300/40">
+              Notre Savoir-Faire
             </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#1B3022] leading-snug">
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-[#0B1E11] leading-snug font-serif-heading">
               Une entreprise engagée dans la valorisation des récoltes locales
             </h2>
-            <p className="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <p className="text-stone-700 text-sm sm:text-base leading-relaxed font-normal">
               Fondée pour répondre au défi de la conservation et de la commercialisation des cultures maraîchères, notre entreprise s'est spécialisée dans la sélection, la déshydratation hygiénique, le broyage à froid et le conditionnement d'épices d’exception : piments rouges, piments séchés, gingembre sauvage, curcuma doré et mélanges d’épices signature.
             </p>
-            <p className="text-gray-600 text-sm leading-relaxed">
+            <p className="text-stone-600 text-sm leading-relaxed font-normal">
               Nous transformons des matières premières fraîches récoltées à leur apogée gustatif afin d’offrir aux familles, aux restaurateurs et aux négociants des produits sains, puissants en arôme et d’une durée de conservation prolongée sans recourir aux conservateurs chimiques.
             </p>
 
-            <div className="pt-2 grid grid-cols-2 gap-4 text-xs font-medium text-gray-700">
+            <div className="pt-2 grid grid-cols-2 gap-4 text-xs font-semibold text-stone-800">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#2D5A27] shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>Séchage thermorégulé</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#2D5A27] shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>Mouture fine & pureté 100%</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#2D5A27] shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>Zéro colorant artificiel</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#2D5A27] shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>Conditionnements étanches</span>
               </div>
             </div>

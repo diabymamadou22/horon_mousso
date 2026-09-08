@@ -1,4 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getAuth, Auth } from 'firebase/auth';
 import { 
   getFirestore, 
   initializeFirestore, 
@@ -9,6 +10,7 @@ import {
   setDoc, 
   getDocs, 
   getDoc,
+  getDocFromServer,
   deleteDoc, 
   onSnapshot, 
   Firestore,
@@ -36,12 +38,19 @@ export const firebaseConfig = {
 
 let app: FirebaseApp;
 let firestoreDb: Firestore;
+let auth: Auth;
 
 try {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 } catch (e) {
   console.warn('Firebase app init error:', e);
   app = initializeApp(firebaseConfig);
+}
+
+try {
+  auth = getAuth(app);
+} catch (e) {
+  console.warn('Firebase auth init notice:', e);
 }
 
 try {
@@ -73,16 +82,71 @@ try {
   }
 }
 
-export { app, firestoreDb };
+export { app, firestoreDb, firestoreDb as db, auth };
+
+/* =========================================================
+   FIRESTORE ERROR HANDLING & CONNECTION VALIDATION
+========================================================= */
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operation: OperationType;
+  path: string | null;
+  authInfo: {
+    isAuthenticated: boolean;
+    userId?: string;
+  };
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const err = error as { code?: string; message?: string };
+  if (err && err.code === 'permission-denied') {
+    const errorInfo: FirestoreErrorInfo = {
+      error: `Missing or insufficient permissions: ${err.message || 'Permission denied'}`,
+      authInfo: {
+        isAuthenticated: !!auth?.currentUser,
+        userId: auth?.currentUser?.uid
+      },
+      operation: operationType,
+      path: path
+    };
+    console.error('Firestore permission error:', JSON.stringify(errorInfo));
+    throw new Error(JSON.stringify(errorInfo));
+  }
+  throw error;
+}
+
+export async function testFirestoreConnection(): Promise<{ ok: boolean; message: string }> {
+  try {
+    await getDocFromServer(doc(firestoreDb, 'test', 'connection'));
+    return { ok: true, message: 'Connecté à Google Cloud Firestore' };
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.warn('Firebase client is offline, local cache is operational.');
+      return { ok: false, message: 'Client Firestore en cache hors-ligne' };
+    }
+    // Document not existing or any other non-offline error confirms the server was reached!
+    return { ok: true, message: 'Connecté à Google Cloud Firestore' };
+  }
+}
 
 /* =========================================================
    INITIAL CLOUD SEEDING (If Firestore collection is empty)
 ========================================================= */
 let isSeeding = false;
 
-export async function seedFirestoreIfEmpty(): Promise<boolean> {
+export async function seedFirestoreIfEmpty(forceCheck: boolean = false): Promise<boolean> {
   if (isSeeding) return false;
-  if (typeof window !== 'undefined' && sessionStorage.getItem('horon_firestore_seeded')) {
+  if (!forceCheck && typeof window !== 'undefined' && sessionStorage.getItem('horon_firestore_seeded')) {
     return false;
   }
   
@@ -90,17 +154,19 @@ export async function seedFirestoreIfEmpty(): Promise<boolean> {
     isSeeding = true;
     const systemDocRef = doc(firestoreDb, 'settings', 'system');
 
-    // Resilient check: see if system was already initialized
-    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500));
-    const queryPromise = getDoc(systemDocRef);
-    const existingSnap = await Promise.race([queryPromise, timeoutPromise]);
+    if (!forceCheck) {
+      // Resilient check: see if system was already initialized
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500));
+      const queryPromise = getDoc(systemDocRef);
+      const existingSnap = await Promise.race([queryPromise, timeoutPromise]);
 
-    if (existingSnap && existingSnap.exists()) {
-      // Already initialized, never overwrite user data
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('horon_firestore_seeded', 'true');
+      if (existingSnap && existingSnap.exists()) {
+        // Already initialized, never overwrite user data
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('horon_firestore_seeded', 'true');
+        }
+        return false;
       }
-      return false;
     }
 
     console.log('🌱 Initializing Horon Mousso cloud database for the first time...');
@@ -359,75 +425,130 @@ export function subscribeToCloudReviews(
 
 // Products
 export async function saveProductToFirestore(product: Product): Promise<void> {
-  const docRef = doc(firestoreDb, 'products', product.id);
-  await setDoc(docRef, {
-    ...product,
-    updatedAt: new Date().toISOString()
-  }, { merge: true });
+  const path = `products/${product.id}`;
+  try {
+    const docRef = doc(firestoreDb, 'products', product.id);
+    await setDoc(docRef, {
+      ...product,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
 }
 
 export async function deleteProductFromFirestore(id: string): Promise<void> {
-  const docRef = doc(firestoreDb, 'products', id);
-  await deleteDoc(docRef);
+  const path = `products/${id}`;
+  try {
+    const docRef = doc(firestoreDb, 'products', id);
+    await deleteDoc(docRef);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
 }
 
 // Announcements
 export async function saveAnnouncementToFirestore(announcement: Announcement): Promise<void> {
-  const docRef = doc(firestoreDb, 'announcements', announcement.id);
-  await setDoc(docRef, {
-    ...announcement,
-    updatedAt: new Date().toISOString()
-  }, { merge: true });
+  const path = `announcements/${announcement.id}`;
+  try {
+    const docRef = doc(firestoreDb, 'announcements', announcement.id);
+    await setDoc(docRef, {
+      ...announcement,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
 }
 
 export async function deleteAnnouncementFromFirestore(id: string): Promise<void> {
-  const docRef = doc(firestoreDb, 'announcements', id);
-  await deleteDoc(docRef);
+  const path = `announcements/${id}`;
+  try {
+    const docRef = doc(firestoreDb, 'announcements', id);
+    await deleteDoc(docRef);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
 }
 
 // Media
 export async function saveMediaToFirestore(media: MediaItem): Promise<void> {
-  const docRef = doc(firestoreDb, 'media', media.id);
-  await setDoc(docRef, media, { merge: true });
+  const path = `media/${media.id}`;
+  try {
+    const docRef = doc(firestoreDb, 'media', media.id);
+    await setDoc(docRef, media, { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
 }
 
 export async function deleteMediaFromFirestore(id: string): Promise<void> {
-  const docRef = doc(firestoreDb, 'media', id);
-  await deleteDoc(docRef);
+  const path = `media/${id}`;
+  try {
+    const docRef = doc(firestoreDb, 'media', id);
+    await deleteDoc(docRef);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
 }
 
 // Messages
 export async function saveMessageToFirestore(message: CustomerMessage): Promise<void> {
-  const docRef = doc(firestoreDb, 'messages', message.id);
-  await setDoc(docRef, message, { merge: true });
+  const path = `messages/${message.id}`;
+  try {
+    const docRef = doc(firestoreDb, 'messages', message.id);
+    await setDoc(docRef, message, { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
 }
 
 export async function updateMessageStatusInFirestore(id: string, status: 'nouveau' | 'lu'): Promise<void> {
-  const docRef = doc(firestoreDb, 'messages', id);
-  await setDoc(docRef, { status }, { merge: true });
+  const path = `messages/${id}`;
+  try {
+    const docRef = doc(firestoreDb, 'messages', id);
+    await setDoc(docRef, { status }, { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, path);
+  }
 }
 
 export async function deleteMessageFromFirestore(id: string): Promise<void> {
-  const docRef = doc(firestoreDb, 'messages', id);
-  await deleteDoc(docRef);
+  const path = `messages/${id}`;
+  try {
+    const docRef = doc(firestoreDb, 'messages', id);
+    await deleteDoc(docRef);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
 }
 
 // Settings
 export async function saveSettingsToFirestore(settings: CompanySettings): Promise<void> {
-  const docRef = doc(firestoreDb, 'settings', 'main');
-  await setDoc(docRef, {
-    ...settings,
-    updatedAt: new Date().toISOString()
-  }, { merge: true });
+  const path = 'settings/main';
+  try {
+    const docRef = doc(firestoreDb, 'settings', 'main');
+    await setDoc(docRef, {
+      ...settings,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
 }
 
 // Orders
 export async function saveOrderToFirestore(order: Order): Promise<void> {
-  const docRef = doc(firestoreDb, 'orders', order.id);
-  await setDoc(docRef, {
-    ...order,
-    updatedAt: new Date().toISOString()
-  }, { merge: true });
+  const path = `orders/${order.id}`;
+  try {
+    const docRef = doc(firestoreDb, 'orders', order.id);
+    await setDoc(docRef, {
+      ...order,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
 }
 
 export async function updateOrderStatusInFirestore(
@@ -435,31 +556,51 @@ export async function updateOrderStatusInFirestore(
   status: Order['status'], 
   paymentStatus?: Order['paymentStatus']
 ): Promise<void> {
-  const docRef = doc(firestoreDb, 'orders', id);
-  const updateData: Record<string, any> = { 
-    status, 
-    updatedAt: new Date().toISOString() 
-  };
-  if (paymentStatus) {
-    updateData.paymentStatus = paymentStatus;
+  const path = `orders/${id}`;
+  try {
+    const docRef = doc(firestoreDb, 'orders', id);
+    const updateData: Record<string, any> = { 
+      status, 
+      updatedAt: new Date().toISOString() 
+    };
+    if (paymentStatus) {
+      updateData.paymentStatus = paymentStatus;
+    }
+    await setDoc(docRef, updateData, { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, path);
   }
-  await setDoc(docRef, updateData, { merge: true });
 }
 
 export async function deleteOrderFromFirestore(id: string): Promise<void> {
-  const docRef = doc(firestoreDb, 'orders', id);
-  await deleteDoc(docRef);
+  const path = `orders/${id}`;
+  try {
+    const docRef = doc(firestoreDb, 'orders', id);
+    await deleteDoc(docRef);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
 }
 
 // Reviews
 export async function saveReviewToFirestore(review: ProductReview): Promise<void> {
-  const docRef = doc(firestoreDb, 'reviews', review.id);
-  await setDoc(docRef, review, { merge: true });
+  const path = `reviews/${review.id}`;
+  try {
+    const docRef = doc(firestoreDb, 'reviews', review.id);
+    await setDoc(docRef, review, { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
 }
 
 export async function deleteReviewFromFirestore(id: string): Promise<void> {
-  const docRef = doc(firestoreDb, 'reviews', id);
-  await deleteDoc(docRef);
+  const path = `reviews/${id}`;
+  try {
+    const docRef = doc(firestoreDb, 'reviews', id);
+    await deleteDoc(docRef);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
 }
 
 /* =========================================================

@@ -19,6 +19,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../../context/AppContext';
 import { ProductReview, Product } from '../../types';
+import { FadeInView, FadeInStagger, FadeInItem } from '../common/FadeInView';
 
 interface CustomerReviewsSectionProps {
   className?: string;
@@ -168,17 +169,17 @@ export const CustomerReviewsSection: React.FC<CustomerReviewsSectionProps> = ({ 
       {/* SECTION HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div className="space-y-1.5 max-w-xl">
-          <div className="inline-flex items-center gap-2 px-3 py-0.5 bg-amber-50 text-amber-900 text-xs font-bold rounded-full">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-100/80 text-amber-950 text-xs font-black uppercase tracking-wider rounded-full border border-amber-300/40">
             <Star className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
-            <span>Retours d'Expérience</span>
+            <span>Retours d'Expérience & Avis Vérifiés</span>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-black text-[#142618] tracking-tight">
-            Avis Clients
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-[#0B1E11] tracking-tight font-serif-heading">
+            Témoignages & Avis Clients
           </h2>
 
-          <p className="text-stone-500 text-xs sm:text-sm">
-            Retours authentiques sur nos épices, piments et soumbala.
+          <p className="text-stone-600 text-xs sm:text-sm font-medium">
+            Retours authentiques sur nos piments, soumbala de néré et épices artisanales du terroir.
           </p>
         </div>
 
@@ -187,96 +188,98 @@ export const CustomerReviewsSection: React.FC<CustomerReviewsSectionProps> = ({ 
           <button
             id="btn-ouvrir-avis-modal"
             onClick={() => handleOpenForm()}
-            className="inline-flex items-center gap-2 bg-[#1E3B24] hover:bg-[#142618] text-white font-bold text-xs sm:text-sm py-2.5 px-4 rounded-xl shadow-xs transition cursor-pointer"
+            className="inline-flex items-center gap-2 bg-[#0F2916] hover:bg-[#184424] text-white font-extrabold text-xs sm:text-sm py-3 px-5 rounded-2xl shadow-md shadow-emerald-950/20 transition cursor-pointer border border-emerald-600/30"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Donner un avis</span>
+            <Plus className="w-4 h-4 text-amber-300" />
+            <span>Partager un avis</span>
           </button>
         </div>
       </div>
 
       {/* OVERVIEW SCORE & STATS BANNER */}
-      <div className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-xs">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Main Average Score */}
-          <div className="lg:col-span-4 flex flex-col items-center sm:items-start text-center sm:text-left sm:pr-8 sm:border-r border-stone-200">
-            <span className="text-xs uppercase tracking-wider font-bold text-stone-400">
-              Note Moyenne Consommateurs
-            </span>
-            <div className="flex items-baseline gap-3 my-2">
-              <span className="text-5xl sm:text-6xl font-black text-[#142618] tracking-tight">
-                {stats.average}
+      <FadeInView direction="up" distance={22} duration={0.65} withScale={true}>
+        <div className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-xs">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            {/* Main Average Score */}
+            <div className="lg:col-span-4 flex flex-col items-center sm:items-start text-center sm:text-left sm:pr-8 sm:border-r border-stone-200">
+              <span className="text-xs uppercase tracking-wider font-bold text-stone-400">
+                Note Moyenne Consommateurs
               </span>
-              <span className="text-lg text-stone-400 font-bold">/ 5</span>
+              <div className="flex items-baseline gap-3 my-2">
+                <span className="text-5xl sm:text-6xl font-black text-[#142618] tracking-tight">
+                  {stats.average}
+                </span>
+                <span className="text-lg text-stone-400 font-bold">/ 5</span>
+              </div>
+
+              <div className="flex items-center gap-1 text-amber-400 mb-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    className={`w-5 h-5 ${
+                      star <= Math.round(stats.average) 
+                        ? 'fill-amber-400 text-amber-400' 
+                        : 'text-stone-200'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <p className="text-xs text-stone-500 font-medium">
+                Basé sur <strong className="text-stone-800">{stats.total} avis certifiés</strong>
+              </p>
+
+              <div className="mt-3 inline-flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full font-semibold border border-emerald-200/60">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{stats.recommendPercentage}% recommandent Horon Mousso</span>
+              </div>
             </div>
 
-            <div className="flex items-center gap-1 text-amber-400 mb-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  className={`w-5 h-5 ${
-                    star <= Math.round(stats.average) 
-                      ? 'fill-amber-400 text-amber-400' 
-                      : 'text-stone-200'
-                  }`}
-                />
-              ))}
-            </div>
-
-            <p className="text-xs text-stone-500 font-medium">
-              Basé sur <strong className="text-stone-800">{stats.total} avis certifiés</strong>
-            </p>
-
-            <div className="mt-3 inline-flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full font-semibold border border-emerald-200/60">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{stats.recommendPercentage}% recommandent Horon Mousso</span>
-            </div>
-          </div>
-
-          {/* Star Distribution Progress Bars */}
-          <div className="lg:col-span-5 space-y-2">
-            {[5, 4, 3, 2, 1].map((stars) => {
-              const count = stats.distribution[stars] || 0;
-              const percentage = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
-              return (
-                <div key={stars} className="flex items-center gap-3 text-xs">
-                  <span className="w-12 font-bold text-stone-700 flex items-center gap-1">
-                    {stars} <Star className="w-3 h-3 fill-amber-400 text-amber-400 inline" />
-                  </span>
-                  <div className="flex-1 h-2.5 bg-stone-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-500"
-                      style={{ width: `${percentage}%` }}
-                    />
+            {/* Star Distribution Progress Bars */}
+            <div className="lg:col-span-5 space-y-2">
+              {[5, 4, 3, 2, 1].map((stars) => {
+                const count = stats.distribution[stars] || 0;
+                const percentage = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
+                return (
+                  <div key={stars} className="flex items-center gap-3 text-xs">
+                    <span className="w-12 font-bold text-stone-700 flex items-center gap-1">
+                      {stars} <Star className="w-3 h-3 fill-amber-400 text-amber-400 inline" />
+                    </span>
+                    <div className="flex-1 h-2.5 bg-stone-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-500"
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <span className="w-16 text-[11px] text-stone-400 text-right">
+                      {count} ({percentage}%)
+                    </span>
                   </div>
-                  <span className="w-16 text-[11px] text-stone-400 text-right">
-                    {count} ({percentage}%)
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Trust Highlights */}
-          <div className="lg:col-span-3 bg-stone-50/80 rounded-2xl p-5 border border-stone-200/70 space-y-3">
-            <div className="flex items-center gap-2.5 text-xs font-bold text-[#142618]">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Avis 100% Vérifiés</span>
+                );
+              })}
             </div>
-            <p className="text-[11px] text-stone-600 leading-relaxed">
-              Tous les retours sont issus de consommateurs ayant testé nos récoltes et préparations culinaires.
-            </p>
 
-            <div className="pt-2 border-t border-stone-200/80 flex items-center justify-between text-[11px]">
-              <span className="text-stone-500">Persistance Cloud :</span>
-              <span className="font-bold text-emerald-700 flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-                Firebase Actif
-              </span>
+            {/* Trust Highlights */}
+            <div className="lg:col-span-3 bg-stone-50/80 rounded-2xl p-5 border border-stone-200/70 space-y-3">
+              <div className="flex items-center gap-2.5 text-xs font-bold text-[#142618]">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Avis 100% Vérifiés</span>
+              </div>
+              <p className="text-[11px] text-stone-600 leading-relaxed">
+                Tous les retours sont issus de consommateurs ayant testé nos récoltes et préparations culinaires.
+              </p>
+
+              <div className="pt-2 border-t border-stone-200/80 flex items-center justify-between text-[11px]">
+                <span className="text-stone-500">Persistance Cloud :</span>
+                <span className="font-bold text-emerald-700 flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                  Firebase Actif
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </FadeInView>
 
       {/* FILTER & SELECTOR CONTROLS */}
       <div className="bg-white rounded-2xl border border-stone-200 p-4 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -355,7 +358,7 @@ export const CustomerReviewsSection: React.FC<CustomerReviewsSectionProps> = ({ 
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <FadeInStagger staggerDelay={0.08} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredReviews.map((rev) => {
             const product = getProductForReview(rev.productId);
             const reviewDate = new Date(rev.createdAt).toLocaleDateString('fr-FR', {
@@ -365,88 +368,89 @@ export const CustomerReviewsSection: React.FC<CustomerReviewsSectionProps> = ({ 
             });
 
             return (
-              <div
-                key={rev.id}
-                className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4 hover:border-[#2D5A27]/40 group relative"
-              >
-                {/* Review Header */}
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-full bg-emerald-100 text-[#2D5A27] font-black text-xs flex items-center justify-center uppercase shadow-2xs">
-                        {rev.customerName.charAt(0) || 'C'}
-                      </div>
-                      <div>
-                        <div className="font-extrabold text-xs sm:text-sm text-[#142618] flex items-center gap-1.5">
-                          <span>{rev.customerName}</span>
-                          {rev.isVerifiedPurchase && (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" title="Achat vérifié" />
+              <FadeInItem key={rev.id} withScale={true} distance={20} duration={0.55}>
+                <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4 hover:border-[#2D5A27]/40 group relative h-full">
+                  {/* Review Header */}
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-full bg-emerald-100 text-[#2D5A27] font-black text-xs flex items-center justify-center uppercase shadow-2xs">
+                          {rev.customerName.charAt(0) || 'C'}
+                        </div>
+                        <div>
+                          <div className="font-extrabold text-xs sm:text-sm text-[#142618] flex items-center gap-1.5">
+                            <span>{rev.customerName}</span>
+                            {rev.isVerifiedPurchase && (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" title="Achat vérifié" />
+                            )}
+                          </div>
+                          {rev.location && (
+                            <span className="text-[11px] text-stone-400 flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-3 h-3 text-stone-300" />
+                              <span>{rev.location}</span>
+                            </span>
                           )}
                         </div>
-                        {rev.location && (
-                          <span className="text-[11px] text-stone-400 flex items-center gap-1 mt-0.5">
-                            <MapPin className="w-3 h-3 text-stone-300" />
-                            <span>{rev.location}</span>
-                          </span>
-                        )}
+                      </div>
+
+                      {/* Star Display */}
+                      <div className="flex items-center text-amber-400 shrink-0">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`w-3.5 h-3.5 ${
+                              s <= rev.rating ? 'fill-amber-400 text-amber-400' : 'text-stone-200'
+                            }`}
+                          />
+                        ))}
                       </div>
                     </div>
 
-                    {/* Star Display */}
-                    <div className="flex items-center text-amber-400 shrink-0">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <Star
-                          key={s}
-                          className={`w-3.5 h-3.5 ${
-                            s <= rev.rating ? 'fill-amber-400 text-amber-400' : 'text-stone-200'
-                          }`}
-                        />
-                      ))}
-                    </div>
+                    {/* Comment Body */}
+                    <p className="text-xs sm:text-sm text-stone-700 leading-relaxed italic pt-1">
+                      « {rev.comment} »
+                    </p>
                   </div>
 
-                  {/* Comment Body */}
-                  <p className="text-xs sm:text-sm text-stone-700 leading-relaxed italic pt-1">
-                    « {rev.comment} »
-                  </p>
-                </div>
+                  {/* Card Footer: Linked Product & Date */}
+                  <div className="pt-3 border-t border-stone-100 flex items-center justify-between gap-2 text-xs">
+                    {product ? (
+                      <button
+                        type="button"
+                        onClick={() => openProductDetail(product.id)}
+                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#2D5A27] hover:text-[#142618] truncate cursor-pointer group-hover:underline text-left"
+                        title="Voir la fiche de ce produit"
+                      >
+                        <Sparkles className="w-3 h-3 text-amber-500 shrink-0" />
+                        <span className="truncate">{product.name}</span>
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-stone-400">
+                        {rev.productName || 'Produit Horon Mousso'}
+                      </span>
+                    )}
 
-                {/* Card Footer: Linked Product & Date */}
-                <div className="pt-3 border-t border-stone-100 flex items-center justify-between gap-2 text-xs">
-                  {product ? (
-                    <button
-                      onClick={() => openProductDetail(product.id)}
-                      className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#2D5A27] hover:text-[#142618] truncate cursor-pointer group-hover:underline text-left"
-                      title="Voir la fiche de ce produit"
-                    >
-                      <Sparkles className="w-3 h-3 text-amber-500 shrink-0" />
-                      <span className="truncate">{product.name}</span>
-                    </button>
-                  ) : (
-                    <span className="text-[11px] text-stone-400">
-                      {rev.productName || 'Produit Horon Mousso'}
+                    <span className="text-[10px] text-stone-400 shrink-0">
+                      {reviewDate}
                     </span>
+                  </div>
+
+                  {/* Admin Quick Moderation Delete Button (if authenticated/admin mode) */}
+                  {(isAdminMode || user) && (
+                    <button
+                      type="button"
+                      onClick={() => setReviewToDelete(rev.id)}
+                      className="absolute top-2.5 right-2.5 p-1.5 text-stone-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100 cursor-pointer"
+                      title="Supprimer cet avis (Modération Firebase)"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   )}
-
-                  <span className="text-[10px] text-stone-400 shrink-0">
-                    {reviewDate}
-                  </span>
                 </div>
-
-                {/* Admin Quick Moderation Delete Button (if authenticated/admin mode) */}
-                {(isAdminMode || user) && (
-                  <button
-                    onClick={() => setReviewToDelete(rev.id)}
-                    className="absolute top-2.5 right-2.5 p-1.5 text-stone-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100 cursor-pointer"
-                    title="Supprimer cet avis (Modération Firebase)"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
+              </FadeInItem>
             );
           })}
-        </div>
+        </FadeInStagger>
       )}
 
       {/* MODAL: FORMULAIRE AJOUT AVIS */}

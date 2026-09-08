@@ -22,5 +22,8 @@ service cloud.firestore {
     match /reviews/{document=**} {
       allow read, write: if true;
     }
+    match /test/{document=**} {
+      allow read, write: if true;
+    }
   }
 }

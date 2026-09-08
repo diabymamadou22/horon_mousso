@@ -203,19 +203,19 @@ Bonjour, je viens de passer commande sur le site. Merci de me confirmer la prise
         className="relative z-10 flex flex-col w-full max-w-xl h-full bg-white shadow-2xl overflow-hidden border-l border-neutral-200"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 bg-[#FAF9F6]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200 bg-[#0F2916] text-white">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#2D5A27]/10 flex items-center justify-center text-[#2D5A27]">
+            <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-amber-300 border border-white/10">
               <ShoppingBag className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
-                Mon Panier
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#2D5A27] text-white">
+              <h2 className="text-lg font-extrabold text-white flex items-center gap-2 font-serif-heading">
+                Mon Panier Gourmet
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-400 text-[#0F2916]">
                   {cartTotalCount} {cartTotalCount > 1 ? 'articles' : 'article'}
                 </span>
               </h2>
-              <p className="text-xs text-neutral-500">Horon Mousso - Commande directe & personnalisée</p>
+              <p className="text-xs text-stone-300">Horon Mousso - Commande directe artisanale</p>
             </div>
           </div>
 
@@ -225,7 +225,7 @@ Bonjour, je viens de passer commande sur le site. Merci de me confirmer la prise
                 id="btn-clear-cart"
                 type="button"
                 onClick={clearCart}
-                className="text-xs text-neutral-500 hover:text-red-600 px-2 py-1 rounded transition-colors"
+                className="text-xs text-stone-300 hover:text-red-300 px-2 py-1 rounded transition-colors cursor-pointer"
                 title="Vider tout le panier"
               >
                 Vider
@@ -235,7 +235,7 @@ Bonjour, je viens de passer commande sur le site. Merci de me confirmer la prise
               id="btn-close-cart"
               type="button"
               onClick={() => setIsCartOpen(false)}
-              className="p-2 rounded-lg text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 transition-colors"
+              className="p-2 text-stone-300 hover:text-white rounded-full hover:bg-white/10 transition cursor-pointer"
               aria-label="Fermer le panier"
             >
               <X className="w-5 h-5" />
@@ -721,9 +721,9 @@ Bonjour, je viens de passer commande sur le site. Merci de me confirmer la prise
                       )}
                     </span>
                   </div>
-                  <div className="pt-2 border-t border-neutral-200 flex items-center justify-between">
-                    <span className="text-sm font-black text-neutral-900">Total Net à régler :</span>
-                    <span className="text-lg font-black text-[#2D5A27] font-mono">
+                  <div className="pt-2 border-t border-stone-200 flex items-center justify-between">
+                    <span className="text-sm font-black text-stone-900 font-serif-heading">Total Net à régler :</span>
+                    <span className="text-xl font-black text-[#0F2916] font-mono">
                       {formatFCFA(grandTotal)}
                     </span>
                   </div>
@@ -733,9 +733,9 @@ Bonjour, je viens de passer commande sur le site. Merci de me confirmer la prise
                       id="btn-submit-cart-whatsapp"
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl bg-[#2D5A27] hover:bg-[#23481f] text-white font-bold text-sm transition-all shadow-md active:scale-98 disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-[#0F2916] hover:bg-[#184424] text-white font-extrabold text-sm transition-all shadow-md active:scale-98 disabled:opacity-50 border border-emerald-600/30 cursor-pointer"
                     >
-                      <CheckCircle2 className="w-5 h-5 text-emerald-300" />
+                      <CheckCircle2 className="w-5 h-5 text-amber-300" />
                       {isSubmitting ? 'Génération de la commande...' : 'Valider & Obtenir mon Reçu Numérique'}
                     </button>
 

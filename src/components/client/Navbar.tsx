@@ -3,6 +3,7 @@ import { useApp, PublicTab } from '../../context/AppContext';
 import { Menu, X, PhoneCall, MessageCircle, Lock, ShoppingBag, ChevronRight, Cloud } from 'lucide-react';
 import { SyncStatusModal } from '../common/SyncStatusModal';
 import { PWAInstallButton } from '../common/PWAInstallButton';
+import { HeaderSearchBar } from './HeaderSearchBar';
 
 export const Navbar: React.FC = () => {
   const { 
@@ -14,18 +15,17 @@ export const Navbar: React.FC = () => {
     openOrderWhatsApp,
     cartTotalCount,
     setIsCartOpen,
-    syncStatus 
+    syncStatus
   } = useApp();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
   const navLinks: { id: PublicTab; label: string; badge?: string }[] = [
     { id: 'accueil', label: 'Accueil' },
-    { id: 'produits', label: 'Produits' },
-    { id: 'grossiste', label: 'Espace Grossiste', badge: 'B2B' },
+    { id: 'produits', label: 'Nos Épices', badge: '100% Pur' },
     { id: 'actualites', label: 'Actualités' },
-    { id: 'galerie', label: 'Galerie' },
-    { id: 'a_propos', label: 'À Propos' },
+    { id: 'galerie', label: 'Galerie & Récoltes' },
+    { id: 'a_propos', label: 'Notre Histoire' },
     { id: 'contact', label: 'Contact' },
   ];
 
@@ -50,38 +50,31 @@ export const Navbar: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-[#E0E0E0] transition-all">
-      {/* Top micro-bar */}
-      <div className="bg-[#1B3022] text-stone-300 text-xs py-1 px-3 sm:px-10 flex items-center justify-between border-b border-[#2D5A27]/40">
+    <header className="sticky top-0 z-40 bg-white border-b border-stone-200 shadow-sm transition-all">
+      {/* Top micro-bar - Fnac Style Charcoal */}
+      <div className="bg-[#191C20] text-stone-300 text-xs py-1.5 px-3 sm:px-8 flex items-center justify-between border-b border-stone-800">
         <div className="flex items-center gap-3 overflow-hidden">
-          <span className="flex items-center gap-1.5 text-emerald-300 font-medium truncate text-[11px] sm:text-xs">
-            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shrink-0"></span>
-            <span className="truncate">Horon Mousso • Épices, Soumbala & Terroir</span>
+          <span className="flex items-center gap-2 text-[#E5A100] font-black truncate text-[11px] sm:text-xs tracking-wide">
+            <span className="w-2 h-2 bg-[#E5A100] rounded-full animate-pulse shrink-0"></span>
+            <span className="truncate">Le Grand Magasin du Terroir Malien • Horon Mousso</span>
           </span>
-          <span className="hidden md:inline text-stone-500">|</span>
-          <span className="hidden md:inline text-stone-400">
-            {settings.cityCountry}
+          <span className="hidden md:inline text-stone-600">•</span>
+          <span className="hidden md:inline text-stone-400 text-xs">
+            {settings.cityCountry || 'Bamako, Mali'} • Livraison Express à domicile & Retrait 1h
           </span>
         </div>
         <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-          <button
-            onClick={() => setIsSyncModalOpen(true)}
-            className="hidden sm:inline-flex items-center gap-1.5 text-xs text-emerald-300 hover:text-white bg-[#2D5A27]/60 hover:bg-[#2D5A27] px-2.5 py-0.5 rounded-full transition cursor-pointer"
-            title="Statut synchronisation Cloud & Locale (Multi-Appareils)"
-          >
-            <Cloud className="w-3 h-3 text-emerald-400" />
-            <span>{syncStatus.isOnline ? 'Cloud Synchro' : 'Mode Local'}</span>
-          </button>
           <a 
             href={`tel:${settings.phone.replace(/\s+/g, '')}`}
-            className="hidden sm:flex items-center gap-1.5 hover:text-white transition"
+            className="hidden sm:flex items-center gap-1.5 text-stone-300 hover:text-[#E5A100] transition"
           >
-            <PhoneCall className="w-3 h-3 text-emerald-400" />
-            <span>{settings.phone}</span>
+            <PhoneCall className="w-3 h-3 text-[#E5A100]" />
+            <span className="font-semibold">{settings.phone}</span>
           </a>
           <button
+            type="button"
             onClick={() => setIsAdminMode(true)}
-            className="flex items-center gap-1 text-stone-400 hover:text-emerald-300 font-medium transition py-0.5 px-2 rounded hover:bg-stone-800 cursor-pointer text-[11px] sm:text-xs"
+            className="flex items-center gap-1 text-stone-400 hover:text-[#E5A100] font-medium transition py-0.5 px-2 rounded hover:bg-stone-800 cursor-pointer text-[11px] sm:text-xs"
             title="Accès Administrateur"
           >
             <Lock className="w-3 h-3" />
@@ -90,101 +83,89 @@ export const Navbar: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Navbar */}
-      <div className="max-w-7xl mx-auto px-3.5 sm:px-8 lg:px-10 h-16 sm:h-20 flex items-center justify-between">
-        {/* Logo & Company Name */}
+      {/* Main Navbar - Fnac Style */}
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-3 sm:gap-6">
+        {/* Logo - Fnac Yellow Badge Style */}
         <button
+          type="button"
           onClick={() => handleNavClick('accueil')}
-          className="flex items-center gap-2.5 sm:gap-3 text-left group focus:outline-none cursor-pointer"
+          className="flex items-center gap-2.5 sm:gap-3 text-left group focus:outline-none cursor-pointer shrink-0"
         >
-          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#2D5A27] rounded-lg flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
-            {settings.logo ? (
+          {settings.logo ? (
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white border border-stone-200 overflow-hidden shadow-xs shrink-0 flex items-center justify-center group-hover:scale-105 transition-transform">
               <img 
                 src={settings.logo} 
                 alt={settings.companyName}
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />
-            ) : (
-              <div className="w-5 h-5 border-2 border-white rounded-full flex items-center justify-center">
-                <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#E5A100] text-stone-950 font-black text-xs sm:text-sm flex flex-col items-center justify-center leading-none shadow-sm border border-amber-600/30 group-hover:scale-105 transition-transform">
+              <span className="font-black text-sm sm:text-base tracking-tighter">HM</span>
+              <span className="text-[7px] uppercase font-extrabold tracking-widest mt-0.5">TERROIR</span>
+            </div>
+          )}
           <div>
-            <div className="text-base sm:text-xl font-bold tracking-tight text-[#1B3022]">
+            <div className="text-base sm:text-xl font-black tracking-tight text-stone-900 leading-tight">
               {renderBrandName(settings.companyName)}
             </div>
-            <div className="text-[10px] sm:text-[11px] text-gray-500 font-medium tracking-tight line-clamp-1">
-              Commerce & Transformation
+            <div className="text-[10px] sm:text-[11px] text-[#E5A100] font-black uppercase tracking-wider line-clamp-1">
+              Épicerie Fine • Terroir Malien
             </div>
           </div>
         </button>
 
-        {/* Desktop Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-7">
-          {navLinks.map(link => {
-            const isActive = activeTab === link.id;
-            return (
-              <button
-                key={link.id}
-                onClick={() => handleNavClick(link.id)}
-                className={`text-sm font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  isActive
-                    ? 'text-[#2D5A27] font-bold border-b-2 border-[#2D5A27] pb-1'
-                    : 'text-gray-600 hover:text-[#2D5A27]'
-                }`}
-              >
-                <span>{link.label}</span>
-                {link.badge && (
-                  <span className="px-1.5 py-0.2 bg-amber-100 text-amber-900 text-[10px] font-extrabold rounded-md">
-                    {link.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
+        {/* Central Search Bar (Fnac centerpiece) */}
+        <div className="hidden md:block flex-1 max-w-2xl mx-auto">
+          <HeaderSearchBar />
+        </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Cart Trigger */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Direct WhatsApp Action Button (Desktop/Tablet) */}
+          <div className="hidden sm:flex items-center">
+            <button
+              type="button"
+              onClick={() => openOrderWhatsApp()}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Poser une question ou commander par WhatsApp"
+            >
+              <MessageCircle className="w-4 h-4 text-emerald-100" />
+              <span className="hidden lg:inline">Aide & Commandes</span>
+              <span className="lg:hidden">WhatsApp</span>
+            </button>
+          </div>
+
+          {/* Cart Trigger - Fnac Style */}
           <button
             id="btn-navbar-cart"
             type="button"
             onClick={() => setIsCartOpen(true)}
-            className="relative flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-stone-100 hover:bg-stone-200 text-neutral-800 transition-colors cursor-pointer"
+            className="relative flex items-center gap-2.5 px-3.5 sm:px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200/90 text-stone-900 border border-stone-200 transition-all cursor-pointer shadow-xs"
             aria-label="Ouvrir le panier"
           >
-            <ShoppingBag className="w-4 h-4 text-[#2D5A27]" />
-            <span className="text-xs font-bold hidden md:inline">Panier</span>
-            {cartTotalCount > 0 && (
-              <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-[#2D5A27] text-white text-[11px] font-bold">
-                {cartTotalCount}
+            <div className="relative">
+              <ShoppingBag className="w-5 h-5 text-stone-800" />
+              {cartTotalCount > 0 && (
+                <span className="absolute -top-2 -right-2 flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-[#E5A100] text-stone-950 text-[11px] font-black shadow-xs border border-white">
+                  {cartTotalCount}
+                </span>
+              )}
+            </div>
+            <div className="hidden sm:flex flex-col text-left leading-tight">
+              <span className="text-[10px] uppercase font-bold text-stone-500">Mon Panier</span>
+              <span className="text-xs font-extrabold text-stone-900">
+                {cartTotalCount > 0 ? `${cartTotalCount} article${cartTotalCount > 1 ? 's' : ''}` : 'Vide'}
               </span>
-            )}
+            </div>
           </button>
-
-          {/* PWA Install Action Button */}
-          <div className="hidden md:flex items-center">
-            <PWAInstallButton variant="navbar" />
-          </div>
-
-          {/* Direct WhatsApp Action Button (Desktop/Tablet) */}
-          <div className="hidden sm:flex items-center">
-            <button
-              onClick={() => openOrderWhatsApp()}
-              className="bg-[#C53030] text-white px-5 py-2 rounded-full text-sm font-semibold shadow-md hover:bg-[#A62828] transition-all transform active:scale-95 flex items-center gap-2 cursor-pointer"
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span>Commander</span>
-            </button>
-          </div>
 
           {/* Mobile Menu Toggle */}
           <button
+            type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden p-2.5 rounded-lg text-stone-700 hover:text-stone-950 hover:bg-stone-100 transition focus:outline-none cursor-pointer"
+            className="lg:hidden p-2 rounded-xl text-stone-700 hover:text-stone-950 hover:bg-stone-100 transition focus:outline-none cursor-pointer"
             aria-label="Menu"
           >
             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -192,58 +173,119 @@ export const Navbar: React.FC = () => {
         </div>
       </div>
 
+      {/* Mobile Search Bar Row */}
+      <div className="md:hidden px-3.5 pb-2.5">
+        <HeaderSearchBar isMobile={true} />
+      </div>
+
+      {/* Secondary Ribbon - Fnac Department Bar ("Rayons") */}
+      <div className="bg-stone-100 border-t border-stone-200 hidden lg:block">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            {/* Tous les rayons button */}
+            <button
+              type="button"
+              onClick={() => handleNavClick('produits')}
+              className="bg-[#E5A100] hover:bg-[#D97706] text-stone-950 font-black text-xs px-4 py-2.5 flex items-center gap-2 uppercase tracking-wide transition cursor-pointer"
+            >
+              <Menu className="w-4 h-4" />
+              <span>Tous nos rayons</span>
+            </button>
+
+            {/* Department Links */}
+            {navLinks.map(link => {
+              const isActive = activeTab === link.id;
+              return (
+                <button
+                  key={link.id}
+                  type="button"
+                  onClick={() => handleNavClick(link.id)}
+                  className={`text-xs font-bold transition-all px-3 py-2.5 cursor-pointer flex items-center gap-1.5 ${
+                    isActive
+                      ? 'text-stone-950 bg-white border-b-2 border-[#E5A100] shadow-2xs font-extrabold'
+                      : 'text-stone-700 hover:text-stone-950 hover:bg-stone-200/60'
+                  }`}
+                >
+                  <span>{link.label}</span>
+                  {link.badge && (
+                    <span className="px-1.5 py-0.2 text-[9px] font-black rounded-sm bg-red-600 text-white uppercase">
+                      {link.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right quick promo badge */}
+          <button
+            type="button"
+            onClick={() => handleNavClick('produits')}
+            className="text-xs font-black text-red-700 hover:text-red-800 flex items-center gap-1.5 px-3 py-1 bg-red-50 hover:bg-red-100 rounded-full border border-red-200 transition cursor-pointer"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span>
+            <span>Bons Plans & Packs Terroir</span>
+          </button>
+        </div>
+      </div>
+
       {/* Mobile Dropdown Menu */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden bg-white border-b border-[#E0E0E0] px-6 pt-3 pb-6 space-y-2 shadow-xl animate-in slide-in-from-top-2">
-          <div className="text-xs font-bold text-gray-400 uppercase tracking-widest px-2 pt-2 pb-1">
-            Menu Principal
+        <div className="lg:hidden bg-[#FCFAF7] border-b border-stone-200 px-5 pt-3 pb-6 space-y-2 shadow-2xl animate-in slide-in-from-top-2">
+          <div className="text-xs font-bold text-amber-800/80 uppercase tracking-widest px-2 pt-2 pb-1">
+            Menu Horon Mousso
           </div>
           {navLinks.map(link => {
             const isActive = activeTab === link.id;
             return (
               <button
                 key={link.id}
+                type="button"
                 onClick={() => handleNavClick(link.id)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-left transition cursor-pointer ${
+                className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-bold text-left transition cursor-pointer ${
                   isActive
-                    ? 'bg-[#E8F5E9] text-[#2D5A27] font-bold'
-                    : 'text-gray-600 hover:bg-stone-50'
+                    ? 'bg-[#0F2916] text-white shadow-sm'
+                    : 'text-stone-700 hover:bg-stone-200/60'
                 }`}
               >
                 <span className="flex items-center gap-2">
                   <span>{link.label}</span>
                   {link.badge && (
-                    <span className="px-1.5 py-0.2 bg-amber-100 text-amber-900 text-[10px] font-extrabold rounded-md">
+                    <span className={`px-1.5 py-0.5 text-[10px] font-black rounded-md ${
+                      isActive ? 'bg-amber-400 text-stone-950' : 'bg-amber-100 text-amber-900'
+                    }`}>
                       {link.badge}
                     </span>
                   )}
                 </span>
-                <ChevronRight className={`w-4 h-4 ${isActive ? 'text-[#2D5A27]' : 'text-gray-300'}`} />
+                <ChevronRight className={`w-4 h-4 ${isActive ? 'text-amber-300' : 'text-stone-400'}`} />
               </button>
             );
           })}
 
-          <div className="pt-4 border-t border-gray-100 flex flex-col gap-2.5">
+          <div className="pt-4 border-t border-stone-200 flex flex-col gap-2.5">
             <button
+              type="button"
               onClick={() => {
                 setIsCartOpen(true);
                 setIsMobileMenuOpen(false);
               }}
-              className="w-full flex items-center justify-center gap-2 bg-[#2D5A27] text-white font-semibold py-2.5 rounded-xl shadow-sm transition"
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-600 to-amber-700 text-white font-bold py-3 rounded-xl shadow-md transition cursor-pointer"
             >
               <ShoppingBag className="w-4 h-4" />
               <span>Voir mon Panier ({cartTotalCount})</span>
             </button>
 
             <button
+              type="button"
               onClick={() => {
                 openOrderWhatsApp();
                 setIsMobileMenuOpen(false);
               }}
-              className="w-full flex items-center justify-center gap-2 bg-[#C53030] text-white font-semibold py-2.5 rounded-xl shadow-sm hover:bg-[#A62828] transition"
+              className="w-full flex items-center justify-center gap-2 bg-[#123B1E] text-white font-bold py-3 rounded-xl shadow-md transition cursor-pointer border border-emerald-500/30"
             >
-              <MessageCircle className="w-4 h-4" />
-              <span>Contact direct WhatsApp</span>
+              <MessageCircle className="w-4 h-4 text-emerald-400" />
+              <span>Commander sur WhatsApp</span>
             </button>
 
             <div className="pt-1">
@@ -251,25 +293,15 @@ export const Navbar: React.FC = () => {
             </div>
 
             <button
-              onClick={() => {
-                setIsSyncModalOpen(true);
-                setIsMobileMenuOpen(false);
-              }}
-              className="w-full flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 font-medium py-2 rounded-xl text-xs transition cursor-pointer"
-            >
-              <Cloud className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{syncStatus.isOnline ? 'Base en ligne & locale synchronisée' : 'Mode local hors-ligne'}</span>
-            </button>
-
-            <button
+              type="button"
               onClick={() => {
                 setIsAdminMode(true);
                 setIsMobileMenuOpen(false);
               }}
-              className="w-full flex items-center justify-center gap-2 bg-stone-100 text-gray-700 hover:bg-stone-200 font-medium py-2.5 rounded-xl text-xs transition"
+              className="w-full flex items-center justify-center gap-2 bg-stone-200/70 text-stone-700 hover:bg-stone-200 font-medium py-2.5 rounded-xl text-xs transition cursor-pointer"
             >
               <Lock className="w-3.5 h-3.5" />
-              <span>Accès Espace Administrateur</span>
+              <span>Espace Administrateur</span>
             </button>
           </div>
         </div>

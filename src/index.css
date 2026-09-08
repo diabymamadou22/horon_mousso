@@ -2,22 +2,26 @@
 
 @layer base {
   body {
-    background-color: #FAF9F6;
-    color: #2D3436;
-    font-family: 'DM Sans', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: #FBF9F5;
+    color: #242A24;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     overflow-x: hidden;
   }
   
-  h1, h2, h3, h4, h5, h6 {
-    color: #1B3022;
-    font-family: 'Plus Jakarta Sans', 'DM Sans', system-ui, sans-serif;
+  h1, h2, h3, .font-serif-heading {
+    font-family: 'Playfair Display', Georgia, serif;
+    letter-spacing: -0.015em;
+  }
+
+  h4, h5, h6 {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   }
 }
 
 /* Custom scrollbar and smooth transitions */
 html {
   scroll-behavior: smooth;
-  background-color: #FAF9F6;
+  background-color: #FBF9F5;
 }
 
 /* Custom animations for high engagement and visual appeal */

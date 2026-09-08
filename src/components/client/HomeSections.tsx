@@ -3,6 +3,9 @@ import { useApp } from '../../context/AppContext';
 import { ProductCard } from './ProductCard';
 import { CustomerReviewsSection } from './CustomerReviewsSection';
 import { DeliveryCalculatorWidget } from './DeliveryCalculatorWidget';
+import { StoryHighlights } from './StoryHighlights';
+import { InteractiveSpiceMatcher } from './InteractiveSpiceMatcher';
+import { CustomBoxBuilder } from './CustomBoxBuilder';
 import { FadeInView, FadeInStagger, FadeInItem } from '../common/FadeInView';
 import { 
   ArrowRight, 
@@ -236,79 +239,140 @@ export const HomeSections: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-20 py-8 px-4 sm:px-8 lg:px-10 max-w-7xl mx-auto">
+    <div className="space-y-16 py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       
+      {/* FNAC REASSURANCE BAR (Les 4 Engagements Service & Terroir) */}
+      <FadeInView direction="up" distance={20} duration={0.5}>
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-xs p-4 sm:p-6 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 divide-y sm:divide-y-0 sm:divide-x divide-stone-100">
+          <div className="flex items-center gap-3.5 pt-2 sm:pt-0">
+            <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0 text-[#E5A100]">
+              <Truck className="w-5 h-5 text-[#E5A100]" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-black text-stone-900 leading-tight">Livraison Express 24h</h4>
+              <p className="text-[11px] text-stone-500 font-medium">À Bamako & sous-région</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3.5 pt-3 sm:pt-0 sm:pl-6">
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0 text-emerald-600">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-black text-stone-900 leading-tight">Retrait Gratuit 1h</h4>
+              <p className="text-[11px] text-stone-500 font-medium">En boutique ou atelier</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3.5 pt-3 sm:pt-0 sm:pl-6">
+            <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0 text-amber-700">
+              <Leaf className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-black text-stone-900 leading-tight">100% Terroir Pur</h4>
+              <p className="text-[11px] text-stone-500 font-medium">Zéro conservateur chimique</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3.5 pt-3 sm:pt-0 sm:pl-6">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0 text-blue-600">
+              <MessageCircle className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-black text-stone-900 leading-tight">Conseils & Aide 7j/7</h4>
+              <p className="text-[11px] text-stone-500 font-medium">Directement sur WhatsApp</p>
+            </div>
+          </div>
+        </div>
+      </FadeInView>
+
+      {/* 0. IMMERSIVE STORIES HIGHLIGHTS */}
+      <FadeInView direction="up" distance={20} duration={0.6}>
+        <StoryHighlights />
+      </FadeInView>
+
       {/* 1. SECTION : NOS PRODUITS PHARES AVEC FILTRES INTERACTIFS */}
-      <section className="space-y-6">
-        <FadeInView direction="up" distance={20} duration={0.6}>
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-            <div className="space-y-1.5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-[#2D5A27] text-xs font-bold rounded-full">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Nos Créations</span>
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-black text-[#142618] tracking-tight">
-                Épices & Terroir Pur
+      <FadeInView direction="up" distance={26} duration={0.65}>
+        <section className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-stone-200">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[#E5A100] text-stone-950 text-[10px] font-black uppercase tracking-wider rounded-md shadow-2xs">
+                  <Award className="w-3 h-3" />
+                  <span>Rayon Vedette</span>
+                </span>
+                <span className="text-xs font-bold text-stone-400">Terroir Malien</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">
+                Les Incontournables Horon Mousso
               </h2>
-              <p className="text-stone-500 text-xs sm:text-sm">
-                Sélection noble, séchée et moulue dans le respect des arômes.
+              <p className="text-stone-500 text-xs sm:text-sm font-medium">
+                Piments séchés au soleil, véritable soumbala de néré et poudres aromatiques garanties sans aucun adjuvant chimique.
               </p>
             </div>
 
             {/* View all button */}
             <button
               onClick={() => setActiveTab('produits')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-stone-200 hover:border-emerald-600 bg-white hover:bg-stone-50 text-stone-700 hover:text-emerald-800 font-semibold text-xs sm:text-sm transition group cursor-pointer shadow-2xs self-start sm:self-auto"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-stone-300 hover:border-[#E5A100] bg-white hover:bg-stone-50 text-stone-900 font-bold text-xs sm:text-sm transition group cursor-pointer shadow-2xs self-start sm:self-auto shrink-0"
             >
-              <span>Tout voir ({products.length})</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition" />
+              <span>Voir tout le rayon ({products.length})</span>
+              <ArrowRight className="w-4 h-4 text-stone-950 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
 
           {/* Interactive Category Filter Pills */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-3">
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             {[
-              { id: 'tous', label: 'Tous' },
-              { id: 'phares', label: 'Phares' },
-              { id: 'piments', label: 'Piments' },
-              { id: 'epices', label: 'Épices' },
-              { id: 'produits_transformes', label: 'Soumbala' },
-              { id: 'nouveautes', label: 'Nouveaux' }
+              { id: 'tous', label: 'Toutes les créations' },
+              { id: 'phares', label: '⭐ Coups de Cœur' },
+              { id: 'piments', label: '🌶️ Piments Rares' },
+              { id: 'epices', label: '🌿 Épices & Aromates' },
+              { id: 'produits_transformes', label: '✨ Soumbala & Néré' },
+              { id: 'nouveautes', label: '🔥 Nouveautés' }
             ].map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setSelectedCategory(tab.id)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
                   selectedCategory === tab.id
-                    ? 'bg-[#1E3B24] text-white shadow-xs font-bold'
-                    : 'bg-white border border-stone-200 text-stone-600 hover:border-stone-400 hover:bg-stone-50'
+                    ? 'bg-stone-900 text-[#E5A100] shadow-sm font-black'
+                    : 'bg-white border border-stone-200 text-stone-700 hover:border-stone-400 hover:bg-stone-50'
                 }`}
               >
                 {tab.label}
               </button>
             ))}
           </div>
-        </FadeInView>
 
-        {/* Product Cards Grid with animation */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={selectedCategory}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.25 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
-          >
-            {displayProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </motion.div>
-        </AnimatePresence>
-      </section>
+          {/* Product Cards Grid with progressive staggered animation */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={selectedCategory}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <FadeInStagger staggerDelay={0.06} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {displayProducts.map(product => (
+                  <FadeInItem key={product.id} withScale distance={18} duration={0.5}>
+                    <ProductCard product={product} />
+                  </FadeInItem>
+                ))}
+              </FadeInStagger>
+            </motion.div>
+          </AnimatePresence>
+        </section>
+      </FadeInView>
+
+      {/* 1.5. INTERACTIVE SPICE MATCHER & CULINARY PAIRINGS */}
+      <FadeInView direction="up" distance={30} duration={0.7}>
+        <InteractiveSpiceMatcher />
+      </FadeInView>
 
       {/* 2. SECTION INTERACTIVE : GUIDE DES INTENSITÉS & NIVEAUX DE PIQUANT */}
-      <FadeInView direction="up" distance={20} duration={0.6}>
+      <FadeInView direction="up" distance={30} duration={0.65} withScale={true}>
         <section className="bg-gradient-to-br from-[#182F1E] via-[#122416] to-[#0D1A10] text-white rounded-3xl p-6 sm:p-9 shadow-xl border border-emerald-900/50 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-80 h-80 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -316,26 +380,26 @@ export const HomeSections: React.FC = () => {
           <div className="relative z-10 space-y-6">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div className="space-y-1.5 max-w-lg">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold rounded-full">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-400/20 border border-amber-400/40 text-amber-300 text-xs font-black uppercase tracking-wider rounded-full">
                   <Flame className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Guide des Saveurs</span>
+                  <span>Guide Sensoriel & Intensité</span>
                 </span>
-                <h3 className="text-xl sm:text-3xl font-black text-white tracking-tight">
+                <h3 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight font-serif-heading">
                   Échelle de Chaleur Culinaire
                 </h3>
-                <p className="text-stone-300 text-xs sm:text-sm">
-                  Choisissez votre intensité préférée pour doser vos préparations.
+                <p className="text-stone-300 text-xs sm:text-sm font-medium">
+                  Du doux parfumé aux piments torrides d'Afrique de l'Ouest, trouvez le dosage parfait.
                 </p>
               </div>
 
-              <div className="flex items-center gap-1 bg-white/10 p-1 rounded-2xl border border-white/10 backdrop-blur-xs self-start md:self-auto">
+              <div className="flex items-center gap-1 bg-white/10 p-1.5 rounded-2xl border border-white/15 backdrop-blur-md self-start md:self-auto">
                 {spiceLevels.map(item => (
                   <button
                     key={item.level}
                     onClick={() => setActiveSpiceLevel(item.level)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                       activeSpiceLevel === item.level
-                        ? 'bg-amber-400 text-[#122416] shadow-sm font-extrabold'
+                        ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-[#0F2916] shadow-md font-extrabold scale-105'
                         : 'text-stone-300 hover:text-white hover:bg-white/10'
                     }`}
                   >
@@ -350,20 +414,20 @@ export const HomeSections: React.FC = () => {
             {(() => {
               const current = spiceLevels.find(s => s.level === activeSpiceLevel) || spiceLevels[1];
               return (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-7 backdrop-blur-md">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center bg-white/5 border border-white/15 rounded-3xl p-5 sm:p-7 backdrop-blur-md">
                   <div className="lg:col-span-8 space-y-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="flex items-center gap-0.5 text-red-400">
+                      <div className="flex items-center gap-1 text-red-400">
                         {[...Array(current.flames)].map((_, i) => (
                           <Flame key={i} className="w-4 h-4 fill-current" />
                         ))}
                       </div>
-                      <span className="text-[11px] font-bold bg-white/15 px-2.5 py-0.5 rounded-full text-amber-200">
+                      <span className="text-[11px] font-extrabold bg-amber-400/20 text-amber-300 border border-amber-400/30 px-3 py-0.5 rounded-full uppercase tracking-wider">
                         {current.badge}
                       </span>
                     </div>
 
-                    <h4 className="text-lg sm:text-xl font-bold text-white">
+                    <h4 className="text-xl sm:text-2xl font-bold text-white font-serif-heading">
                       {current.title} — <span className="text-amber-300 font-normal">{current.subtitle}</span>
                     </h4>
 
@@ -374,29 +438,29 @@ export const HomeSections: React.FC = () => {
                     <div className="pt-2 flex flex-wrap items-center gap-3">
                       <button
                         onClick={() => setActiveTab('produits')}
-                        className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-[#122416] font-bold text-xs sm:text-sm py-2 px-4 rounded-xl transition cursor-pointer shadow-xs"
+                        className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-[#0F2916] font-extrabold text-xs sm:text-sm py-2.5 px-5 rounded-xl transition cursor-pointer shadow-md"
                       >
-                        <span>Épices niveau {current.level}</span>
+                        <span>Découvrir le niveau {current.level}</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
 
                       <button
                         onClick={() => openOrderWhatsApp()}
-                        className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm py-2 px-3.5 rounded-xl transition cursor-pointer"
+                        className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm py-2.5 px-4 rounded-xl transition cursor-pointer border border-white/10"
                       >
                         <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Conseil WhatsApp</span>
+                        <span>Conseil sur WhatsApp</span>
                       </button>
                     </div>
                   </div>
 
                   {/* Right mini graphic */}
-                  <div className="lg:col-span-4 flex flex-col items-center justify-center p-5 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl border border-white/10 text-center">
-                    <div className="text-3xl mb-1.5">
+                  <div className="lg:col-span-4 flex flex-col items-center justify-center p-6 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl border border-white/10 text-center">
+                    <div className="text-4xl mb-2">
                       {current.level === 1 ? '🌿' : current.level === 2 ? '🌰' : current.level === 3 ? '🌶️' : '🔥'}
                     </div>
-                    <div className="font-bold text-xs text-white">{current.title}</div>
-                    <div className="text-[11px] text-stone-300 mt-0.5">Dosage : 1/2 à 1 c. à café par plat</div>
+                    <div className="font-extrabold text-sm text-white font-serif-heading">{current.title}</div>
+                    <div className="text-[11px] text-amber-200/90 mt-1 font-medium">Dosage suggéré : 1/2 à 1 c. à café par plat</div>
                   </div>
                 </div>
               );
@@ -406,235 +470,249 @@ export const HomeSections: React.FC = () => {
       </FadeInView>
 
       {/* 3. SECTION ARTISANAT & SAVOIR-FAIRE : DE LA TERRE AU SACHET */}
-      <FadeInView direction="up" distance={20} duration={0.6}>
+      <FadeInView direction="up" distance={30} duration={0.65}>
         <section className="space-y-6">
           <div className="text-center max-w-xl mx-auto space-y-1.5">
-            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 bg-emerald-50 text-[#2D5A27] text-xs font-bold rounded-full">
-              <Leaf className="w-3.5 h-3.5" />
-              <span>Savoir-Faire Artisanal</span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100/80 text-[#0F2916] text-xs font-black uppercase tracking-wider rounded-full border border-emerald-300/40">
+              <Leaf className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Méthode Traditionnelle & Hygiène</span>
             </span>
-            <h2 className="text-2xl sm:text-3xl font-black text-[#142618] tracking-tight">
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-[#0B1E11] tracking-tight font-serif-heading">
               De la Terre au Sachet
             </h2>
-            <p className="text-stone-500 text-xs sm:text-sm">
-              Quatre étapes rigoureuses garantissant fraîcheur et pureté.
+            <p className="text-stone-600 text-xs sm:text-sm font-medium">
+              Quatre étapes rigoureuses garantissant une pureté absolue et un arôme sans compromis.
             </p>
           </div>
 
-          {/* Interactive Stepper Navigation */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+          {/* Progressive Staggered Stepper Navigation */}
+          <FadeInStagger staggerDelay={0.08} className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {transformationSteps.map((step, idx) => (
-              <button
-                key={idx}
-                onClick={() => setActiveStep(idx)}
-                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
-                  activeStep === idx 
-                    ? 'bg-[#1E3B24] text-white border-[#1E3B24] shadow-md shadow-emerald-950/15 scale-[1.01]' 
-                    : 'bg-white border-stone-200 text-stone-700 hover:border-stone-400 hover:bg-stone-50'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
-                    activeStep === idx ? 'bg-white/20 text-emerald-200' : 'bg-stone-100 text-stone-600'
-                  }`}>
-                    0{idx + 1}
-                  </span>
-                  {activeStep === idx && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />}
-                </div>
-                <div className="font-bold text-xs sm:text-sm truncate">{step.title.split('. ')[1] || step.title}</div>
-                <div className={`text-[11px] mt-0.5 ${activeStep === idx ? 'text-emerald-200' : 'text-stone-400'}`}>
-                  {step.tag}
-                </div>
-              </button>
+              <FadeInItem key={idx} withScale distance={16} duration={0.5}>
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(idx)}
+                  className={`w-full p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                    activeStep === idx 
+                      ? 'bg-[#0F2916] text-white border-emerald-600/50 shadow-lg shadow-emerald-950/20 scale-[1.02]' 
+                      : 'bg-white border-stone-200 text-stone-700 hover:border-stone-400 hover:bg-stone-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-lg ${
+                      activeStep === idx ? 'bg-amber-400 text-[#0F2916]' : 'bg-stone-100 text-stone-700'
+                    }`}>
+                      Étape 0{idx + 1}
+                    </span>
+                    {activeStep === idx && <CheckCircle2 className="w-4 h-4 text-amber-300" />}
+                  </div>
+                  <div className="font-bold text-xs sm:text-sm truncate font-serif-heading">{step.title.split('. ')[1] || step.title}</div>
+                  <div className={`text-[11px] mt-0.5 ${activeStep === idx ? 'text-emerald-300' : 'text-stone-500'}`}>
+                    {step.tag}
+                  </div>
+                </button>
+              </FadeInItem>
             ))}
-          </div>
+          </FadeInStagger>
 
           {/* Detailed Active Step Showcase */}
           {(() => {
             const currentStepData = transformationSteps[activeStep];
             return (
-              <div className="bg-white rounded-3xl border border-stone-200/90 shadow-2xs p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-                <div className="lg:col-span-7 space-y-3">
-                  <span className="inline-block px-2.5 py-0.5 bg-emerald-50 text-[#2D5A27] text-xs font-bold rounded-md">
-                    {currentStepData.tag}
-                  </span>
-                  <h3 className="text-xl sm:text-2xl font-black text-[#142618]">
-                    {currentStepData.title}
-                  </h3>
-                  <div className="text-xs sm:text-sm font-semibold text-[#2D5A27]">
-                    {currentStepData.subtitle}
-                  </div>
-                  <p className="text-stone-600 text-xs sm:text-sm leading-relaxed">
-                    {currentStepData.desc}
-                  </p>
+              <FadeInView direction="up" distance={20} delay={0.1} withScale={true}>
+                <div className="bg-white rounded-3xl border border-stone-200/90 shadow-2xs p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                  <div className="lg:col-span-7 space-y-3">
+                    <span className="inline-block px-2.5 py-0.5 bg-emerald-50 text-[#2D5A27] text-xs font-bold rounded-md">
+                      {currentStepData.tag}
+                    </span>
+                    <h3 className="text-xl sm:text-2xl font-black text-[#142618]">
+                      {currentStepData.title}
+                    </h3>
+                    <div className="text-xs sm:text-sm font-semibold text-[#2D5A27]">
+                      {currentStepData.subtitle}
+                    </div>
+                    <p className="text-stone-600 text-xs sm:text-sm leading-relaxed">
+                      {currentStepData.desc}
+                    </p>
 
-                  <div className="pt-2 flex items-center gap-4 text-xs font-semibold text-stone-600">
-                    <span className="flex items-center gap-1.5 text-[#2D5A27]">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                      100% Hygiénique
-                    </span>
-                    <span className="flex items-center gap-1.5 text-[#2D5A27]">
-                      <Award className="w-3.5 h-3.5 text-emerald-600" />
-                      Qualité Contrôlée
-                    </span>
+                    <div className="pt-2 flex items-center gap-4 text-xs font-semibold text-stone-600">
+                      <span className="flex items-center gap-1.5 text-[#2D5A27]">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        100% Hygiénique
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[#2D5A27]">
+                        <Award className="w-3.5 h-3.5 text-emerald-600" />
+                        Qualité Contrôlée
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-5">
+                    <div className="aspect-4/3 rounded-2xl overflow-hidden border border-stone-200 shadow-xs">
+                      <img
+                        src={currentStepData.image}
+                        alt={currentStepData.title}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
                   </div>
                 </div>
-
-                <div className="lg:col-span-5">
-                  <div className="aspect-4/3 rounded-2xl overflow-hidden border border-stone-200 shadow-xs">
-                    <img
-                      src={currentStepData.image}
-                      alt={currentStepData.title}
-                      className="w-full h-full object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-                  </div>
-                </div>
-              </div>
+              </FadeInView>
             );
           })()}
         </section>
       </FadeInView>
 
       {/* 4. SECTION INSPIRATIONS CULINAIRES & IDÉES RECETTES */}
-      <FadeInView direction="up" distance={20} duration={0.6}>
+      <FadeInView direction="up" distance={30} duration={0.65}>
         <section className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div className="space-y-1.5 max-w-xl">
-              <span className="inline-flex items-center gap-1.5 px-3 py-0.5 bg-amber-50 text-amber-900 text-xs font-bold rounded-full">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100/80 text-amber-950 text-xs font-black uppercase tracking-wider rounded-full border border-amber-300/40">
                 <ChefHat className="w-3.5 h-3.5 text-amber-700" />
-                <span>Inspirations Culinaires</span>
+                <span>Inspirations Culinaires & Gastronomie</span>
               </span>
-              <h2 className="text-2xl sm:text-3xl font-black text-[#142618] tracking-tight">
+              <h2 className="text-2xl sm:text-4xl font-extrabold text-[#0B1E11] tracking-tight font-serif-heading">
                 Idées & Accords Saveurs
               </h2>
-              <p className="text-stone-500 text-xs sm:text-sm">
-                Des accords simples pour sublimer vos tables quotidiennes.
+              <p className="text-stone-600 text-xs sm:text-sm font-medium">
+                Des accords simples et raffinés pour sublimer vos plats africains et internationaux.
               </p>
             </div>
 
             <button
               onClick={() => setActiveTab('a_propos')}
-              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2D5A27] hover:underline"
+              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#0F2916] hover:text-emerald-700 transition cursor-pointer"
             >
-              <span>Notre histoire</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <span>Découvrir notre histoire</span>
+              <ArrowRight className="w-3.5 h-3.5 text-amber-600" />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Progressive Staggered Recipe Cards */}
+          <FadeInStagger staggerDelay={0.11} className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {recipes.map((rec, i) => (
-              <div 
-                key={i} 
-                className="bg-white rounded-2xl border border-stone-200 shadow-2xs hover:shadow-md transition-all overflow-hidden flex flex-col group hover:border-[#2D5A27]/40"
-              >
-                <div className="relative aspect-16/10 overflow-hidden bg-stone-100">
-                  <img
-                    src={rec.image}
-                    alt={rec.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute top-2.5 left-2.5 bg-[#142618]/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md backdrop-blur-xs">
-                    {rec.type}
-                  </div>
-                  <div className="absolute bottom-2.5 right-2.5 bg-white/90 text-stone-900 text-[10px] font-semibold px-2 py-0.5 rounded-md backdrop-blur-xs">
-                    ⏱️ {rec.time}
-                  </div>
-                </div>
-
-                <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                  <div className="space-y-1.5">
-                    <h3 className="font-bold text-sm sm:text-base text-[#142618] group-hover:text-[#2D5A27] transition">
-                      {rec.title}
-                    </h3>
-                    <p className="text-xs text-stone-600 leading-relaxed">
-                      {rec.desc}
-                    </p>
+              <FadeInItem key={i} withScale distance={24} duration={0.55}>
+                <div 
+                  className="h-full bg-white rounded-3xl border border-stone-200/80 shadow-xs hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col group hover:border-emerald-600/40"
+                >
+                  <div className="relative aspect-16/10 overflow-hidden bg-stone-100">
+                    <img
+                      src={rec.image}
+                      alt={rec.title}
+                      className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute top-3 left-3 bg-[#0F2916]/90 text-amber-300 text-[11px] font-extrabold px-2.5 py-1 rounded-xl backdrop-blur-md border border-emerald-500/20">
+                      {rec.type}
+                    </div>
+                    <div className="absolute bottom-3 right-3 bg-white/95 text-stone-900 text-[11px] font-bold px-2.5 py-1 rounded-xl backdrop-blur-md shadow-xs">
+                      ⏱️ {rec.time}
+                    </div>
                   </div>
 
-                  <div className="pt-2.5 border-t border-stone-100 flex items-center justify-between text-xs">
-                    <span className="text-[11px] font-medium text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/50">
-                      {rec.spiceNeeded}
-                    </span>
-                    <button
-                      onClick={() => setActiveTab('produits')}
-                      className="text-xs font-bold text-[#2D5A27] hover:text-[#142618] inline-flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>Produit</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
+                  <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                    <div className="space-y-2">
+                      <h3 className="font-extrabold text-base sm:text-lg text-[#0B1E11] group-hover:text-[#0F2916] transition font-serif-heading">
+                        {rec.title}
+                      </h3>
+                      <p className="text-xs text-stone-600 leading-relaxed font-medium">
+                        {rec.desc}
+                      </p>
+                    </div>
+
+                    <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-xs">
+                      <span className="text-[11px] font-bold text-amber-950 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200/60">
+                        {rec.spiceNeeded}
+                      </span>
+                      <button
+                        onClick={() => setActiveTab('produits')}
+                        className="text-xs font-bold text-[#0F2916] hover:text-emerald-700 inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>Voir l'épice</span>
+                        <ArrowRight className="w-3 h-3 text-amber-600" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </FadeInItem>
             ))}
-          </div>
+          </FadeInStagger>
         </section>
       </FadeInView>
 
+      {/* 4.5. BESPOKE LUXURY CUSTOM BOX BUILDER */}
+      <FadeInView direction="up" distance={30} duration={0.7}>
+        <CustomBoxBuilder />
+      </FadeInView>
+
       {/* 5. SECTION PACKS COMMANDE RAPIDE EN 1 CLIC */}
-      <FadeInView direction="up" distance={20} duration={0.6}>
-        <section className="bg-stone-50 border border-stone-200/80 rounded-3xl p-6 sm:p-9 space-y-6">
+      <FadeInView direction="up" distance={30} duration={0.65}>
+        <section className="bg-gradient-to-b from-[#F5F2EC] to-[#EAE5DC] border border-stone-300/60 rounded-3xl p-6 sm:p-10 space-y-6 shadow-xs">
           <div className="text-center max-w-lg mx-auto space-y-1.5">
-            <span className="inline-flex items-center gap-1 px-3 py-0.5 bg-amber-500/20 text-amber-900 text-xs font-bold rounded-full">
-              <Zap className="w-3.5 h-3.5 text-amber-600" />
-              <span>Commande Express WhatsApp</span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-400/30 text-amber-950 text-xs font-extrabold uppercase tracking-wider rounded-full border border-amber-400/50">
+              <Zap className="w-3.5 h-3.5 text-amber-700" />
+              <span>Commande Express en 1 Clic</span>
             </span>
-            <h2 className="text-2xl sm:text-3xl font-black text-[#142618] tracking-tight">
-              Packs Dégustation
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-[#0B1E11] tracking-tight font-serif-heading">
+              Packs Dégustation & Offres
             </h2>
-            <p className="text-stone-500 text-xs sm:text-sm">
-              Formules composées prêtes à commander en 1 clic.
+            <p className="text-stone-600 text-xs sm:text-sm font-medium">
+              Des assortiments complets soigneusement dosés, prêts à expédier via WhatsApp.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Progressive Staggered Pack Cards */}
+          <FadeInStagger staggerDelay={0.11} className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {quickPacks.map(pack => (
-              <div 
-                key={pack.id} 
-                className={`rounded-2xl p-5 flex flex-col justify-between space-y-4 transition-all ${
-                  pack.highlight 
-                    ? 'bg-[#1E3B21] text-white shadow-lg ring-1 ring-emerald-400/40' 
-                    : 'bg-white border border-stone-200 text-stone-800 shadow-2xs hover:shadow-md'
-                }`}
-              >
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                      pack.highlight ? 'bg-amber-400 text-[#122416]' : 'bg-emerald-50 text-emerald-800'
-                    }`}>
-                      {pack.badge}
-                    </span>
-                    {pack.highlight && <Star className="w-3.5 h-3.5 text-amber-400 fill-current" />}
-                  </div>
-
-                  <h3 className="font-bold text-base sm:text-lg">
-                    {pack.name}
-                  </h3>
-
-                  <div className={`text-xl font-black ${pack.highlight ? 'text-amber-300' : 'text-[#2D5A27]'}`}>
-                    {pack.price}
-                  </div>
-
-                  <p className={`text-xs leading-relaxed ${pack.highlight ? 'text-stone-200' : 'text-stone-500'}`}>
-                    {pack.description}
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => handleOrderPackWhatsApp(pack.name, pack.price)}
-                  className={`w-full py-2.5 px-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-xs ${
+              <FadeInItem key={pack.id} withScale distance={24} duration={0.55}>
+                <div 
+                  className={`h-full rounded-3xl p-6 flex flex-col justify-between space-y-5 transition-all duration-300 ${
                     pack.highlight 
-                      ? 'bg-amber-400 hover:bg-amber-300 text-[#122416]' 
-                      : 'bg-[#2D5A27] hover:bg-[#1E3B21] text-white'
+                      ? 'bg-gradient-to-b from-[#0F2916] to-[#14371D] text-white shadow-xl shadow-emerald-950/20 ring-2 ring-amber-400/50 scale-[1.02]' 
+                      : 'bg-white border border-stone-200/90 text-stone-800 shadow-sm hover:shadow-lg hover:-translate-y-1'
                   }`}
                 >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                  <span>Commander sur WhatsApp</span>
-                </button>
-              </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[11px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-full ${
+                        pack.highlight ? 'bg-amber-400 text-[#0F2916]' : 'bg-emerald-100 text-[#0F2916]'
+                      }`}>
+                        {pack.badge}
+                      </span>
+                      {pack.highlight && <Star className="w-4 h-4 text-amber-400 fill-current" />}
+                    </div>
+
+                    <h3 className="font-bold text-lg sm:text-xl font-serif-heading">
+                      {pack.name}
+                    </h3>
+
+                    <div className={`text-2xl font-black tracking-tight ${pack.highlight ? 'text-amber-300' : 'text-[#0F2916]'}`}>
+                      {pack.price}
+                    </div>
+
+                    <p className={`text-xs leading-relaxed font-medium ${pack.highlight ? 'text-stone-200' : 'text-stone-600'}`}>
+                      {pack.description}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOrderPackWhatsApp(pack.name, pack.price)}
+                    className={`w-full py-3 px-4 rounded-2xl font-extrabold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-md ${
+                      pack.highlight 
+                        ? 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-[#0F2916]' 
+                        : 'bg-[#0F2916] hover:bg-[#184424] text-white'
+                    }`}
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Commander sur WhatsApp</span>
+                  </button>
+                </div>
+              </FadeInItem>
             ))}
-          </div>
+          </FadeInStagger>
         </section>
       </FadeInView>
 
@@ -729,100 +807,109 @@ export const HomeSections: React.FC = () => {
       )}
 
       {/* 7. SECTION AVIS CLIENTS & GESTION FIREBASE */}
-      <FadeInView direction="up" distance={30} duration={0.65}>
+      <FadeInView direction="up" distance={30} duration={0.7} withScale={true}>
         <CustomerReviewsSection />
       </FadeInView>
 
       {/* 7.5. SECTION SIMULATEUR DE LIVRAISON EXPRESS */}
-      <FadeInView direction="up" distance={25} duration={0.6}>
+      <FadeInView direction="up" distance={30} duration={0.7} withScale={true}>
         <DeliveryCalculatorWidget />
       </FadeInView>
 
-      {/* 8. SECTION FAQ INTERACTIVE (ACCORDÉON) */}
-      <FadeInView direction="up" distance={20} duration={0.6}>
+      {/* 8. SECTION FAQ INTERACTIVE (ACCORDÉON AVEC EFFET PROGRESSIF) */}
+      <FadeInView direction="up" distance={30} duration={0.7}>
         <section className="bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-9 space-y-5 shadow-2xs">
           <div className="text-center max-w-lg mx-auto space-y-1.5">
-            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 bg-stone-100 text-stone-700 text-xs font-bold rounded-full">
-              <HelpCircle className="w-3.5 h-3.5 text-stone-500" />
-              <span>Questions Fréquentes</span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-stone-100 text-[#0F2916] text-xs font-black uppercase tracking-wider rounded-full border border-stone-200">
+              <HelpCircle className="w-3.5 h-3.5 text-amber-600" />
+              <span>Foire Aux Questions</span>
             </span>
-            <h3 className="text-2xl sm:text-3xl font-black text-[#142618]">
+            <h3 className="text-2xl sm:text-4xl font-extrabold text-[#0B1E11] font-serif-heading">
               Tout savoir avant de commander
             </h3>
+            <p className="text-stone-600 text-xs sm:text-sm font-medium">
+              Transparence totale sur nos origines, notre séchage et la livraison rapide.
+            </p>
           </div>
 
-          <div className="max-w-2xl mx-auto divide-y divide-stone-100">
+          <FadeInStagger staggerDelay={0.07} className="max-w-2xl mx-auto divide-y divide-stone-100">
             {faqs.map((faq, index) => {
               const isOpen = openFaqIndex === index;
               return (
-                <div key={index} className="py-3.5">
-                  <button
-                    onClick={() => setOpenFaqIndex(isOpen ? null : index)}
-                    className="w-full flex items-center justify-between gap-3 text-left font-bold text-sm sm:text-base text-[#142618] hover:text-[#2D5A27] transition cursor-pointer"
-                  >
-                    <span>{faq.q}</span>
-                    <ChevronDown className={`w-4 h-4 shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180 text-emerald-700' : 'text-stone-400'}`} />
-                  </button>
-                  <AnimatePresence>
-                    {isOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden"
-                      >
-                        <p className="text-xs sm:text-sm text-stone-500 leading-relaxed pt-2">
-                          {faq.a}
-                        </p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                <FadeInItem key={index} distance={14} duration={0.45}>
+                  <div className="py-4">
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                      className="w-full flex items-center justify-between gap-3 text-left font-bold text-sm sm:text-base text-[#0B1E11] hover:text-[#0F2916] transition cursor-pointer font-serif-heading"
+                    >
+                      <span>{faq.q}</span>
+                      <ChevronDown className={`w-4 h-4 shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180 text-amber-600' : 'text-stone-400'}`} />
+                    </button>
+                    <AnimatePresence>
+                      {isOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <p className="text-xs sm:text-sm text-stone-600 leading-relaxed pt-2.5 font-medium">
+                            {faq.a}
+                          </p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </FadeInItem>
               );
             })}
-          </div>
+          </FadeInStagger>
         </section>
       </FadeInView>
 
       {/* 9. SECTION CONTACT & PRISE DE COMMANDE FINALE */}
-      <FadeInView direction="up" distance={20} duration={0.6}>
-        <section className="bg-gradient-to-r from-[#182F1E] to-[#112315] text-white rounded-3xl p-6 sm:p-10 shadow-lg relative overflow-hidden">
+      <FadeInView direction="up" distance={30} duration={0.75} withScale={true}>
+        <section className="bg-gradient-to-r from-[#0A180E] via-[#0F2916] to-[#163D20] text-white rounded-3xl p-6 sm:p-12 shadow-2xl relative overflow-hidden border border-emerald-600/30">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10 max-w-2xl space-y-4">
-            <span className="inline-block px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-full">
-              À votre écoute
+            <span className="inline-block px-3 py-1 bg-amber-400/20 text-amber-300 text-xs font-black uppercase tracking-wider rounded-full border border-amber-400/30">
+              Service Client Dédié & Artisanal
             </span>
 
-            <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
+            <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight font-serif-heading text-white">
               Sublimez Votre Cuisine Aujourd'hui
             </h2>
 
-            <p className="text-stone-300 text-xs sm:text-sm leading-relaxed">
-              Particulier ou chef restaurateur, notre équipe vous conseille et traite votre commande en direct.
+            <p className="text-stone-300 text-xs sm:text-sm leading-relaxed font-medium">
+              Particulier gourmand ou chef de cuisine, notre équipe vous conseille avec passion et expédie votre commande partout à Bamako et dans les régions.
             </p>
 
-            <div className="pt-2 flex flex-wrap items-center gap-3">
+            <div className="pt-3 flex flex-wrap items-center gap-3">
               <button
+                type="button"
                 onClick={() => openOrderWhatsApp()}
-                className="inline-flex items-center gap-2 bg-[#B82B2B] hover:bg-[#9E2424] text-white font-bold px-5 py-2.5 rounded-xl shadow-sm transition cursor-pointer text-xs sm:text-sm"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-[#B82B2B] to-[#D93838] hover:from-[#A02222] hover:to-[#C02E2E] text-white font-extrabold px-6 py-3 rounded-2xl shadow-lg transition cursor-pointer text-xs sm:text-sm border border-red-400/30"
               >
-                <MessageCircle className="w-4 h-4" />
+                <MessageCircle className="w-4 h-4 text-white" />
                 <span>Commander sur WhatsApp</span>
               </button>
 
               <button
+                type="button"
                 onClick={() => setActiveTab('contact')}
-                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-4 py-2.5 rounded-xl transition cursor-pointer text-xs sm:text-sm"
+                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-5 py-3 rounded-2xl transition cursor-pointer text-xs sm:text-sm border border-white/15"
               >
-                <span>Formulaire</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span>Envoyer un message</span>
+                <ArrowRight className="w-3.5 h-3.5 text-amber-300" />
               </button>
 
               <a
                 href={`tel:${settings.phone.replace(/\s+/g, '')}`}
                 className="inline-flex items-center gap-1.5 text-stone-300 hover:text-white font-semibold text-xs sm:text-sm px-2 py-2 transition"
               >
-                <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
+                <PhoneCall className="w-3.5 h-3.5 text-amber-400" />
                 <span>{settings.phone}</span>
               </a>
             </div>
