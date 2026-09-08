@@ -1,37 +1,26 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { 
   X, 
   Trash2, 
   Plus, 
   Minus, 
   ShoppingBag, 
-  MessageSquare, 
   Truck, 
   Store, 
-  CreditCard, 
-  Copy, 
-  Check, 
-  ShieldCheck, 
   ArrowRight,
-  Clock,
   MapPin,
-  CheckCircle2,
-  FileText,
-  Tag,
-  Percent,
-  Sparkles,
-  Gift
+  Phone,
+  User,
+  MessageCircle,
+  ShieldCheck
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { formatFCFA } from '../../utils/cartUtils';
-import { deliveryZones } from '../../data/deliveryZones';
 import { PaymentMethod } from '../../types';
 
 export const CartDrawer: React.FC = () => {
   const { 
     cart, 
-    products,
-    addToCart,
     isCartOpen, 
     setIsCartOpen, 
     removeFromCart, 
@@ -40,84 +29,35 @@ export const CartDrawer: React.FC = () => {
     cartTotalCount, 
     cartTotalAmount, 
     createDirectOrder,
-    submitCartOrderWhatsApp,
     settings,
     setActiveTab,
     showToast
   } = useApp();
 
   const [deliveryType, setDeliveryType] = useState<'livraison' | 'retrait'>('livraison');
-  const [selectedZoneId, setSelectedZoneId] = useState<string>('zone_bamako_rg');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('wave');
-  const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasCopied, setHasCopied] = useState(false);
-  const [hasCopiedOM, setHasCopiedOM] = useState(false);
-  const [hasCopiedWave, setHasCopiedWave] = useState(false);
-
-  // Promo Code State
-  const [promoInput, setPromoInput] = useState('');
-  const [appliedPromo, setAppliedPromo] = useState<{ code: string; percent: number } | null>(null);
 
   if (!isCartOpen) return null;
 
-  // Free shipping threshold (15 000 FCFA)
-  const FREE_SHIPPING_THRESHOLD = 15000;
-  const isFreeShipping = cartTotalAmount >= FREE_SHIPPING_THRESHOLD;
-  const shippingProgress = Math.min(100, Math.round((cartTotalAmount / FREE_SHIPPING_THRESHOLD) * 100));
-  const remainingForFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - cartTotalAmount);
-
-  const currentZone = deliveryZones.find(z => z.id === selectedZoneId) || deliveryZones[0];
-  const rawDeliveryFee = deliveryType === 'retrait' ? 0 : currentZone.fee;
-  const deliveryFee = isFreeShipping && deliveryType === 'livraison' ? 0 : rawDeliveryFee;
-
-  // Discount
-  const discountAmount = appliedPromo 
-    ? Math.round((cartTotalAmount * appliedPromo.percent) / 100) 
-    : 0;
-
-  const grandTotal = Math.max(0, cartTotalAmount - discountAmount + deliveryFee);
-
-  const handleApplyPromo = (e: React.FormEvent) => {
-    e.preventDefault();
-    const clean = promoInput.trim().toUpperCase();
-    if (!clean) return;
-
-    if (clean === 'BIENVENUE10' || clean === 'TERROIR10') {
-      setAppliedPromo({ code: clean, percent: 10 });
-      showToast(`Code ${clean} activé : -10% sur votre commande !`, 'success');
-      setPromoInput('');
-    } else if (clean === 'HORON5') {
-      setAppliedPromo({ code: clean, percent: 5 });
-      showToast(`Code ${clean} activé : -5% sur votre commande !`, 'success');
-      setPromoInput('');
-    } else {
-      showToast('Code promo non valide. Essayez BIENVENUE10', 'error');
-    }
-  };
-
-  const handleRemovePromo = () => {
-    setAppliedPromo(null);
-    showToast('Code promo retiré', 'info');
-  };
-
-  // Cross-sell suggestions (products not currently in cart)
-  const crossSellProducts = products
-    .filter(p => !cart.some(item => item.productId === p.id))
-    .slice(0, 2);
+  const deliveryFee = deliveryType === 'retrait' ? 0 : 1000;
+  const grandTotal = cartTotalAmount + deliveryFee;
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerName.trim() || !customerPhone.trim()) {
-      showToast('Veuillez renseigner votre nom et votre numéro de téléphone.', 'error');
+    if (!customerName.trim()) {
+      showToast('Veuillez indiquer votre nom.', 'error');
+      return;
+    }
+    if (!customerPhone.trim()) {
+      showToast('Veuillez indiquer votre numéro de téléphone / WhatsApp.', 'error');
       return;
     }
     if (deliveryType === 'livraison' && !customerAddress.trim()) {
-      showToast('Veuillez préciser votre adresse ou commune de livraison.', 'error');
+      showToast('Veuillez indiquer votre quartier ou adresse à Bamako.', 'error');
       return;
     }
 
@@ -126,17 +66,14 @@ export const CartDrawer: React.FC = () => {
       const order = await createDirectOrder({
         name: customerName.trim(),
         phone: customerPhone.trim(),
-        email: customerEmail.trim() || undefined,
         address: deliveryType === 'retrait' ? 'Retrait en boutique / Atelier Horon Mousso' : customerAddress.trim(),
-        deliveryZone: deliveryType === 'retrait' ? 'Retrait en boutique (Gratuit)' : currentZone.name,
+        deliveryZone: deliveryType === 'retrait' ? 'Retrait en boutique' : 'Bamako',
         deliveryFee,
         deliveryType,
-        paymentMethod,
-        notes: `${notes.trim()}${appliedPromo ? ` [Code Promo: ${appliedPromo.code} (-${appliedPromo.percent}% : -${formatFCFA(discountAmount)})]` : ''}${isFreeShipping ? ' [Livraison Offerte Seuil 15 000 F]' : ''}`
+        paymentMethod
       });
 
       if (order) {
-        // Also prepare and open WhatsApp communication with customer
         const rawNumber = settings.whatsapp || settings.phone || '';
         const cleanNumber = rawNumber.replace(/[^0-9]/g, '');
         const itemsSummary = order.items.map((it, idx) => 
@@ -144,23 +81,21 @@ export const CartDrawer: React.FC = () => {
         ).join('\n');
 
         const orderMsg = 
-`*NOUVELLE COMMANDE - HORON MOUSSO* 🌿
-N° Commande : *${order.orderNumber}*
+`*COMMANDE HORON MOUSSO* 🌿
+N° : *${order.orderNumber}*
 ----------------------------------------
 ${itemsSummary}
 
-📦 *Sous-total articles :* ${formatFCFA(order.subtotal)}
-${appliedPromo ? `🏷️ *Remise Promo (${appliedPromo.code} -${appliedPromo.percent}%) :* -${formatFCFA(discountAmount)}\n` : ''}🚚 *Livraison (${order.deliveryZone}) :* ${deliveryFee === 0 ? 'OFFERTE (0 FCFA)' : formatFCFA(deliveryFee)}
-💰 *TOTAL NET À RÉGLER :* ${formatFCFA(grandTotal)}
+📦 *Sous-total :* ${formatFCFA(order.subtotal)}
+🚚 *Livraison :* ${deliveryFee === 0 ? 'Gratuite (Retrait)' : formatFCFA(deliveryFee)}
+💰 *TOTAL À PAYER :* ${formatFCFA(grandTotal)}
 
 👤 *Client :* ${order.customerName}
 📞 *Téléphone :* ${order.customerPhone}
-📍 *Mode :* ${order.deliveryType === 'retrait' ? 'Retrait en Atelier / Boutique' : 'Livraison à domicile / bureau'}
-🏠 *Adresse :* ${order.deliveryAddress}
-💳 *Paiement :* ${order.paymentMethod.replace('_', ' ').toUpperCase()}
-${order.notes ? `📝 *Remarques :* ${order.notes}` : ''}
+📍 *Mode :* ${order.deliveryType === 'retrait' ? 'Retrait en Boutique' : 'Livraison à domicile'}
+${order.deliveryType === 'livraison' ? `🏠 *Adresse :* ${order.deliveryAddress}\n` : ''}💳 *Paiement souhaité :* ${paymentMethod.replace('_', ' ').toUpperCase()}
 
-Bonjour, je viens de passer commande sur le site. Merci de me confirmer la prise en charge !`;
+Bonjour, je viens de passer cette commande. Pouvez-vous me confirmer la disponibilité et l'horaire de livraison ?`;
 
         if (cleanNumber) {
           const url = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(orderMsg)}`;
@@ -172,603 +107,273 @@ Bonjour, je viens de passer commande sur le site. Merci de me confirmer la prise
     }
   };
 
-  const handleCopyOrderText = () => {
-    const itemsSummary = cart.map((item, idx) => {
-      const pricePart = item.unitPriceNumeric > 0 ? ` : ${formatFCFA(item.unitPriceNumeric * item.quantity)}` : '';
-      return `${idx + 1}. ${item.quantity}x ${item.product.name} (${item.format})${pricePart}`;
-    }).join('\n');
-
-    const promoStr = appliedPromo ? `\nRemise (${appliedPromo.code}) : -${formatFCFA(discountAmount)}` : '';
-    const totalStr = `\nSous-total : ${formatFCFA(cartTotalAmount)}${promoStr}\nFrais de livraison : ${deliveryFee === 0 ? 'OFFERTE (0 FCFA)' : formatFCFA(deliveryFee)}\nTotal net : ${formatFCFA(grandTotal)}`;
-    const textToCopy = `COMMANDE HORON MOUSSO\n-----------------------\n${itemsSummary}${totalStr}\n\nClient : ${customerName || 'À préciser'}\nTéléphone : ${customerPhone || 'À préciser'}\nMode : ${deliveryType === 'retrait' ? 'Retrait en boutique' : 'Livraison'}\nZone : ${currentZone.name}\nAdresse : ${customerAddress || 'À préciser'}\nPaiement : ${paymentMethod}`;
-
-    navigator.clipboard.writeText(textToCopy);
-    setHasCopied(true);
-    showToast('Détail de la commande copié dans le presse-papier !', 'info');
-    setTimeout(() => setHasCopied(false), 3000);
-  };
-
   return (
     <div id="cart-drawer-overlay" className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
-      {/* Backdrop click to close */}
+      {/* Click outside to close */}
       <div 
         className="fixed inset-0" 
         onClick={() => setIsCartOpen(false)}
         aria-hidden="true"
       />
 
-      {/* Drawer content */}
+      {/* Drawer Panel */}
       <div 
         id="cart-drawer-panel"
-        className="relative z-10 flex flex-col w-full max-w-xl h-full bg-white shadow-2xl overflow-hidden border-l border-neutral-200"
+        className="relative z-10 flex flex-col w-full max-w-md h-full bg-white shadow-2xl overflow-hidden border-l border-neutral-200"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200 bg-[#0F2916] text-white">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-amber-300 border border-white/10">
-              <ShoppingBag className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-extrabold text-white flex items-center gap-2 font-serif-heading">
-                Mon Panier Gourmet
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-400 text-[#0F2916]">
-                  {cartTotalCount} {cartTotalCount > 1 ? 'articles' : 'article'}
-                </span>
-              </h2>
-              <p className="text-xs text-stone-300">Horon Mousso - Commande directe artisanale</p>
-            </div>
+        {/* Simple Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-stone-200 bg-[#0F2916] text-white">
+          <div className="flex items-center gap-2.5">
+            <ShoppingBag className="w-5 h-5 text-[#E5A100]" />
+            <h2 className="text-base font-bold text-white">
+              Mon Panier ({cartTotalCount})
+            </h2>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {cart.length > 0 && (
               <button
-                id="btn-clear-cart"
                 type="button"
                 onClick={clearCart}
-                className="text-xs text-stone-300 hover:text-red-300 px-2 py-1 rounded transition-colors cursor-pointer"
-                title="Vider tout le panier"
+                className="text-xs text-stone-300 hover:text-red-300 transition cursor-pointer"
               >
                 Vider
               </button>
             )}
             <button
-              id="btn-close-cart"
               type="button"
               onClick={() => setIsCartOpen(false)}
-              className="p-2 text-stone-300 hover:text-white rounded-full hover:bg-white/10 transition cursor-pointer"
-              aria-label="Fermer le panier"
+              className="p-1.5 text-stone-300 hover:text-white rounded-lg hover:bg-white/10 transition cursor-pointer"
+              aria-label="Fermer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Body content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 divide-y divide-neutral-100">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
           {cart.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full py-16 text-center">
-              <div className="w-20 h-20 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-400 mb-4">
-                <ShoppingBag className="w-10 h-10" />
+            <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+              <div className="w-16 h-16 rounded-full bg-stone-100 flex items-center justify-center text-stone-400 mb-3">
+                <ShoppingBag className="w-8 h-8" />
               </div>
-              <h3 className="text-lg font-semibold text-neutral-800 mb-1">Votre panier est encore vide</h3>
-              <p className="text-sm text-neutral-500 max-w-xs mb-6">
-                Découvrez nos épices pures d'Afrique de l'Ouest, notre soumbala d'exception et nos piments savamment séchés.
+              <h3 className="text-base font-bold text-stone-800 mb-1">Votre panier est vide</h3>
+              <p className="text-xs text-stone-500 max-w-xs mb-5">
+                Découvrez nos épices pures, notre soumbala d'exception et nos piments savamment séchés.
               </p>
               <button
-                id="btn-cart-browse"
                 type="button"
                 onClick={() => {
                   setIsCartOpen(false);
                   setActiveTab('produits');
                 }}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#2D5A27] text-white font-medium hover:bg-[#23471f] transition-colors shadow-sm"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0F2916] text-white text-xs font-bold hover:bg-[#184424] transition cursor-pointer"
               >
-                Explorer nos produits
+                Voir les produits
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           ) : (
-            <>
-              {/* 1. FREE SHIPPING PROGRESS BAR */}
-              <div className="pb-4">
-                <div className="p-3.5 bg-gradient-to-r from-emerald-50 via-emerald-100/50 to-stone-50 rounded-2xl border border-emerald-200/80 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-emerald-950 flex items-center gap-1.5">
-                      <Truck className="w-4 h-4 text-[#2D5A27]" />
-                      {isFreeShipping ? (
-                        <span className="text-[#2D5A27] font-extrabold flex items-center gap-1">
-                          <span>Livraison Locale OFFERTE !</span>
-                          <span className="text-xs">🎉</span>
-                        </span>
-                      ) : (
-                        <span>Plus que <strong className="text-[#2D5A27]">{formatFCFA(remainingForFreeShipping)}</strong> pour la livraison offerte</span>
-                      )}
-                    </span>
-                    <span className="text-[11px] font-mono font-bold text-emerald-800">
-                      {shippingProgress}%
-                    </span>
-                  </div>
-
-                  {/* Progress track */}
-                  <div className="w-full bg-emerald-200/60 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="bg-[#2D5A27] h-full rounded-full transition-all duration-500"
-                      style={{ width: `${shippingProgress}%` }}
-                    />
-                  </div>
-
-                  <p className="text-[10px] text-emerald-800/80">
-                    Seuil de gratuité dès 15 000 FCFA d'achat sur tout Bamako.
-                  </p>
-                </div>
-              </div>
-
-              {/* 2. Product items list */}
-              <div className="space-y-4 py-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Articles sélectionnés ({cartTotalCount})</h4>
-                {cart.map((item) => (
-                  <div 
-                    key={item.id} 
-                    id={`cart-item-${item.id}`}
-                    className="flex gap-3.5 p-3 rounded-xl bg-neutral-50 border border-neutral-100 items-center"
-                  >
-                    {/* Thumbnail */}
-                    <img 
-                      src={item.product.mainImage} 
-                      alt={item.product.name}
-                      referrerPolicy="no-referrer"
-                      className="w-16 h-16 rounded-lg object-cover flex-shrink-0 border border-neutral-200"
-                    />
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <h5 className="text-sm font-semibold text-neutral-900 truncate">
-                        {item.product.name}
-                      </h5>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-md bg-[#2D5A27]/10 text-[#2D5A27]">
-                          {item.format}
-                        </span>
-                        {item.unitPriceNumeric > 0 ? (
-                          <span className="text-xs text-neutral-600 font-medium">
-                            {formatFCFA(item.unitPriceNumeric)}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-neutral-500 italic">
-                            {item.product.price || 'Prix selon format'}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Quantity row */}
-                      <div className="flex items-center justify-between mt-2.5">
-                        <div className="flex items-center border border-neutral-200 bg-white rounded-lg overflow-hidden">
-                          <button
-                            type="button"
-                            onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
-                            className="p-1 px-2 hover:bg-neutral-100 text-neutral-600 transition-colors"
-                            aria-label="Diminuer la quantité"
-                          >
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-                          <span className="px-3 text-xs font-bold text-neutral-800">
-                            {item.quantity}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
-                            className="p-1 px-2 hover:bg-neutral-100 text-neutral-600 transition-colors"
-                            aria-label="Augmenter la quantité"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          {item.unitPriceNumeric > 0 && (
-                            <span className="text-xs font-bold text-[#2D5A27]">
-                              {formatFCFA(item.unitPriceNumeric * item.quantity)}
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => removeFromCart(item.id)}
-                            className="text-neutral-400 hover:text-red-600 p-1 transition-colors"
-                            title="Supprimer cet article"
-                            aria-label="Supprimer cet article"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* 3. PROMO CODE SECTION */}
-              <div className="py-3">
-                {appliedPromo ? (
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs">
-                    <div className="flex items-center gap-2">
-                      <Tag className="w-3.5 h-3.5 text-[#2D5A27]" />
-                      <span>Code <strong>{appliedPromo.code}</strong> appliqué (-{appliedPromo.percent}%)</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleRemovePromo}
-                      className="text-red-600 hover:underline font-bold text-[11px] cursor-pointer"
-                    >
-                      Supprimer
-                    </button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleApplyPromo} className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Tag className="w-3.5 h-3.5 absolute left-3 top-2.5 text-stone-400" />
-                      <input
-                        type="text"
-                        placeholder="Code promo (ex: BIENVENUE10)"
-                        value={promoInput}
-                        onChange={(e) => setPromoInput(e.target.value)}
-                        className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-stone-200 uppercase focus:outline-hidden focus:border-[#2D5A27]"
+            <form onSubmit={handleSubmitOrder} className="space-y-5">
+              {/* 1. Products List */}
+              <div className="space-y-2.5">
+                <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Articles</p>
+                <div className="divide-y divide-stone-100 border border-stone-200 rounded-xl overflow-hidden bg-white">
+                  {cart.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3 p-3">
+                      <img 
+                        src={item.product.mainImage} 
+                        alt={item.product.name}
+                        referrerPolicy="no-referrer"
+                        className="w-12 h-12 rounded-lg object-cover bg-stone-100 border border-stone-200 shrink-0"
                       />
-                    </div>
-                    <button
-                      type="submit"
-                      className="px-3 py-1.5 bg-stone-100 hover:bg-[#2D5A27] hover:text-white text-stone-700 text-xs font-bold rounded-xl transition cursor-pointer"
-                    >
-                      Appliquer
-                    </button>
-                  </form>
-                )}
-              </div>
-
-              {/* 4. CROSS-SELLING SUGGESTIONS (1-CLICK ADD) */}
-              {crossSellProducts.length > 0 && (
-                <div className="py-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Complétez votre panier</span>
-                    </span>
-                    <span className="text-[10px] text-stone-400">Pépites du terroir</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {crossSellProducts.map((p) => (
-                      <div 
-                        key={p.id}
-                        className="p-2.5 rounded-xl border border-stone-200/80 bg-white flex items-center justify-between gap-2 shadow-2xs"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <img 
-                            src={p.mainImage} 
-                            alt={p.name} 
-                            referrerPolicy="no-referrer"
-                            className="w-10 h-10 rounded-lg object-cover border border-stone-200 shrink-0" 
-                          />
-                          <div className="min-w-0">
-                            <h6 className="text-[11px] font-bold text-stone-800 truncate">{p.name}</h6>
-                            <p className="text-[10px] text-[#2D5A27] font-semibold">{p.price || 'À partir de 1 500 F'}</p>
-                          </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-bold text-stone-900 truncate">
+                          {item.product.name}
+                        </h4>
+                        <div className="flex items-center gap-2 text-[11px] text-stone-500 mt-0.5">
+                          <span className="font-semibold text-stone-700">{item.format}</span>
+                          <span>•</span>
+                          <span className="font-bold text-[#1E4D2B]">
+                            {formatFCFA(item.unitPriceNumeric * item.quantity)}
+                          </span>
                         </div>
+                      </div>
+
+                      {/* Quantity controls */}
+                      <div className="flex items-center gap-1 border border-stone-200 rounded-lg p-0.5 bg-stone-50">
                         <button
                           type="button"
-                          onClick={() => addToCart(p, 1)}
-                          className="shrink-0 p-1.5 px-2 bg-emerald-50 hover:bg-[#2D5A27] text-emerald-800 hover:text-white rounded-lg text-[10px] font-extrabold transition cursor-pointer"
+                          onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
+                          className="w-6 h-6 flex items-center justify-center hover:bg-white rounded text-stone-600 transition"
+                          aria-label="Moins"
                         >
-                          + Ajouter
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="w-5 text-center text-xs font-bold text-stone-800">
+                          {item.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
+                          className="w-6 h-6 flex items-center justify-center hover:bg-white rounded text-stone-600 transition"
+                          aria-label="Plus"
+                        >
+                          <Plus className="w-3 h-3" />
                         </button>
                       </div>
-                    ))}
-                  </div>
+
+                      {/* Delete button */}
+                      <button
+                        type="button"
+                        onClick={() => removeFromCart(item.id)}
+                        className="text-stone-300 hover:text-red-500 p-1 transition"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
 
-              {/* Order Form */}
-              <form onSubmit={handleSubmitOrder} className="pt-5 space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Détails de livraison & contact</h4>
-
-                {/* Delivery Type */}
+              {/* 2. Simple Delivery Option */}
+              <div className="space-y-2">
+                <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Mode de réception</p>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setDeliveryType('livraison')}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all ${
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                       deliveryType === 'livraison'
-                        ? 'border-[#2D5A27] bg-[#2D5A27]/5 text-[#2D5A27] font-semibold shadow-xs'
-                        : 'border-neutral-200 hover:bg-neutral-50 text-neutral-600'
+                        ? 'border-[#1E4D2B] bg-[#1E4D2B]/5 text-[#1E4D2B] ring-1 ring-[#1E4D2B]'
+                        : 'border-stone-200 text-stone-600 hover:bg-stone-50'
                     }`}
                   >
-                    <Truck className="w-4 h-4 text-[#2D5A27]" />
-                    Livraison à domicile
+                    <Truck className="w-4 h-4 text-[#1E4D2B]" />
+                    <span>Livraison (1 000 F)</span>
                   </button>
+
                   <button
                     type="button"
                     onClick={() => setDeliveryType('retrait')}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all ${
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                       deliveryType === 'retrait'
-                        ? 'border-[#2D5A27] bg-[#2D5A27]/5 text-[#2D5A27] font-semibold shadow-xs'
-                        : 'border-neutral-200 hover:bg-neutral-50 text-neutral-600'
+                        ? 'border-[#1E4D2B] bg-[#1E4D2B]/5 text-[#1E4D2B] ring-1 ring-[#1E4D2B]'
+                        : 'border-stone-200 text-stone-600 hover:bg-stone-50'
                     }`}
                   >
-                    <Store className="w-4 h-4 text-[#2D5A27]" />
-                    Retrait en Boutique (0 FCFA)
+                    <Store className="w-4 h-4 text-[#1E4D2B]" />
+                    <span>Retrait (Gratuit)</span>
                   </button>
                 </div>
+              </div>
 
-                {/* Delivery Zone Selector (if livraison) */}
-                {deliveryType === 'livraison' && (
-                  <div>
-                    <label className="block text-xs font-semibold text-neutral-800 mb-1.5 flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-[#2D5A27]" />
-                        Zone & Frais de livraison :
-                      </span>
-                      <span className="text-[11px] text-neutral-500 font-normal">Tarifs transparents</span>
-                    </label>
-                    <div className="space-y-1.5">
-                      {deliveryZones.filter(z => z.fee > 0).map((z) => (
-                        <div
-                          key={z.id}
-                          onClick={() => setSelectedZoneId(z.id)}
-                          className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
-                            selectedZoneId === z.id
-                              ? 'border-[#2D5A27] bg-[#2D5A27]/5 ring-1 ring-[#2D5A27]'
-                              : 'border-neutral-200 hover:bg-neutral-50'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                              selectedZoneId === z.id ? 'border-[#2D5A27] bg-[#2D5A27]' : 'border-neutral-300'
-                            }`}>
-                              {selectedZoneId === z.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-neutral-800">{z.name}</p>
-                              <p className="text-[10px] text-neutral-500 flex items-center gap-1">
-                                <Clock className="w-3 h-3 text-neutral-400" />
-                                {z.delay || z.estimatedTime}{z.description ? ` • ${z.description}` : ''}
-                              </p>
-                            </div>
-                          </div>
-                          <span className="text-xs font-bold text-[#2D5A27] font-mono">
-                            {formatFCFA(z.fee)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Customer info fields */}
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="block text-xs font-medium text-neutral-700 mb-1">
-                        Votre Nom & Prénom <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        id="cart-customer-name"
-                        type="text"
-                        required
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        placeholder="Ex: Awa Traoré"
-                        className="w-full px-3.5 py-2 text-xs rounded-lg border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-neutral-700 mb-1">
-                        Téléphone / WhatsApp <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        id="cart-customer-phone"
-                        type="tel"
-                        required
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
-                        placeholder="Ex: +223 70 00 11 22"
-                        className="w-full px-3.5 py-2 text-xs rounded-lg border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27]"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-neutral-700 mb-1">
-                      Email (facultatif, pour recevoir le reçu numérique)
-                    </label>
+              {/* 3. Essential Customer Details (3 fields only) */}
+              <div className="space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Vos coordonnées</p>
+                
+                <div className="space-y-2">
+                  <div className="relative">
+                    <User className="w-4 h-4 absolute left-3 top-2.5 text-stone-400" />
                     <input
-                      id="cart-customer-email"
-                      type="email"
-                      value={customerEmail}
-                      onChange={(e) => setCustomerEmail(e.target.value)}
-                      placeholder="votre-email@exemple.com"
-                      className="w-full px-3.5 py-2 text-xs rounded-lg border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27]"
+                      type="text"
+                      required
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Votre nom complet"
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-stone-200 focus:outline-hidden focus:border-[#1E4D2B] bg-stone-50/50"
+                    />
+                  </div>
+
+                  <div className="relative">
+                    <Phone className="w-4 h-4 absolute left-3 top-2.5 text-stone-400" />
+                    <input
+                      type="tel"
+                      required
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      placeholder="Numéro WhatsApp ou Téléphone (ex: 70 00 11 22)"
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-stone-200 focus:outline-hidden focus:border-[#1E4D2B] bg-stone-50/50"
                     />
                   </div>
 
                   {deliveryType === 'livraison' && (
-                    <div>
-                      <label className="block text-xs font-medium text-neutral-700 mb-1">
-                        Quartier, Rue & Repère précis <span className="text-red-500">*</span>
-                      </label>
+                    <div className="relative">
+                      <MapPin className="w-4 h-4 absolute left-3 top-2.5 text-stone-400" />
                       <input
-                        id="cart-customer-address"
                         type="text"
                         required={deliveryType === 'livraison'}
                         value={customerAddress}
                         onChange={(e) => setCustomerAddress(e.target.value)}
-                        placeholder="Ex: Badalabougou près de la clinique, porte 24..."
-                        className="w-full px-3.5 py-2 text-xs rounded-lg border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27]"
+                        placeholder="Quartier ou repère à Bamako (ex: Badalabougou)"
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-stone-200 focus:outline-hidden focus:border-[#1E4D2B] bg-stone-50/50"
                       />
                     </div>
                   )}
 
-                  {/* Payment method selection */}
-                  <div>
-                    <label className="block text-xs font-semibold text-neutral-800 mb-1.5">
-                      Moyen de règlement préféré
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      {[
-                        { id: 'wave' as PaymentMethod, label: 'Wave Mobile Money' },
-                        { id: 'orange_money' as PaymentMethod, label: 'Orange Money' },
-                        { id: 'moov_money' as PaymentMethod, label: 'Moov Money' },
-                        { id: 'especes_livraison' as PaymentMethod, label: 'Espèces à la livraison' }
-                      ].map((pay) => (
+                  {/* Payment preference */}
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[11px] text-stone-500 font-medium">Paiement :</span>
+                    <div className="flex gap-1.5 text-[11px]">
+                      {(['wave', 'orange_money', 'especes_livraison'] as PaymentMethod[]).map((p) => (
                         <button
-                          key={pay.id}
+                          key={p}
                           type="button"
-                          onClick={() => setPaymentMethod(pay.id)}
-                          className={`p-2.5 rounded-xl border text-left transition-all flex items-center justify-between ${
-                            paymentMethod === pay.id
-                              ? 'border-[#2D5A27] bg-[#2D5A27]/5 text-[#2D5A27] font-bold shadow-2xs'
-                              : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                          onClick={() => setPaymentMethod(p)}
+                          className={`px-2 py-1 rounded-lg border font-semibold cursor-pointer transition ${
+                            paymentMethod === p
+                              ? 'bg-[#0F2916] text-white border-[#0F2916]'
+                              : 'bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100'
                           }`}
                         >
-                          <span className="truncate">{pay.label}</span>
-                          {paymentMethod === pay.id && <Check className="w-3.5 h-3.5 text-[#2D5A27] flex-shrink-0 ml-1" />}
+                          {p === 'wave' ? 'Wave' : p === 'orange_money' ? 'Orange Money' : 'Espèces'}
                         </button>
                       ))}
                     </div>
-
-                    {/* Mobile Money Direct Transfer Reference Box */}
-                    {(paymentMethod === 'wave' || paymentMethod === 'orange_money') && (
-                      <div className="mt-2.5 p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/80 text-xs text-emerald-950">
-                        <div className="flex items-center justify-between font-semibold mb-1">
-                          <span className="flex items-center gap-1.5">
-                            <CreditCard className="w-3.5 h-3.5 text-[#2D5A27]" />
-                            Compte marchand Horon Mousso ({paymentMethod === 'wave' ? 'Wave' : 'Orange Money'}) :
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between bg-white px-3 py-1.5 rounded-lg border border-emerald-200 font-mono text-xs">
-                          <span className="font-bold text-neutral-800">
-                            {paymentMethod === 'wave' 
-                              ? (settings.waveNumber || '+223 70 00 00 01') 
-                              : (settings.orangeMoneyNumber || '+223 76 00 00 02')}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const num = paymentMethod === 'wave' ? settings.waveNumber : settings.orangeMoneyNumber;
-                              navigator.clipboard.writeText(num || '');
-                              if (paymentMethod === 'wave') {
-                                setHasCopiedWave(true);
-                                setTimeout(() => setHasCopiedWave(false), 2500);
-                              } else {
-                                setHasCopiedOM(true);
-                                setTimeout(() => setHasCopiedOM(false), 2500);
-                              }
-                              showToast('Numéro copié !', 'info');
-                            }}
-                            className="text-[11px] font-sans font-semibold text-[#2D5A27] hover:underline flex items-center gap-1"
-                          >
-                            <Copy className="w-3 h-3" />
-                            {(paymentMethod === 'wave' ? hasCopiedWave : hasCopiedOM) ? 'Copié !' : 'Copier'}
-                          </button>
-                        </div>
-                        <p className="text-[10px] text-emerald-800/80 mt-1.5">
-                          Vous pouvez initier le transfert dès maintenant ou le faire après validation avec le reçu.
-                        </p>
-                      </div>
-                    )}
                   </div>
+                </div>
+              </div>
 
-                  <div>
-                    <label className="block text-xs font-medium text-neutral-700 mb-1">
-                      Remarques ou consignes particulières (facultatif)
-                    </label>
-                    <textarea
-                      id="cart-customer-notes"
-                      rows={2}
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Ex: Emballage sous-vide renforcé, livrer de préférence en matinée..."
-                      className="w-full px-3.5 py-1.5 text-xs rounded-lg border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27]"
-                    />
+              {/* 4. Total & Single Direct Action */}
+              <div className="pt-3 border-t border-stone-200 space-y-3">
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between text-stone-600">
+                    <span>Articles ({cartTotalCount})</span>
+                    <span className="font-semibold">{formatFCFA(cartTotalAmount)}</span>
+                  </div>
+                  <div className="flex justify-between text-stone-600">
+                    <span>Livraison</span>
+                    <span className="font-semibold">
+                      {deliveryFee === 0 ? <span className="text-[#1E4D2B] font-bold">Gratuit</span> : formatFCFA(deliveryFee)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm font-extrabold text-stone-900 pt-1 border-t border-stone-100">
+                    <span>Total Net :</span>
+                    <span className="text-base text-[#0F2916] font-bold">{formatFCFA(grandTotal)}</span>
                   </div>
                 </div>
 
-                {/* Subtotal & Action buttons */}
-                <div className="pt-3 border-t border-neutral-200 bg-[#FAF9F6] p-4 rounded-xl space-y-2">
-                  <div className="flex items-center justify-between text-xs text-neutral-600">
-                    <span>Sous-total articles :</span>
-                    <span className="font-mono font-medium">{formatFCFA(cartTotalAmount)}</span>
-                  </div>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full py-3 px-4 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-98 cursor-pointer disabled:opacity-50"
+                >
+                  <MessageCircle className="w-5 h-5 fill-white" />
+                  <span>{isSubmitting ? 'Préparation...' : 'Commander sur WhatsApp'}</span>
+                </button>
 
-                  {appliedPromo && (
-                    <div className="flex items-center justify-between text-xs text-emerald-700 font-semibold">
-                      <span className="flex items-center gap-1">
-                        <Tag className="w-3 h-3 text-[#2D5A27]" />
-                        Remise code {appliedPromo.code} (-{appliedPromo.percent}%) :
-                      </span>
-                      <span className="font-mono font-bold">-{formatFCFA(discountAmount)}</span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between text-xs text-neutral-600">
-                    <span>Frais d'expédition ({deliveryType === 'retrait' ? 'Retrait boutique' : currentZone.name}) :</span>
-                    <span className="font-mono font-medium">
-                      {deliveryFee === 0 ? (
-                        <span className="text-[#2D5A27] font-bold bg-emerald-100/70 px-2 py-0.5 rounded-md">
-                          Offert
-                        </span>
-                      ) : (
-                        formatFCFA(deliveryFee)
-                      )}
-                    </span>
-                  </div>
-                  <div className="pt-2 border-t border-stone-200 flex items-center justify-between">
-                    <span className="text-sm font-black text-stone-900 font-serif-heading">Total Net à régler :</span>
-                    <span className="text-xl font-black text-[#0F2916] font-mono">
-                      {formatFCFA(grandTotal)}
-                    </span>
-                  </div>
-
-                  <div className="space-y-2 pt-2">
-                    <button
-                      id="btn-submit-cart-whatsapp"
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-[#0F2916] hover:bg-[#184424] text-white font-extrabold text-sm transition-all shadow-md active:scale-98 disabled:opacity-50 border border-emerald-600/30 cursor-pointer"
-                    >
-                      <CheckCircle2 className="w-5 h-5 text-amber-300" />
-                      {isSubmitting ? 'Génération de la commande...' : 'Valider & Obtenir mon Reçu Numérique'}
-                    </button>
-
-                    <button
-                      id="btn-copy-cart-order"
-                      type="button"
-                      onClick={handleCopyOrderText}
-                      className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-700 text-xs font-medium transition-colors"
-                    >
-                      {hasCopied ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          Bon de commande copié !
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5 text-neutral-500" />
-                          Copier le récapitulatif complet
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-neutral-400">
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#2D5A27]" />
-                    <span>Commande sécurisée et confirmée directement par Horon Mousso</span>
-                  </div>
+                <div className="flex items-center justify-center gap-1.5 text-[10px] text-stone-400">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#1E4D2B]" />
+                  <span>Confirmation directe et sans frais par l'équipe Horon Mousso</span>
                 </div>
-              </form>
-            </>
+              </div>
+            </form>
           )}
         </div>
       </div>
     </div>
   );
 };
+
