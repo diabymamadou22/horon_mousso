@@ -165,16 +165,16 @@ export const CustomerReviewsSection: React.FC<CustomerReviewsSectionProps> = ({ 
   };
 
   return (
-    <section id="section-avis-clients" className={`space-y-8 ${className}`}>
+    <section id="section-avis-clients" className={`space-y-5 ${className}`}>
       {/* SECTION HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div className="space-y-1.5 max-w-xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-100/80 text-amber-950 text-xs font-black uppercase tracking-wider rounded-full border border-amber-300/40">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div className="space-y-1 max-w-xl">
+          <div className="inline-flex items-center gap-2 px-3 py-0.5 bg-amber-100/80 text-amber-950 text-xs font-black uppercase tracking-wider rounded-full border border-amber-300/40">
             <Star className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
             <span>Retours d'Expérience & Avis Vérifiés</span>
           </div>
 
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-[#0B1E11] tracking-tight font-serif-heading">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B1E11] tracking-tight font-serif-heading">
             Témoignages & Avis Clients
           </h2>
 
@@ -184,11 +184,11 @@ export const CustomerReviewsSection: React.FC<CustomerReviewsSectionProps> = ({ 
         </div>
 
         {/* Action Button: Laisser un avis */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             id="btn-ouvrir-avis-modal"
             onClick={() => handleOpenForm()}
-            className="inline-flex items-center gap-2 bg-[#0F2916] hover:bg-[#184424] text-white font-extrabold text-xs sm:text-sm py-3 px-5 rounded-2xl shadow-md shadow-emerald-950/20 transition cursor-pointer border border-emerald-600/30"
+            className="inline-flex items-center gap-2 bg-[#0F2916] hover:bg-[#184424] text-white font-extrabold text-xs sm:text-sm py-2.5 px-4 rounded-xl shadow-md shadow-emerald-950/20 transition cursor-pointer border border-emerald-600/30"
           >
             <Plus className="w-4 h-4 text-amber-300" />
             <span>Partager un avis</span>
@@ -198,25 +198,25 @@ export const CustomerReviewsSection: React.FC<CustomerReviewsSectionProps> = ({ 
 
       {/* OVERVIEW SCORE & STATS BANNER */}
       <FadeInView direction="up" distance={22} duration={0.65} withScale={true}>
-        <div className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-xs">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div className="bg-white rounded-2xl border border-stone-200 p-4 sm:p-6 shadow-xs">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-center">
             {/* Main Average Score */}
-            <div className="lg:col-span-4 flex flex-col items-center sm:items-start text-center sm:text-left sm:pr-8 sm:border-r border-stone-200">
+            <div className="lg:col-span-4 flex flex-col items-center sm:items-start text-center sm:text-left sm:pr-6 sm:border-r border-stone-200">
               <span className="text-xs uppercase tracking-wider font-bold text-stone-400">
                 Note Moyenne Consommateurs
               </span>
-              <div className="flex items-baseline gap-3 my-2">
-                <span className="text-5xl sm:text-6xl font-black text-[#142618] tracking-tight">
+              <div className="flex items-baseline gap-2 my-1">
+                <span className="text-4xl sm:text-5xl font-black text-[#142618] tracking-tight">
                   {stats.average}
                 </span>
-                <span className="text-lg text-stone-400 font-bold">/ 5</span>
+                <span className="text-base text-stone-400 font-bold">/ 5</span>
               </div>
 
-              <div className="flex items-center gap-1 text-amber-400 mb-2">
+              <div className="flex items-center gap-1 text-amber-400 mb-1.5">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Star
                     key={star}
-                    className={`w-5 h-5 ${
+                    className={`w-4 h-4 ${
                       star <= Math.round(stats.average) 
                         ? 'fill-amber-400 text-amber-400' 
                         : 'text-stone-200'
@@ -229,29 +229,29 @@ export const CustomerReviewsSection: React.FC<CustomerReviewsSectionProps> = ({ 
                 Basé sur <strong className="text-stone-800">{stats.total} avis certifiés</strong>
               </p>
 
-              <div className="mt-3 inline-flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full font-semibold border border-emerald-200/60">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full font-semibold border border-emerald-200/60">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                 <span>{stats.recommendPercentage}% recommandent Horon Mousso</span>
               </div>
             </div>
 
             {/* Star Distribution Progress Bars */}
-            <div className="lg:col-span-5 space-y-2">
+            <div className="lg:col-span-5 space-y-1.5">
               {[5, 4, 3, 2, 1].map((stars) => {
                 const count = stats.distribution[stars] || 0;
                 const percentage = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
                 return (
-                  <div key={stars} className="flex items-center gap-3 text-xs">
-                    <span className="w-12 font-bold text-stone-700 flex items-center gap-1">
+                  <div key={stars} className="flex items-center gap-2.5 text-xs">
+                    <span className="w-11 font-bold text-stone-700 flex items-center gap-1">
                       {stars} <Star className="w-3 h-3 fill-amber-400 text-amber-400 inline" />
                     </span>
-                    <div className="flex-1 h-2.5 bg-stone-100 rounded-full overflow-hidden">
+                    <div className="flex-1 h-2 bg-stone-100 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-500"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
-                    <span className="w-16 text-[11px] text-stone-400 text-right">
+                    <span className="w-14 text-[11px] text-stone-400 text-right">
                       {count} ({percentage}%)
                     </span>
                   </div>
@@ -260,19 +260,19 @@ export const CustomerReviewsSection: React.FC<CustomerReviewsSectionProps> = ({ 
             </div>
 
             {/* Trust Highlights */}
-            <div className="lg:col-span-3 bg-stone-50/80 rounded-2xl p-5 border border-stone-200/70 space-y-3">
-              <div className="flex items-center gap-2.5 text-xs font-bold text-[#142618]">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+            <div className="lg:col-span-3 bg-stone-50/80 rounded-xl p-3.5 border border-stone-200/70 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#142618]">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 <span>Avis 100% Vérifiés</span>
               </div>
               <p className="text-[11px] text-stone-600 leading-relaxed">
                 Tous les retours sont issus de consommateurs ayant testé nos récoltes et préparations culinaires.
               </p>
 
-              <div className="pt-2 border-t border-stone-200/80 flex items-center justify-between text-[11px]">
+              <div className="pt-1.5 border-t border-stone-200/80 flex items-center justify-between text-[11px]">
                 <span className="text-stone-500">Persistance Cloud :</span>
                 <span className="font-bold text-emerald-700 flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                   Firebase Actif
                 </span>
               </div>
@@ -282,10 +282,10 @@ export const CustomerReviewsSection: React.FC<CustomerReviewsSectionProps> = ({ 
       </FadeInView>
 
       {/* FILTER & SELECTOR CONTROLS */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-4 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="bg-white rounded-xl border border-stone-200 p-3 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-2.5">
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-stone-600 mr-1">
-            <SlidersHorizontal className="w-3.5 h-3.5 text-stone-400" />
+          <div className="inline-flex items-center gap-1 text-xs font-bold text-stone-600 mr-1">
+            <SlidersHorizontal className="w-3 h-3 text-stone-400" />
             <span>Filtrer par :</span>
           </div>
 
@@ -294,7 +294,7 @@ export const CustomerReviewsSection: React.FC<CustomerReviewsSectionProps> = ({ 
             id="select-filtre-produit-avis"
             value={filterProductId}
             onChange={(e) => setFilterProductId(e.target.value)}
-            className="text-xs py-2 px-3 rounded-xl border border-stone-200 bg-stone-50 text-stone-800 font-semibold focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27] cursor-pointer"
+            className="text-xs py-1.5 px-2.5 rounded-lg border border-stone-200 bg-stone-50 text-stone-800 font-semibold focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27] cursor-pointer"
           >
             <option value="all">Tous les produits ({reviews.length})</option>
             {products.map((p) => {
@@ -312,7 +312,7 @@ export const CustomerReviewsSection: React.FC<CustomerReviewsSectionProps> = ({ 
             id="select-filtre-note-avis"
             value={filterRating}
             onChange={(e) => setFilterRating(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-            className="text-xs py-2 px-3 rounded-xl border border-stone-200 bg-stone-50 text-stone-800 font-semibold focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27] cursor-pointer"
+            className="text-xs py-1.5 px-2.5 rounded-lg border border-stone-200 bg-stone-50 text-stone-800 font-semibold focus:outline-hidden focus:ring-2 focus:ring-[#2D5A27] cursor-pointer"
           >
             <option value="all">Toutes les notes</option>
             <option value="5">5 étoiles uniquement</option>
@@ -339,11 +339,11 @@ export const CustomerReviewsSection: React.FC<CustomerReviewsSectionProps> = ({ 
 
       {/* REVIEWS GRID DISPLAY */}
       {filteredReviews.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-stone-200 p-12 text-center space-y-4 shadow-xs">
-          <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto">
-            <MessageSquare className="w-7 h-7" />
+        <div className="bg-white rounded-2xl border border-stone-200 p-8 text-center space-y-3 shadow-xs">
+          <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+            <MessageSquare className="w-6 h-6" />
           </div>
-          <h3 className="font-extrabold text-base sm:text-lg text-stone-800">
+          <h3 className="font-extrabold text-sm sm:text-base text-stone-800">
             Aucun avis pour cette sélection
           </h3>
           <p className="text-xs text-stone-500 max-w-md mx-auto">
@@ -351,14 +351,14 @@ export const CustomerReviewsSection: React.FC<CustomerReviewsSectionProps> = ({ 
           </p>
           <button
             onClick={() => handleOpenForm(filterProductId !== 'all' ? filterProductId : undefined)}
-            className="inline-flex items-center gap-2 bg-[#2D5A27] text-white font-bold text-xs py-2.5 px-5 rounded-xl shadow cursor-pointer hover:bg-[#23471f] transition"
+            className="inline-flex items-center gap-1.5 bg-[#2D5A27] text-white font-bold text-xs py-2 px-4 rounded-xl shadow cursor-pointer hover:bg-[#23471f] transition"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Donner le premier avis</span>
           </button>
         </div>
       ) : (
-        <FadeInStagger staggerDelay={0.08} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <FadeInStagger staggerDelay={0.08} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {filteredReviews.map((rev) => {
             const product = getProductForReview(rev.productId);
             const reviewDate = new Date(rev.createdAt).toLocaleDateString('fr-FR', {
@@ -369,7 +369,7 @@ export const CustomerReviewsSection: React.FC<CustomerReviewsSectionProps> = ({ 
 
             return (
               <FadeInItem key={rev.id} withScale={true} distance={20} duration={0.55}>
-                <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4 hover:border-[#2D5A27]/40 group relative h-full">
+                <div className="bg-white rounded-2xl border border-stone-200 p-4 sm:p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-3 hover:border-[#2D5A27]/40 group relative h-full">
                   {/* Review Header */}
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-2">

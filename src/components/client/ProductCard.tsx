@@ -180,7 +180,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       </div>
 
       {/* Content Area - Fnac Structure */}
-      <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+      <div className="p-3 sm:p-3.5 flex-1 flex flex-col justify-between space-y-2.5">
         <div>
           {/* Category & Brand Micro-tag */}
           <div className="flex items-center justify-between text-[11px] text-stone-400 font-bold uppercase tracking-wider">
@@ -191,14 +191,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           {/* Product Title */}
           <h3 
             onClick={() => openProductDetail(product.id)}
-            className="font-extrabold text-sm sm:text-base text-stone-900 group-hover:text-[#D97706] transition cursor-pointer line-clamp-1 leading-snug mt-1"
+            className="font-extrabold text-sm sm:text-base text-stone-900 group-hover:text-[#D97706] transition cursor-pointer line-clamp-1 leading-snug mt-0.5"
             title={product.name}
           >
             {product.name}
           </h3>
 
           {/* Rating & Review Counter (Fnac Signature) */}
-          <div className="flex items-center gap-1.5 mt-1">
+          <div className="flex items-center gap-1.5 mt-0.5">
             <div className="flex items-center text-amber-500">
               <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
             </div>
@@ -211,18 +211,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </div>
 
           {/* Availability & Stock notice (Fnac standard) */}
-          <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-emerald-700">
+          <div className="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-emerald-700">
             <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
             <span>En stock • Expédié sous 24h</span>
           </div>
 
           {/* Short description */}
-          <p className="text-xs text-stone-500 mt-1.5 line-clamp-2 leading-relaxed">
+          <p className="text-xs text-stone-500 mt-1 line-clamp-2 leading-relaxed">
             {product.description}
           </p>
 
           {/* Format Picker */}
-          <div className="mt-2.5 pt-2 border-t border-stone-100 flex items-center gap-1">
+          <div className="mt-2 pt-1.5 border-t border-stone-100 flex items-center gap-1">
             {availableWeights.map((w, idx) => (
               <button
                 key={w.label}
@@ -231,7 +231,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                   e.stopPropagation();
                   setSelectedWeightIdx(idx);
                 }}
-                className={`flex-1 py-1 px-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                className={`flex-1 py-0.5 px-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
                   selectedWeightIdx === idx
                     ? 'bg-stone-900 text-white shadow-xs'
                     : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
@@ -243,25 +243,25 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </div>
 
           {/* Price area (Fnac bold price) */}
-          <div className="mt-3 flex items-baseline justify-between pt-2 border-t border-stone-100">
+          <div className="mt-2 flex items-baseline justify-between pt-1.5 border-t border-stone-100">
             <div className="flex flex-col">
               <span className="text-[10px] text-stone-400 font-bold uppercase">Prix TTC</span>
-              <span className="text-lg sm:text-xl font-black text-stone-900 tracking-tight">
+              <span className="text-base sm:text-lg font-black text-stone-900 tracking-tight">
                 {calculatedPriceStr}
               </span>
             </div>
-            <span className="text-[10px] font-bold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md">
+            <span className="text-[10px] font-bold text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded-md">
               Retrait Bamako 0 F
             </span>
           </div>
         </div>
 
         {/* Action Buttons - Fnac Yellow "Ajouter au panier" */}
-        <div className="pt-2 border-t border-stone-100 flex items-center gap-1.5">
+        <div className="pt-1.5 border-t border-stone-100 flex items-center gap-1.5">
           {product.availability !== 'rupture' ? (
             <button
               onClick={handleAddToCart}
-              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer shadow-xs ${
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer shadow-xs ${
                 justAdded
                   ? 'bg-emerald-600 text-white'
                   : 'bg-[#E5A100] hover:bg-[#D97706] text-stone-950'
@@ -270,12 +270,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             >
               {justAdded ? (
                 <>
-                  <Check className="w-4 h-4 text-white" />
+                  <Check className="w-3.5 h-3.5 text-white" />
                   <span>Ajouté !</span>
                 </>
               ) : (
                 <>
-                  <ShoppingBag className="w-4 h-4 text-stone-950" />
+                  <ShoppingBag className="w-3.5 h-3.5 text-stone-950" />
                   <span>Ajouter au panier</span>
                 </>
               )}
@@ -283,7 +283,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           ) : (
             <button
               onClick={() => openProductDetail(product.id)}
-              className="flex-1 inline-flex items-center justify-center gap-1 bg-stone-100 text-stone-600 text-xs font-bold py-2.5 px-3 rounded-xl transition cursor-pointer"
+              className="flex-1 inline-flex items-center justify-center gap-1 bg-stone-100 text-stone-600 text-xs font-bold py-2 px-2.5 rounded-xl transition cursor-pointer"
             >
               <span>Détails</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -292,11 +292,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
           <button
             onClick={() => openProductDetail(product.id)}
-            className="inline-flex items-center justify-center p-2.5 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-100 transition cursor-pointer shrink-0"
+            className="inline-flex items-center justify-center p-2 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-100 transition cursor-pointer shrink-0"
             title="Fiche produit"
             aria-label="Voir les détails"
           >
-            <ArrowUpRight className="w-4 h-4" />
+            <ArrowUpRight className="w-3.5 h-3.5" />
           </button>
 
           <button
@@ -308,11 +308,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 price: calculatedPriceStr
               });
             }}
-            className="inline-flex items-center justify-center p-2.5 rounded-xl border border-emerald-500/30 text-emerald-700 bg-emerald-50 hover:bg-emerald-600 hover:text-white transition cursor-pointer shrink-0"
+            className="inline-flex items-center justify-center p-2 rounded-xl border border-emerald-500/30 text-emerald-700 bg-emerald-50 hover:bg-emerald-600 hover:text-white transition cursor-pointer shrink-0"
             title="Commander via WhatsApp"
             aria-label="Commander sur WhatsApp"
           >
-            <MessageCircle className="w-4 h-4" />
+            <MessageCircle className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

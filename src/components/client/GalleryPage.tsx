@@ -26,17 +26,17 @@ export const GalleryPage: React.FC = () => {
   });
 
   return (
-    <div className="py-12 px-4 sm:px-8 lg:px-10 max-w-7xl mx-auto space-y-8">
+    <div className="py-6 sm:py-8 px-4 sm:px-8 lg:px-10 max-w-7xl mx-auto space-y-5">
       {/* Header */}
       <FadeInView direction="up" distance={20} duration={0.6}>
-        <div className="space-y-3 text-center max-w-2xl mx-auto">
-          <span className="inline-block px-3 py-1 bg-[#E8F5E9] text-[#2D5A27] text-xs font-bold uppercase tracking-widest rounded-md">
+        <div className="space-y-2 text-center max-w-2xl mx-auto">
+          <span className="inline-block px-3 py-0.5 bg-[#E8F5E9] text-[#2D5A27] text-xs font-bold uppercase tracking-widest rounded-md">
             Galerie Multimédia
           </span>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1B3022] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1B3022] tracking-tight">
             Nos Terroirs, Nos Équipes & Nos Récoltes en Images
           </h1>
-          <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
+          <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
             Plongez au cœur de notre activité agricole : la sélection des épices, le séchage au soleil, l’unité de mouture, les marchés et nos événements.
           </p>
         </div>
@@ -44,14 +44,14 @@ export const GalleryPage: React.FC = () => {
 
       {/* Filter Chips */}
       <FadeInView direction="up" distance={16} delay={0.1} duration={0.5}>
-        <div className="flex flex-wrap items-center justify-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
           {filterTabs.map(tab => {
             const isSelected = selectedFilter === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setSelectedFilter(tab.id)}
-                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                   isSelected
                     ? 'bg-[#2D5A27] text-white shadow-xs'
                     : 'bg-white border border-[#E0E0E0] text-gray-600 hover:text-[#2D5A27] hover:border-[#2D5A27]/40'

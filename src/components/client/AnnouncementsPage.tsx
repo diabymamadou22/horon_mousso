@@ -25,17 +25,17 @@ export const AnnouncementsPage: React.FC = () => {
   };
 
   return (
-    <div className="py-12 px-4 sm:px-8 lg:px-10 max-w-7xl mx-auto space-y-8">
+    <div className="py-6 sm:py-8 px-4 sm:px-8 lg:px-10 max-w-7xl mx-auto space-y-5">
       {/* Header */}
       <FadeInView direction="up" distance={20} duration={0.6}>
-        <div className="space-y-3 text-center max-w-2xl mx-auto">
-          <span className="inline-block px-3 py-1 bg-[#E8F5E9] text-[#2D5A27] text-xs font-bold uppercase tracking-widest rounded-md">
+        <div className="space-y-2 text-center max-w-2xl mx-auto">
+          <span className="inline-block px-3 py-0.5 bg-[#E8F5E9] text-[#2D5A27] text-xs font-bold uppercase tracking-widest rounded-md">
             Actualités & Annonces
           </span>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1B3022] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1B3022] tracking-tight">
             La Vie de Notre Entreprise & Nos Nouveautés
           </h1>
-          <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
+          <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
             Suivez nos arrivages de stocks, l’évolution de notre unité de transformation artisanale, nos participations aux foires agricoles et nos nouveaux formats.
           </p>
         </div>
@@ -43,7 +43,7 @@ export const AnnouncementsPage: React.FC = () => {
 
       {/* Announcements Grid */}
       {publishedAnnouncements.length > 0 ? (
-        <FadeInStagger staggerDelay={0.08} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <FadeInStagger staggerDelay={0.08} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {publishedAnnouncements.map((ann) => (
             <FadeInItem key={ann.id}>
               <article
@@ -71,23 +71,23 @@ export const AnnouncementsPage: React.FC = () => {
                   {/* Video Indicator */}
                   {ann.video && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition">
-                      <div className="w-12 h-12 rounded-full bg-[#2D5A27] text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition">
-                        <Play className="w-5 h-5 ml-0.5" fill="currentColor" />
+                      <div className="w-10 h-10 rounded-full bg-[#2D5A27] text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition">
+                        <Play className="w-4 h-4 ml-0.5" fill="currentColor" />
                       </div>
                     </div>
                   )}
 
                   {/* Category Pill */}
                   {ann.category && (
-                    <div className="absolute top-3 left-3 bg-[#1B3022]/90 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-md">
+                    <div className="absolute top-2.5 left-2.5 bg-[#1B3022]/90 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
                       {ann.category}
                     </div>
                   )}
                 </div>
 
                 {/* Text info */}
-                <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                  <div className="space-y-2">
+                <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
+                  <div className="space-y-1.5">
                     <div className="flex items-center gap-1.5 text-xs text-gray-500">
                       <Calendar className="w-3.5 h-3.5 text-[#2D5A27]" />
                       <span>{formatDate(ann.date || ann.createdAt)}</span>
@@ -95,7 +95,7 @@ export const AnnouncementsPage: React.FC = () => {
 
                     <h3 
                       onClick={() => setSelectedAnnouncement(ann)}
-                      className="font-bold text-lg text-[#1B3022] group-hover:text-[#2D5A27] transition cursor-pointer leading-snug line-clamp-2"
+                      className="font-bold text-base text-[#1B3022] group-hover:text-[#2D5A27] transition cursor-pointer leading-snug line-clamp-2"
                     >
                       {ann.title}
                     </h3>
@@ -105,7 +105,7 @@ export const AnnouncementsPage: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+                  <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between">
                     <button
                       onClick={() => setSelectedAnnouncement(ann)}
                       className="inline-flex items-center gap-1.5 text-xs font-bold text-[#2D5A27] hover:underline transition cursor-pointer"
@@ -115,7 +115,7 @@ export const AnnouncementsPage: React.FC = () => {
                     </button>
 
                     {ann.video && (
-                      <span className="text-[11px] font-semibold text-[#2D5A27] bg-[#E8F5E9] px-2.5 py-0.5 rounded-full">
+                      <span className="text-[11px] font-semibold text-[#2D5A27] bg-[#E8F5E9] px-2 py-0.5 rounded-full">
                         Vidéo
                       </span>
                     )}
@@ -127,8 +127,8 @@ export const AnnouncementsPage: React.FC = () => {
         </FadeInStagger>
       ) : (
         <FadeInView direction="up" distance={20}>
-          <div className="bg-white rounded-2xl border border-[#E0E0E0] p-12 text-center max-w-md mx-auto space-y-3">
-            <p className="text-gray-500 text-sm">Aucune annonce publiée pour le moment.</p>
+          <div className="bg-white rounded-2xl border border-[#E0E0E0] p-8 text-center max-w-md mx-auto space-y-2">
+            <p className="text-gray-500 text-xs sm:text-sm">Aucune annonce publiée pour le moment.</p>
           </div>
         </FadeInView>
       )}

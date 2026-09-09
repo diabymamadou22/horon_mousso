@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ProductCard } from './ProductCard';
 import { CustomerReviewsSection } from './CustomerReviewsSection';
-import { DeliveryCalculatorWidget } from './DeliveryCalculatorWidget';
-import { CustomBoxBuilder } from './CustomBoxBuilder';
 import { FadeInView, FadeInStagger, FadeInItem } from '../common/FadeInView';
 import { 
   ArrowRight, 
@@ -132,13 +130,13 @@ export const HomeSections: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-24 sm:space-y-32 lg:space-y-36 py-8 sm:py-14 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div className="space-y-8 sm:space-y-10 lg:space-y-12 py-3 sm:py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       
       {/* 1. SECTION : NOS PRODUITS PHARES AVEC FILTRES INTERACTIFS */}
       <FadeInView direction="up" distance={26} duration={0.65}>
-        <section className="space-y-8">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-5 border-b border-stone-200">
-            <div className="space-y-2">
+        <section className="space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-3.5 border-b border-stone-200">
+            <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#E5A100] text-stone-950 text-[11px] font-black uppercase tracking-wider rounded-md shadow-2xs">
                   <Award className="w-3.5 h-3.5" />
@@ -157,7 +155,7 @@ export const HomeSections: React.FC = () => {
             {/* View all button */}
             <button
               onClick={() => setActiveTab('produits')}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-stone-300 hover:border-[#E5A100] bg-white hover:bg-stone-50 text-stone-900 font-bold text-xs sm:text-sm transition group cursor-pointer shadow-2xs self-start sm:self-auto shrink-0"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-stone-300 hover:border-[#E5A100] bg-white hover:bg-stone-50 text-stone-900 font-bold text-xs sm:text-sm transition group cursor-pointer shadow-2xs self-start sm:self-auto shrink-0"
             >
               <span>Voir tout le rayon ({products.length})</span>
               <ArrowRight className="w-4 h-4 text-stone-950 group-hover:translate-x-1 transition-transform" />
@@ -165,7 +163,7 @@ export const HomeSections: React.FC = () => {
           </div>
 
           {/* Interactive Category Filter Pills */}
-          <div className="flex flex-wrap items-center gap-2.5 pt-1 pb-1">
+          <div className="flex flex-wrap items-center gap-2 pt-0.5 pb-0.5">
             {[
               { id: 'tous', label: 'Toutes les créations' },
               { id: 'phares', label: '⭐ Coups de Cœur' },
@@ -177,7 +175,7 @@ export const HomeSections: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setSelectedCategory(tab.id)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
                   selectedCategory === tab.id
                     ? 'bg-stone-900 text-[#E5A100] shadow-sm font-black'
                     : 'bg-white border border-stone-200 text-stone-700 hover:border-stone-400 hover:bg-stone-50'
@@ -197,7 +195,7 @@ export const HomeSections: React.FC = () => {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <FadeInStagger staggerDelay={0.06} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-7 lg:gap-8">
+              <FadeInStagger staggerDelay={0.06} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
                 {displayProducts.map(product => (
                   <FadeInItem key={product.id} withScale distance={18} duration={0.5}>
                     <ProductCard product={product} />
@@ -211,18 +209,18 @@ export const HomeSections: React.FC = () => {
 
       {/* 2. SECTION INTERACTIVE : GUIDE DES INTENSITÉS & NIVEAUX DE PIQUANT */}
       <FadeInView direction="up" distance={30} duration={0.65} withScale={true}>
-        <section className="bg-gradient-to-br from-[#182F1E] via-[#122416] to-[#0D1A10] text-white rounded-[32px] p-8 sm:p-12 lg:p-14 shadow-xl border border-emerald-900/50 relative overflow-hidden">
+        <section className="bg-gradient-to-br from-[#182F1E] via-[#122416] to-[#0D1A10] text-white rounded-[24px] sm:rounded-[28px] p-5 sm:p-7 lg:p-8 shadow-xl border border-emerald-900/50 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-80 h-80 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 space-y-8 sm:space-y-10">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-              <div className="space-y-2 max-w-lg">
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-amber-400/20 border border-amber-400/40 text-amber-300 text-xs font-black uppercase tracking-wider rounded-full">
+          <div className="relative z-10 space-y-5 sm:space-y-6">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div className="space-y-1.5 max-w-lg">
+                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 bg-amber-400/20 border border-amber-400/40 text-amber-300 text-xs font-black uppercase tracking-wider rounded-full">
                   <Flame className="w-3.5 h-3.5 text-amber-400" />
                   <span>Guide Sensoriel & Intensité</span>
                 </span>
-                <h3 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight font-serif-heading">
+                <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-serif-heading">
                   Échelle de Chaleur Culinaire
                 </h3>
                 <p className="text-stone-300 text-xs sm:text-sm font-medium leading-relaxed">
@@ -230,12 +228,12 @@ export const HomeSections: React.FC = () => {
                 </p>
               </div>
 
-              <div className="flex items-center gap-1.5 bg-white/10 p-1.5 rounded-2xl border border-white/15 backdrop-blur-md self-start md:self-auto">
+              <div className="flex items-center gap-1 bg-white/10 p-1 rounded-2xl border border-white/15 backdrop-blur-md self-start md:self-auto">
                 {spiceLevels.map(item => (
                   <button
                     key={item.level}
                     onClick={() => setActiveSpiceLevel(item.level)}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                       activeSpiceLevel === item.level
                         ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-[#0F2916] shadow-md font-extrabold scale-105'
                         : 'text-stone-300 hover:text-white hover:bg-white/10'
@@ -252,20 +250,20 @@ export const HomeSections: React.FC = () => {
             {(() => {
               const current = spiceLevels.find(s => s.level === activeSpiceLevel) || spiceLevels[1];
               return (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center bg-white/5 border border-white/15 rounded-[24px] p-6 sm:p-9 backdrop-blur-md">
-                  <div className="lg:col-span-8 space-y-4">
-                    <div className="flex items-center gap-2.5">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-center bg-white/5 border border-white/15 rounded-[20px] p-4 sm:p-6 backdrop-blur-md">
+                  <div className="lg:col-span-8 space-y-3">
+                    <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1 text-red-400">
                         {[...Array(current.flames)].map((_, i) => (
                           <Flame key={i} className="w-4 h-4 fill-current" />
                         ))}
                       </div>
-                      <span className="text-[11px] font-extrabold bg-amber-400/20 text-amber-300 border border-amber-400/30 px-3 py-0.5 rounded-full uppercase tracking-wider">
+                      <span className="text-[11px] font-extrabold bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                         {current.badge}
                       </span>
                     </div>
 
-                    <h4 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white font-serif-heading">
+                    <h4 className="text-xl sm:text-2xl font-bold text-white font-serif-heading">
                       {current.title} — <span className="text-amber-300 font-normal">{current.subtitle}</span>
                     </h4>
 
@@ -273,10 +271,10 @@ export const HomeSections: React.FC = () => {
                       {current.desc}
                     </p>
 
-                    <div className="pt-2 flex flex-wrap items-center gap-3.5">
+                    <div className="pt-1 flex flex-wrap items-center gap-3">
                       <button
                         onClick={() => setActiveTab('produits')}
-                        className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-[#0F2916] font-extrabold text-xs sm:text-sm py-3 px-5 rounded-xl transition cursor-pointer shadow-md"
+                        className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-[#0F2916] font-extrabold text-xs sm:text-sm py-2.5 px-4 rounded-xl transition cursor-pointer shadow-md"
                       >
                         <span>Découvrir le niveau {current.level}</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -284,7 +282,7 @@ export const HomeSections: React.FC = () => {
 
                       <button
                         onClick={() => openOrderWhatsApp()}
-                        className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm py-3 px-4.5 rounded-xl transition cursor-pointer border border-white/10"
+                        className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm py-2.5 px-4 rounded-xl transition cursor-pointer border border-white/10"
                       >
                         <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Conseil sur WhatsApp</span>
@@ -293,12 +291,12 @@ export const HomeSections: React.FC = () => {
                   </div>
 
                   {/* Right mini graphic */}
-                  <div className="lg:col-span-4 flex flex-col items-center justify-center p-7 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl border border-white/10 text-center">
-                    <div className="text-4xl sm:text-5xl mb-3">
+                  <div className="lg:col-span-4 flex flex-col items-center justify-center p-5 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl border border-white/10 text-center">
+                    <div className="text-3xl sm:text-4xl mb-2">
                       {current.level === 1 ? '🌿' : current.level === 2 ? '🌰' : current.level === 3 ? '🌶️' : '🔥'}
                     </div>
-                    <div className="font-extrabold text-base text-white font-serif-heading">{current.title}</div>
-                    <div className="text-xs text-amber-200/90 mt-1.5 font-medium">Dosage suggéré : 1/2 à 1 c. à café par plat</div>
+                    <div className="font-extrabold text-sm sm:text-base text-white font-serif-heading">{current.title}</div>
+                    <div className="text-xs text-amber-200/90 mt-1 font-medium">Dosage suggéré : 1/2 à 1 c. à café par plat</div>
                   </div>
                 </div>
               );
@@ -307,21 +305,16 @@ export const HomeSections: React.FC = () => {
         </section>
       </FadeInView>
 
-      {/* 4.5. BESPOKE LUXURY CUSTOM BOX BUILDER */}
-      <FadeInView direction="up" distance={30} duration={0.7}>
-        <CustomBoxBuilder />
-      </FadeInView>
-
       {/* 6. SECTION ACTUALITÉS & ANNONCES RÉCENTES */}
       {recentAnnouncements.length > 0 && (
         <FadeInView direction="up" distance={30} duration={0.65}>
-          <section className="space-y-8 sm:space-y-10">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
-              <div className="space-y-2">
-                <span className="inline-block px-3 py-1 bg-[#E8F5E9] text-[#2D5A27] text-xs font-bold uppercase tracking-widest rounded-md">
+          <section className="space-y-4 sm:space-y-5">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 pb-1">
+              <div className="space-y-1.5">
+                <span className="inline-block px-2.5 py-0.5 bg-[#E8F5E9] text-[#2D5A27] text-xs font-bold uppercase tracking-widest rounded-md">
                   Actualités & Événements
                 </span>
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#1B3022] tracking-tight">
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-[#1B3022] tracking-tight">
                   Nos Dernières Annonces
                 </h2>
                 <p className="text-stone-600 text-xs sm:text-sm max-w-xl">
@@ -331,14 +324,14 @@ export const HomeSections: React.FC = () => {
 
               <button
                 onClick={() => setActiveTab('actualites')}
-                className="inline-flex items-center gap-2 text-[#2D5A27] hover:text-[#1B3022] font-bold text-sm transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-[#2D5A27] hover:text-[#1B3022] font-bold text-xs sm:text-sm transition cursor-pointer"
               >
                 <span>Voir toutes les actualités</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            <FadeInStagger staggerDelay={0.1} className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+            <FadeInStagger staggerDelay={0.1} className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
               {recentAnnouncements.map(ann => (
                 <FadeInItem key={ann.id}>
                   <article
@@ -375,13 +368,13 @@ export const HomeSections: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                      <div className="space-y-2">
+                    <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
+                      <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5 text-xs text-stone-400">
                           <Calendar className="w-3.5 h-3.5 text-[#2D5A27]" />
                           <span>{formatDate(ann.date || ann.createdAt)}</span>
                         </div>
-                        <h3 className="font-bold text-base text-[#1B3022] group-hover:text-[#2D5A27] transition line-clamp-2 leading-snug">
+                        <h3 className="font-bold text-sm sm:text-base text-[#1B3022] group-hover:text-[#2D5A27] transition line-clamp-2 leading-snug">
                           {ann.title}
                         </h3>
                         <p className="text-xs text-stone-500 line-clamp-2 leading-relaxed">
@@ -389,7 +382,7 @@ export const HomeSections: React.FC = () => {
                         </p>
                       </div>
 
-                      <div className="text-xs font-bold text-[#2D5A27] group-hover:translate-x-0.5 transition inline-flex items-center gap-1 pt-2">
+                      <div className="text-xs font-bold text-[#2D5A27] group-hover:translate-x-0.5 transition inline-flex items-center gap-1 pt-1">
                         <span>{ann.video ? 'Visionner la vidéo' : 'Lire l\'annonce'}</span>
                         <ArrowRight className="w-3 h-3" />
                       </div>
@@ -407,20 +400,15 @@ export const HomeSections: React.FC = () => {
         <CustomerReviewsSection />
       </FadeInView>
 
-      {/* 7.5. SECTION SIMULATEUR DE LIVRAISON EXPRESS */}
-      <FadeInView direction="up" distance={30} duration={0.7} withScale={true}>
-        <DeliveryCalculatorWidget />
-      </FadeInView>
-
       {/* 8. SECTION FAQ INTERACTIVE (ACCORDÉON AVEC EFFET PROGRESSIF) */}
       <FadeInView direction="up" distance={30} duration={0.7}>
-        <section className="bg-white border border-stone-200/90 rounded-[32px] p-8 sm:p-12 lg:p-16 space-y-8 sm:space-y-10 shadow-2xs">
-          <div className="text-center max-w-lg mx-auto space-y-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-stone-100 text-[#0F2916] text-xs font-black uppercase tracking-wider rounded-full border border-stone-200">
+        <section className="bg-white border border-stone-200/90 rounded-[24px] sm:rounded-[28px] p-5 sm:p-7 lg:p-8 space-y-5 sm:space-y-6 shadow-2xs">
+          <div className="text-center max-w-lg mx-auto space-y-1.5">
+            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 bg-stone-100 text-[#0F2916] text-xs font-black uppercase tracking-wider rounded-full border border-stone-200">
               <HelpCircle className="w-3.5 h-3.5 text-amber-600" />
               <span>Foire Aux Questions</span>
             </span>
-            <h3 className="text-2xl sm:text-4xl font-extrabold text-[#0B1E11] font-serif-heading">
+            <h3 className="text-2xl sm:text-3xl font-extrabold text-[#0B1E11] font-serif-heading">
               Tout savoir avant de commander
             </h3>
             <p className="text-stone-600 text-xs sm:text-sm font-medium leading-relaxed">
@@ -433,7 +421,7 @@ export const HomeSections: React.FC = () => {
               const isOpen = openFaqIndex === index;
               return (
                 <FadeInItem key={index} distance={14} duration={0.45}>
-                  <div className="py-5 sm:py-6">
+                  <div className="py-3.5 sm:py-4">
                     <button
                       type="button"
                       onClick={() => setOpenFaqIndex(isOpen ? null : index)}
@@ -451,7 +439,7 @@ export const HomeSections: React.FC = () => {
                           transition={{ duration: 0.2 }}
                           className="overflow-hidden"
                         >
-                          <p className="text-xs sm:text-sm text-stone-600 leading-relaxed pt-3.5 font-medium">
+                          <p className="text-xs sm:text-sm text-stone-600 leading-relaxed pt-2.5 font-medium">
                             {faq.a}
                           </p>
                         </motion.div>
@@ -467,14 +455,14 @@ export const HomeSections: React.FC = () => {
 
       {/* 9. SECTION CONTACT & PRISE DE COMMANDE FINALE */}
       <FadeInView direction="up" distance={30} duration={0.75} withScale={true}>
-        <section className="bg-gradient-to-r from-[#0A180E] via-[#0F2916] to-[#163D20] text-white rounded-[32px] p-8 sm:p-12 lg:p-16 shadow-2xl relative overflow-hidden border border-emerald-600/30">
+        <section className="bg-gradient-to-r from-[#0A180E] via-[#0F2916] to-[#163D20] text-white rounded-[24px] sm:rounded-[28px] p-5 sm:p-7 lg:p-8 shadow-2xl relative overflow-hidden border border-emerald-600/30">
           <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="relative z-10 max-w-2xl space-y-5">
-            <span className="inline-block px-3.5 py-1 bg-amber-400/20 text-amber-300 text-xs font-black uppercase tracking-wider rounded-full border border-amber-400/30">
+          <div className="relative z-10 max-w-2xl space-y-3.5">
+            <span className="inline-block px-3 py-0.5 bg-amber-400/20 text-amber-300 text-xs font-black uppercase tracking-wider rounded-full border border-amber-400/30">
               Service Client Dédié & Artisanal
             </span>
 
-            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight font-serif-heading text-white">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight font-serif-heading text-white">
               Sublimez Votre Cuisine Aujourd'hui
             </h2>
 
@@ -482,11 +470,11 @@ export const HomeSections: React.FC = () => {
               Particulier gourmand ou chef de cuisine, notre équipe vous conseille avec passion et expédie votre commande partout à Bamako et dans les régions.
             </p>
 
-            <div className="pt-4 flex flex-wrap items-center gap-3.5">
+            <div className="pt-2 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => openOrderWhatsApp()}
-                className="inline-flex items-center gap-2.5 bg-gradient-to-r from-[#B82B2B] to-[#D93838] hover:from-[#A02222] hover:to-[#C02E2E] text-white font-extrabold px-6 py-3.5 rounded-2xl shadow-lg transition cursor-pointer text-xs sm:text-sm border border-red-400/30"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-[#B82B2B] to-[#D93838] hover:from-[#A02222] hover:to-[#C02E2E] text-white font-extrabold px-5 py-3 rounded-xl shadow-lg transition cursor-pointer text-xs sm:text-sm border border-red-400/30"
               >
                 <MessageCircle className="w-4 h-4 text-white" />
                 <span>Commander sur WhatsApp</span>
@@ -495,7 +483,7 @@ export const HomeSections: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('contact')}
-                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-5 py-3.5 rounded-2xl transition cursor-pointer text-xs sm:text-sm border border-white/15"
+                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-3 rounded-xl transition cursor-pointer text-xs sm:text-sm border border-white/15"
               >
                 <span>Envoyer un message</span>
                 <ArrowRight className="w-3.5 h-3.5 text-amber-300" />
@@ -503,7 +491,7 @@ export const HomeSections: React.FC = () => {
 
               <a
                 href={`tel:${settings.phone.replace(/\s+/g, '')}`}
-                className="inline-flex items-center gap-2 text-stone-300 hover:text-white font-semibold text-xs sm:text-sm px-3 py-2 transition"
+                className="inline-flex items-center gap-1.5 text-stone-300 hover:text-white font-semibold text-xs sm:text-sm px-2 py-1.5 transition"
               >
                 <PhoneCall className="w-3.5 h-3.5 text-amber-400" />
                 <span>{settings.phone}</span>

@@ -123,8 +123,8 @@ export const HeroSection: React.FC = () => {
       <div className="absolute inset-0 bg-[radial-gradient(#ffffff0a_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none opacity-40" />
 
       {/* Main Content */}
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-8 lg:px-10 pt-10 pb-14 lg:pt-16 lg:pb-20 z-10">
-        <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-14">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-8 lg:px-10 pt-6 pb-10 lg:pt-10 lg:pb-14 z-10">
+        <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-10">
           
           {/* Left Column: Typography, Value Proposition & CTAs */}
           <motion.div 
@@ -132,10 +132,10 @@ export const HeroSection: React.FC = () => {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65, ease: [0.25, 1, 0.5, 1] }}
-            className="flex-1 flex flex-col justify-center space-y-7 will-change-transform"
+            className="flex-1 flex flex-col justify-center space-y-5 will-change-transform"
           >
             {/* Top Badges */}
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-xs font-black uppercase tracking-wider shadow-sm">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                 <span>Maison d'Épices & Gastronomie du Terroir</span>
@@ -148,8 +148,8 @@ export const HeroSection: React.FC = () => {
             </div>
 
             {/* Majestic Editorial Heading */}
-            <div className="space-y-4">
-              <h1 className="text-3xl sm:text-5xl lg:text-[56px] font-black text-white leading-[1.12] tracking-tight font-serif-heading">
+            <div className="space-y-3">
+              <h1 className="text-3xl sm:text-5xl lg:text-[52px] font-black text-white leading-[1.12] tracking-tight font-serif-heading">
                 La Noblesse des Épices, <br />
                 <span className="relative inline-block text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-amber-200">
                   L’Âme Gourmande du Terroir
@@ -163,17 +163,17 @@ export const HeroSection: React.FC = () => {
                 </span>
               </h1>
 
-              <p className="text-sm sm:text-base text-stone-300 max-w-xl leading-relaxed font-medium">
+              <p className="text-xs sm:text-sm text-stone-300 max-w-xl leading-relaxed font-medium">
                 Piments séchés au soleil, véritable soumbala de néré noble et assemblages culinaires artisanaux. Redécouvrez la pureté gustative sans cube chimique ni conservateur.
               </p>
             </div>
 
             {/* Direct CTAs */}
-            <div className="flex flex-wrap items-center gap-3.5 pt-2">
+            <div className="flex flex-wrap items-center gap-3 pt-1">
               <button
                 id="btn-hero-explore"
                 onClick={() => setActiveTab('produits')}
-                className="group relative overflow-hidden px-8 py-4 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-stone-950 rounded-2xl font-black shadow-xl shadow-amber-500/20 flex items-center gap-2.5 transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer text-sm"
+                className="group relative overflow-hidden px-7 py-3.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-stone-950 rounded-2xl font-black shadow-xl shadow-amber-500/20 flex items-center gap-2.5 transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer text-xs sm:text-sm"
               >
                 <div className="absolute inset-0 w-1/2 h-full bg-white/20 skew-x-12 -translate-x-full group-hover:translate-x-[300%] transition-transform duration-1000 ease-out" />
                 <span>Découvrir le Catalogue</span>
@@ -183,7 +183,7 @@ export const HeroSection: React.FC = () => {
               <button
                 id="btn-hero-whatsapp"
                 onClick={() => openOrderWhatsApp()}
-                className="px-6 py-4 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-amber-400/60 text-white rounded-2xl font-bold shadow-sm transition-all duration-300 flex items-center gap-2 cursor-pointer text-sm backdrop-blur-md"
+                className="px-5 py-3.5 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-amber-400/60 text-white rounded-2xl font-bold shadow-sm transition-all duration-300 flex items-center gap-2 cursor-pointer text-xs sm:text-sm backdrop-blur-md"
               >
                 <MessageCircle className="w-4 h-4 text-emerald-400" />
                 <span>Commande Express WhatsApp</span>
@@ -191,7 +191,7 @@ export const HeroSection: React.FC = () => {
             </div>
 
             {/* Quick Interactive Interactive Switcher Tabs on the Left */}
-            <div className="space-y-2 pt-3">
+            <div className="space-y-1.5 pt-2">
               <span className="text-[11px] font-black uppercase tracking-wider text-amber-300/80">
                 Nos 4 Créations Phares en Vitrine :
               </span>
@@ -214,7 +214,7 @@ export const HeroSection: React.FC = () => {
             </div>
 
             {/* Customer Trust & Ratings Bar */}
-            <div className="pt-4 border-t border-white/15 flex flex-wrap items-center justify-between gap-3 text-stone-300">
+            <div className="pt-3 border-t border-white/15 flex flex-wrap items-center justify-between gap-2.5 text-stone-300">
               <div className="flex items-center gap-3">
                 <div className="flex -space-x-2 overflow-hidden">
                   <div className="inline-block h-8 w-8 rounded-full ring-2 ring-stone-900 bg-amber-600 text-white text-[10px] font-bold flex items-center justify-center">

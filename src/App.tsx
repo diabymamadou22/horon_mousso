@@ -142,7 +142,7 @@ export default function App() {
           {/* Tab Views */}
           <main className="flex-1">
             {activeTab === 'accueil' && (
-              <div className="space-y-10 sm:space-y-16 lg:space-y-20">
+              <div className="space-y-6 sm:space-y-8 lg:space-y-10">
                 <HeroSection />
                 <HomeSections />
               </div>
