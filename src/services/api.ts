@@ -91,20 +91,22 @@ if (typeof window !== 'undefined') {
 }
 
 export const api = {
-  // Authentication - Multi-device cloud backed
-  async login(identifier: string, password: string): Promise<{ success: boolean; user?: User; token?: string; message?: string }> {
+  // Authentication - Multi-device cloud backed with strict session protection
+  async login(passwordOrIdentifier: string, optionalPassword?: string): Promise<{ success: boolean; user?: User; token?: string; message?: string }> {
+    const password = (optionalPassword !== undefined ? optionalPassword : passwordOrIdentifier).trim();
+
     // 1. Try Express API if server is running
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password })
+        body: JSON.stringify({ password })
       });
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
-          localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user));
+          sessionStorage.setItem('horon_admin_session', JSON.stringify(data.user));
+          localStorage.removeItem(STORAGE_KEYS.USER); // Ensure no persistent leak
           return data;
         }
       }
@@ -115,21 +117,12 @@ export const api = {
     // 2. Cloud Firestore Auth (for multi-device sync across Vercel, phones, and PCs)
     try {
       const cloudAuth = await getCloudAdminAuth();
-      const normInput = identifier.trim().toLowerCase();
-      const validIdentifier = (
-        normInput === cloudAuth.username.toLowerCase() ||
-        normInput === cloudAuth.email.toLowerCase() ||
-        normInput === 'admin' ||
-        normInput === 'admin@agroterroir.com' ||
-        normInput === 'admin@horonmousso.com'
-      );
-
       const validPassword = (
         password === cloudAuth.passwordHash ||
-        (cloudAuth.isDefault && (password === 'admin' || password === 'admin123' || password === 'agro2025'))
+        (cloudAuth.isDefault && (password === '00223' || password === 'admin' || password === 'admin123'))
       );
 
-      if (validIdentifier && validPassword) {
+      if (validPassword) {
         const user: User = {
           id: 'usr_admin_1',
           name: 'Administrateur Général',
@@ -138,16 +131,16 @@ export const api = {
           createdAt: new Date().toISOString()
         };
         const token = 'cloud_token_' + Date.now();
-        localStorage.setItem(STORAGE_KEYS.TOKEN, token);
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+        sessionStorage.setItem('horon_admin_session', JSON.stringify(user));
+        localStorage.removeItem(STORAGE_KEYS.USER); // Ensure no persistent leak
         return { success: true, user, token };
       }
     } catch (e) {
       console.warn('Erreur vérification cloud auth:', e);
     }
 
-    // 3. Fallback default check
-    if ((identifier === 'admin' || identifier === 'admin@horonmousso.com') && (password === 'admin' || password === 'admin123')) {
+    // 3. Fallback default check (00223)
+    if (password === '00223' || password === 'admin') {
       const mockUser: User = {
         id: 'usr_admin_1',
         name: 'Administrateur Général',
@@ -156,12 +149,12 @@ export const api = {
         createdAt: new Date().toISOString()
       };
       const token = 'local_session_' + Date.now();
-      localStorage.setItem(STORAGE_KEYS.TOKEN, token);
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(mockUser));
+      sessionStorage.setItem('horon_admin_session', JSON.stringify(mockUser));
+      localStorage.removeItem(STORAGE_KEYS.USER);
       return { success: true, user: mockUser, token };
     }
 
-    return { success: false, message: 'Identifiant ou mot de passe incorrect. (Par défaut : "admin" / "admin")' };
+    return { success: false, message: 'Mot de passe incorrect.' };
   },
 
   async getAuthStatus(): Promise<{ isDefault: boolean; username: string; email: string; updatedAt?: string }> {
@@ -183,22 +176,26 @@ export const api = {
     }
   },
 
-  async changeCredentials(currentPassword: string, newUsername?: string, newEmail?: string, newPassword?: string): Promise<{ success: boolean; message: string }> {
+  async changeCredentials(currentPassword: string, newPassword: string, newUsername?: string, newEmail?: string): Promise<{ success: boolean; message: string }> {
     // 1. Check current credentials from cloud
     const cloudAuth = await getCloudAdminAuth();
     const isCurrentValid = (
       currentPassword === cloudAuth.passwordHash ||
-      (cloudAuth.isDefault && (currentPassword === 'admin' || currentPassword === 'admin123'))
+      (cloudAuth.isDefault && (currentPassword === '00223' || currentPassword === 'admin' || currentPassword === 'admin123'))
     );
 
     if (!isCurrentValid) {
       return { success: false, message: 'Le mot de passe actuel est incorrect.' };
     }
 
+    if (!newPassword || newPassword.trim().length < 3) {
+      return { success: false, message: 'Le nouveau mot de passe doit comporter au moins 3 caractères.' };
+    }
+
     const payload = {
       username: newUsername || cloudAuth.username,
       email: newEmail || cloudAuth.email,
-      passwordHash: newPassword || cloudAuth.passwordHash
+      passwordHash: newPassword.trim()
     };
 
     // Save to Cloud Firestore so all other devices receive the update immediately
@@ -224,20 +221,26 @@ export const api = {
       email: payload.email
     }));
 
-    return { success: true, message: 'Identifiants administrateur mis à jour sur tous les appareils' };
+    return { success: true, message: 'Mot de passe administrateur mis à jour sur tous les appareils' };
   },
 
   getCurrentUser(): User | null {
-    const data = localStorage.getItem(STORAGE_KEYS.USER);
-    if (!data) return null;
+    // Only return session user (cleared when closing tab or returning to portal)
     try {
-      return JSON.parse(data);
+      const sessionData = sessionStorage.getItem('horon_admin_session');
+      if (sessionData) {
+        return JSON.parse(sessionData);
+      }
     } catch {
-      return null;
+      // ignore
     }
+    // Clean up any historical permanent localStorage user to prevent visitor access
+    localStorage.removeItem(STORAGE_KEYS.USER);
+    return null;
   },
 
   logout() {
+    sessionStorage.removeItem('horon_admin_session');
     localStorage.removeItem(STORAGE_KEYS.TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER);
   },

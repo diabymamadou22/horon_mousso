@@ -14,7 +14,9 @@ import {
   Leaf,
   Cloud,
   ShoppingBag,
-  Star
+  Star,
+  Tv,
+  Newspaper
 } from 'lucide-react';
 import { SyncStatusModal } from '../common/SyncStatusModal';
 import { AdminMobileBottomNav } from './AdminMobileBottomNav';
@@ -45,9 +47,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   const menuItems: { id: AdminTab; label: string; icon: React.ElementType; badge?: number }[] = [
     { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
+    { id: 'bannieres', label: 'Panneau Pub (Hero)', icon: Tv },
     { id: 'commandes', label: 'Commandes', icon: ShoppingBag, badge: pendingOrdersCount },
     { id: 'produits', label: 'Produits', icon: Package },
-    { id: 'annonces', label: 'Annonces & Actus', icon: Megaphone },
+    { id: 'annonces', label: 'Annonces & Actus', icon: Newspaper },
     { id: 'medias', label: 'Médias & Galerie', icon: ImageIcon },
     { id: 'messages', label: 'Messages', icon: Mail, badge: unreadMessagesCount },
     { id: 'avis', label: 'Avis Clients', icon: Star },

@@ -32,6 +32,7 @@ import { AdminMedia } from './components/admin/AdminMedia';
 import { AdminMessages } from './components/admin/AdminMessages';
 import { AdminReviews } from './components/admin/AdminReviews';
 import { AdminSettings } from './components/admin/AdminSettings';
+import { AdminBanners } from './components/admin/AdminBanners';
 
 import { MessageCircle, ShoppingBag } from 'lucide-react';
 
@@ -104,6 +105,8 @@ export default function App() {
             )}
 
             {adminTab === 'commandes' && <AdminOrders />}
+
+            {adminTab === 'bannieres' && <AdminBanners />}
 
             {adminTab === 'produits' && (
               <AdminProducts

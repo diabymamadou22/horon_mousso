@@ -138,6 +138,25 @@ export interface CustomerMessage {
   createdAt: string;
 }
 
+export interface PromoBanner {
+  id: string;
+  title?: string;
+  subtitle?: string;
+  badge?: string;
+  imageUrl: string;
+  linkTab?: string; // 'produits' | 'actualites' | 'contact' | 'a_propos' | 'galerie' | 'whatsapp'
+  productId?: string; // Optional direct link to a specific product
+  buttonText?: string;
+  isPureImage?: boolean; // If true, only shows the image billboard without overlay text
+  badgeColor?: 'gold' | 'green' | 'red' | 'blue' | 'black';
+  textAlignment?: 'left' | 'center' | 'right';
+  overlayOpacity?: 'light' | 'medium' | 'dark' | 'none';
+  customWhatsAppMessage?: string;
+  active: boolean;
+  order: number;
+  createdAt?: string;
+}
+
 export interface CompanySettings {
   id: string;
   companyName: string;
@@ -152,6 +171,10 @@ export interface CompanySettings {
   openingHours: string;
   heroImage: string;
   heroVideo?: string;
+  heroBanners?: PromoBanner[];
+  heroBannerAutoplay?: boolean;
+  heroBannerInterval?: number; // Défilement en secondes (ex: 4, 6, 8, 10)
+  heroBannerTransition?: 'slide' | 'fade' | 'zoom';
   qualityCommitment: string;
   producersCommitment: string;
   mission: string;
@@ -201,3 +224,6 @@ export interface SyncStatus {
   mode: 'cloud_and_local' | 'local_only';
   isQuotaExceeded?: boolean;
 }
+
+export type PublicTab = 'accueil' | 'produits' | 'actualites' | 'galerie' | 'a_propos' | 'contact';
+

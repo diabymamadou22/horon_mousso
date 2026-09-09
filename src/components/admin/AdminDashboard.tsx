@@ -359,6 +359,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <button
+            onClick={() => setAdminTab('bannieres')}
+            className="flex items-center gap-3 p-3.5 rounded-xl border border-amber-300 hover:border-amber-600 hover:bg-amber-50/60 transition text-left group bg-amber-50/20"
+          >
+            <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+              <Megaphone className="w-4 h-4 text-amber-700" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-stone-900">Panneau Pub (Hero)</div>
+              <div className="text-[11px] text-stone-500">Affiches & bannières défilantes</div>
+            </div>
+          </button>
+
+          <button
             onClick={() => setAdminTab('commandes')}
             className="flex items-center gap-3 p-3.5 rounded-xl border border-indigo-200 hover:border-indigo-600 hover:bg-indigo-50/50 transition text-left group"
           >

@@ -14,6 +14,47 @@ export const initialSettings: CompanySettings = {
   openingHours: 'Du Lundi au Samedi : 08h00 – 18h30',
   heroImage: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=1920&q=80',
   heroVideo: '',
+  heroBanners: [
+    {
+      id: 'banner_1',
+      title: "L'Or Noir du Terroir : Soumbala Pur d'Exception",
+      subtitle: "Graines de néré nobles fermentées 72h avec maîtrise artisanale • 100% Naturel sans bouillon chimique • Arôme profond & umami africain.",
+      badge: "PRODUIT PHARE HORON MOUSSO",
+      imageUrl: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=1920&q=80',
+      linkTab: 'produits',
+      buttonText: 'Découvrir nos produits',
+      isPureImage: false,
+      active: true,
+      order: 1,
+      createdAt: '2025-01-01T00:00:00Z'
+    },
+    {
+      id: 'banner_2',
+      title: "Piments Frais Séchés & Épices Nobles du Terroir",
+      subtitle: "Séchage solaire hygiénique thermorégulé, arôme explosif et couleur éclatante préservée de la récolte au sachet.",
+      badge: "NOUVEL ARRIVAGE FRAÎCHEUR",
+      imageUrl: 'https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?auto=format&fit=crop&w=1920&q=80',
+      linkTab: 'produits',
+      buttonText: 'Commander nos épices',
+      isPureImage: false,
+      active: true,
+      order: 2,
+      createdAt: '2025-01-02T00:00:00Z'
+    },
+    {
+      id: 'banner_3',
+      title: "Livraison Rapide à Bamako & Expéditions Sous-Région",
+      subtitle: "Pots étanches, sachets hermétiques et sacs traiteur pour particuliers, traiteurs et restaurateurs exigeants.",
+      badge: "EXPÉDITION EXPRESS",
+      imageUrl: 'https://images.unsplash.com/photo-1509358271058-acd22cc93898?auto=format&fit=crop&w=1920&q=80',
+      linkTab: 'contact',
+      buttonText: 'Commander sur WhatsApp',
+      isPureImage: false,
+      active: true,
+      order: 3,
+      createdAt: '2025-01-03T00:00:00Z'
+    }
+  ],
   qualityCommitment: 'Nos épices et piments sont soigneusement triés à la main, séchés au séchoir hygiénique thermorégulé et broyés sans colorant, sans glutamate de synthèse ni conservateur chimique. 100% naturel.',
   producersCommitment: 'Collaboration étroite et solidaire avec les groupements de femmes artisanes et les coopératives paysannes locales, garantissant un prix d\'achat équitable et une valorisation directe du travail féminin rural.',
   mission: 'Démocratiser l\'accès à des épices saines, authentiques et prêtes à l\'emploi tout en valorisant le génie culinaire et agricole du terroir ouest-africain.',

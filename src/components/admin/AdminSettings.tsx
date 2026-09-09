@@ -20,7 +20,11 @@ import {
   RotateCcw,
   Image as ImageIcon,
   Eye,
-  Check
+  EyeOff,
+  KeyRound,
+  Check,
+  Megaphone,
+  ArrowRight
 } from 'lucide-react';
 import { initialSettings } from '../../data/initialData';
 
@@ -47,7 +51,7 @@ const LOGO_PRESETS = [
 ];
 
 export const AdminSettings: React.FC = () => {
-  const { settings, updateSettings, authStatus, changeAdminCredentials } = useApp();
+  const { settings, updateSettings, authStatus, changeAdminCredentials, setAdminTab } = useApp();
 
   const [formData, setFormData] = useState({ 
     ...settings,
@@ -65,8 +69,12 @@ export const AdminSettings: React.FC = () => {
   // Security Credentials state
   const [credUsername, setCredUsername] = useState(authStatus?.username || 'admin');
   const [credEmail, setCredEmail] = useState(authStatus?.email || 'contact@horonmousso.com');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [isUpdatingCreds, setIsUpdatingCreds] = useState(false);
   const [credFeedback, setCredFeedback] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -93,25 +101,31 @@ export const AdminSettings: React.FC = () => {
     e.preventDefault();
     setCredFeedback(null);
 
-    if (newPassword && newPassword !== confirmPassword) {
-      setCredFeedback({ success: false, message: 'Les deux mots de passe ne correspondent pas.' });
+    if (!currentPassword.trim()) {
+      setCredFeedback({ success: false, message: 'Veuillez renseigner votre mot de passe actuel.' });
       return;
     }
 
-    if (!newPassword || newPassword.length < 4) {
-      setCredFeedback({ success: false, message: 'Le mot de passe doit contenir au moins 4 caractères.' });
+    if (!newPassword || newPassword.length < 3) {
+      setCredFeedback({ success: false, message: 'Le nouveau mot de passe doit comporter au moins 3 caractères.' });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setCredFeedback({ success: false, message: 'La confirmation ne correspond pas au nouveau mot de passe.' });
       return;
     }
 
     setIsUpdatingCreds(true);
     try {
-      const res = await changeAdminCredentials(credUsername.trim(), credEmail.trim(), newPassword);
+      const res = await changeAdminCredentials(currentPassword.trim(), newPassword.trim(), credUsername.trim(), credEmail.trim());
       if (res.success) {
-        setCredFeedback({ success: true, message: 'Identifiants administrateur mis à jour avec succès !' });
+        setCredFeedback({ success: true, message: 'Mot de passe administrateur modifié avec succès ! Il sera demandé à chaque connexion pour protéger le site.' });
+        setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
       } else {
-        setCredFeedback({ success: false, message: res.message || 'Échec de la mise à jour des identifiants.' });
+        setCredFeedback({ success: false, message: res.message || 'Échec de la mise à jour.' });
       }
     } catch (err: any) {
       setCredFeedback({ success: false, message: err?.message || 'Une erreur est survenue.' });
@@ -224,6 +238,32 @@ export const AdminSettings: React.FC = () => {
             <span>Paramètres enregistrés et synchronisés !</span>
           </div>
         )}
+      </div>
+
+      {/* Raccourci vers le Panneau Publicitaire Défilant (Hero) */}
+      <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent rounded-3xl p-5 sm:p-6 border border-amber-300/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-amber-400 text-neutral-950 flex items-center justify-center font-bold shrink-0 shadow-xs">
+            <Megaphone className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm sm:text-base font-extrabold text-stone-900">
+              Panneau Publicitaire Défilant (Hero)
+            </h3>
+            <p className="text-xs text-stone-600 mt-0.5">
+              Vous souhaitez ajouter, modifier ou faire défiler des affiches publicitaires en haut du site ?
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setAdminTab('bannieres')}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#23471f] text-white font-bold text-xs shadow-sm transition transform hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+        >
+          <span>Gérer les bannières de pub</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
@@ -857,23 +897,23 @@ export const AdminSettings: React.FC = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-stone-100 pb-4">
           <div>
             <h2 className="text-base font-extrabold text-stone-900 flex items-center gap-2">
-              <Lock className="w-5 h-5 text-[#C53030]" />
-              <span>Sécurité & Compte Administrateur</span>
+              <Lock className="w-5 h-5 text-[#2D5A27]" />
+              <span>Sécurité & Mot de Passe Administrateur</span>
             </h2>
             <p className="text-xs text-stone-500 mt-1">
-              Modifiez l'identifiant et le mot de passe requis pour administrer le site Horon Mousso.
+              Modifiez votre mot de passe d'accès administrateur. Il est demandé à chaque connexion afin d'interdire l'accès aux visiteurs.
             </p>
           </div>
 
           {authStatus?.isDefault ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
               <ShieldAlert className="w-4 h-4 text-amber-700" />
-              Mot de passe par défaut actif
+              Mot de passe initial actif
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
               <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-              Accès personnalisé sécurisé
+              Mot de passe personnalisé actif
             </span>
           )}
         </div>
@@ -881,10 +921,10 @@ export const AdminSettings: React.FC = () => {
         {authStatus?.isDefault && (
           <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold text-amber-900">Recommandation importante pour la sécurité :</p>
-              <p className="mt-1 text-amber-800 leading-relaxed">
-                Le compte utilise actuellement les identifiants par défaut (<strong>admin</strong> / <strong>admin</strong>). Veuillez définir ci-dessous vos identifiants personnels.
+            <div className="space-y-1">
+              <p className="font-bold text-amber-900">Mot de passe initial par défaut</p>
+              <p className="text-amber-800 leading-relaxed">
+                Votre administration est actuellement protégée par le mot de passe initial par défaut. Vous pouvez le remplacer ci-dessous par votre propre mot de passe secret.
               </p>
             </div>
           </div>
@@ -905,75 +945,106 @@ export const AdminSettings: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleCredentialsSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                Nom d'utilisateur administrateur
+        <form onSubmit={handleCredentialsSubmit} className="space-y-5">
+          {/* Mot de passe actuel */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-stone-700">
+                Mot de passe actuel <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                required
-                value={credUsername}
-                onChange={(e) => setCredUsername(e.target.value)}
-                placeholder="ex: horon_admin"
-                className="w-full text-xs p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-[#2D5A27] focus:bg-white"
-              />
+              {authStatus?.isDefault && (
+                <button
+                  type="button"
+                  onClick={() => setCurrentPassword('00223')}
+                  className="text-[11px] text-[#2D5A27] hover:underline font-semibold cursor-pointer"
+                >
+                  Pré-remplir le mot de passe initial
+                </button>
+              )}
             </div>
-
-            <div>
-              <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                Email administrateur
-              </label>
+            <div className="relative">
               <input
-                type="email"
+                type={showCurrentPass ? 'text' : 'password'}
                 required
-                value={credEmail}
-                onChange={(e) => setCredEmail(e.target.value)}
-                placeholder="admin@horonmousso.com"
-                className="w-full text-xs p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-[#2D5A27] focus:bg-white"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="••••••••••••"
+                className="w-full text-xs p-3 pr-10 bg-stone-50 border border-stone-300 rounded-xl focus:ring-2 focus:ring-[#2D5A27] focus:bg-white"
               />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPass(!showCurrentPass)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 p-1 cursor-pointer"
+                title={showCurrentPass ? 'Masquer' : 'Afficher'}
+              >
+                {showCurrentPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
+          {/* Nouveaux mots de passe */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                Nouveau mot de passe
+                Nouveau mot de passe <span className="text-red-500">*</span>
               </label>
-              <input
-                type="password"
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full text-xs p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-[#2D5A27] focus:bg-white"
-              />
+              <div className="relative">
+                <input
+                  type={showNewPass ? 'text' : 'password'}
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full text-xs p-3 pr-10 bg-stone-50 border border-stone-300 rounded-xl focus:ring-2 focus:ring-[#2D5A27] focus:bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPass(!showNewPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 p-1 cursor-pointer"
+                  title={showNewPass ? 'Masquer' : 'Afficher'}
+                >
+                  {showNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                Confirmer le nouveau mot de passe
+                Confirmer le nouveau mot de passe <span className="text-red-500">*</span>
               </label>
-              <input
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full text-xs p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-[#2D5A27] focus:bg-white"
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPass ? 'text' : 'password'}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full text-xs p-3 pr-10 bg-stone-50 border border-stone-300 rounded-xl focus:ring-2 focus:ring-[#2D5A27] focus:bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPass(!showConfirmPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 p-1 cursor-pointer"
+                  title={showConfirmPass ? 'Masquer' : 'Afficher'}
+                >
+                  {showConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
+          </div>
+
+          <div className="p-3 bg-stone-50 rounded-xl text-stone-600 text-xs border border-stone-200/80">
+            Le mot de passe saisi est masqué par des points secrets (••••). Utilisez le bouton œil si vous souhaitez vérifier votre saisie avant de valider.
           </div>
 
           <div className="pt-2 flex justify-end">
             <button
               type="submit"
-              disabled={isUpdatingCreds}
+              disabled={isUpdatingCreds || !newPassword || !confirmPassword || !currentPassword}
               className="inline-flex items-center gap-2 bg-[#2D5A27] hover:bg-[#23471F] text-white font-bold py-3 px-6 rounded-xl shadow-md transition disabled:opacity-50 text-xs cursor-pointer"
             >
               <Lock className="w-4 h-4" />
-              <span>{isUpdatingCreds ? 'Mise à jour...' : 'Mettre à jour les identifiants'}</span>
+              <span>{isUpdatingCreds ? 'Enregistrement...' : 'Enregistrer le nouveau mot de passe'}</span>
             </button>
           </div>
         </form>

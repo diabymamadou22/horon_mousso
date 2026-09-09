@@ -14,7 +14,8 @@ import {
   OrderStatus,
   PaymentStatus,
   PaymentMethod,
-  ProductReview
+  ProductReview,
+  PromoBanner
 } from '../types';
 import { api, STORAGE_KEYS } from '../services/api';
 import { initialSettings, initialProducts, initialAnnouncements, initialMedia } from '../data/initialData';
@@ -56,7 +57,7 @@ import {
 } from '../lib/deletionTracker';
 
 export type PublicTab = 'accueil' | 'produits' | 'actualites' | 'galerie' | 'a_propos' | 'contact';
-export type AdminTab = 'dashboard' | 'commandes' | 'produits' | 'annonces' | 'medias' | 'messages' | 'avis' | 'parametres';
+export type AdminTab = 'dashboard' | 'commandes' | 'produits' | 'bannieres' | 'annonces' | 'medias' | 'messages' | 'avis' | 'parametres';
 
 interface Toast {
   id: string;
@@ -129,10 +130,10 @@ interface AppContextType {
   adminTab: AdminTab;
   setAdminTab: (tab: AdminTab) => void;
   currentUser: User | null;
-  login: (id: string, pass: string) => Promise<{ success: boolean; message?: string }>;
+  login: (passOrId: string, maybePass?: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   authStatus: { isDefault: boolean; username: string; email: string } | null;
-  changeAdminCredentials: (currentPass: string, newUsername?: string, newEmail?: string, newPass?: string) => Promise<{ success: boolean; message: string }>;
+  changeAdminCredentials: (currentPass: string, newPass: string, newUsername?: string, newEmail?: string) => Promise<{ success: boolean; message: string }>;
 
   // CRUD actions
   addProduct: (product: Omit<Product, 'id' | 'createdAt'>) => Promise<Product>;
@@ -152,6 +153,7 @@ interface AppContextType {
   deleteMessage: (id: string) => Promise<void>;
 
   updateSettings: (newSettings: Partial<CompanySettings>) => Promise<void>;
+  saveHeroBanners: (banners: PromoBanner[]) => Promise<void>;
   resetDemoData: () => Promise<void>;
 
   // Multi-Device & Offline/Online Sync State
@@ -164,7 +166,7 @@ interface AppContextType {
   removeToast: (id: string) => void;
 
   // Helpers
-  openOrderWhatsApp: (product?: Product) => void;
+  openOrderWhatsApp: (productOrCustomMsg?: Product | string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -548,8 +550,8 @@ Merci de confirmer la prise en charge et le délai !`;
     return true;
   };
 
-  const changeAdminCredentials = async (currentPass: string, newUsername?: string, newEmail?: string, newPass?: string) => {
-    const res = await api.changeCredentials(currentPass, newUsername, newEmail, newPass);
+  const changeAdminCredentials = async (currentPass: string, newPass: string, newUsername?: string, newEmail?: string) => {
+    const res = await api.changeCredentials(currentPass, newPass, newUsername, newEmail);
     if (res.success) {
       showToast(res.message, 'success');
       await checkAuthStatus();
@@ -565,10 +567,19 @@ Merci de confirmer la prise en charge et le délai !`;
   const [selectedAnnouncementId, setSelectedAnnouncementId] = useState<string | null>(null);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
 
-  // Admin Navigation & Auth
-  const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
+  // Admin Navigation & Auth - Strictly requiring password at each entry
+  const [isAdminMode, setIsAdminModeState] = useState<boolean>(false);
   const [adminTab, setAdminTab] = useState<AdminTab>('dashboard');
   const [currentUser, setCurrentUser] = useState<User | null>(() => api.getCurrentUser());
+
+  const setIsAdminMode = useCallback((isOpen: boolean) => {
+    setIsAdminModeState(isOpen);
+    if (!isOpen) {
+      // Exit admin: close session so password is strictly asked again on next visit
+      api.logout();
+      setCurrentUser(null);
+    }
+  }, []);
 
   // Toasts
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -1036,15 +1047,15 @@ Merci de confirmer la prise en charge et le délai !`;
   };
 
   // Auth
-  const login = async (identifier: string, pass: string) => {
-    const res = await api.login(identifier, pass);
+  const login = async (passOrId: string, maybePass?: string) => {
+    const res = await api.login(passOrId, maybePass);
     if (res.success && res.user) {
       setCurrentUser(res.user);
-      showToast('Connexion réussie en tant qu’administrateur', 'success');
+      showToast('Espace Administrateur déverrouillé avec succès', 'success');
       return { success: true };
     }
-    showToast(res.message || 'Échec de connexion', 'error');
-    return { success: false, message: res.message };
+    showToast(res.message || 'Mot de passe incorrect', 'error');
+    return { success: false, message: res.message || 'Mot de passe incorrect' };
   };
 
   const logout = () => {
@@ -1226,6 +1237,16 @@ Merci de confirmer la prise en charge et le délai !`;
     }
   };
 
+  const saveHeroBanners = async (banners: PromoBanner[]) => {
+    try {
+      setSettings(prev => ({ ...prev, heroBanners: banners }));
+      await api.updateSettings({ heroBanners: banners });
+      showToast('Bannières du panneau publicitaire enregistrées avec succès', 'success');
+    } catch {
+      showToast('Erreur lors de l\'enregistrement des bannières', 'error');
+    }
+  };
+
   const resetDemoData = async () => {
     try {
       await api.resetDemoData();
@@ -1376,12 +1397,14 @@ Merci de confirmer la prise en charge et le délai !`;
     }
   };
 
-  const openOrderWhatsApp = (product?: Product) => {
+  const openOrderWhatsApp = (productOrCustomMsg?: Product | string) => {
     const rawNumber = settings.whatsapp || settings.phone || '';
     const cleanNumber = rawNumber.replace(/[^0-9]/g, '');
     let msg = `Bonjour ${settings.companyName},\n\nJe visite votre site web et je souhaite avoir des informations ou passer commande.`;
-    if (product) {
-      msg = `Bonjour ${settings.companyName},\n\nJe souhaite commander ou me renseigner sur le produit suivant :\n- Produit : *${product.name}*\n- Conditionnement : ${product.format}\n- Prix indicatif : ${product.price || 'À préciser'}\n\nMerci de m'indiquer la disponibilité et les modalités de livraison.`;
+    if (typeof productOrCustomMsg === 'string') {
+      msg = productOrCustomMsg;
+    } else if (productOrCustomMsg) {
+      msg = `Bonjour ${settings.companyName},\n\nJe souhaite commander ou me renseigner sur le produit suivant :\n- Produit : *${productOrCustomMsg.name}*\n- Conditionnement : ${productOrCustomMsg.format}\n- Prix indicatif : ${productOrCustomMsg.price || 'À préciser'}\n\nMerci de m'indiquer la disponibilité et les modalités de livraison.`;
     }
     const url = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
@@ -1448,6 +1471,7 @@ Merci de confirmer la prise en charge et le délai !`;
         toggleMessageStatus,
         deleteMessage,
         updateSettings,
+        saveHeroBanners,
         resetDemoData,
         syncStatus,
         forceSync,

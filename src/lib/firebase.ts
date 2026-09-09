@@ -898,8 +898,8 @@ export async function getCloudAdminAuth(): Promise<{ username: string; email: st
       return {
         username: data.username || 'admin',
         email: data.email || 'admin@horonmousso.com',
-        passwordHash: data.passwordHash || 'admin',
-        isDefault: !data.passwordHash || data.passwordHash === 'admin'
+        passwordHash: data.passwordHash || '00223',
+        isDefault: !data.passwordHash || data.passwordHash === '00223' || data.passwordHash === 'admin'
       };
     }
   } catch (err) {
@@ -911,16 +911,17 @@ export async function getCloudAdminAuth(): Promise<{ username: string; email: st
   return {
     username: 'admin',
     email: 'admin@horonmousso.com',
-    passwordHash: 'admin',
+    passwordHash: '00223',
     isDefault: true
   };
 }
 
-export async function saveCloudAdminAuth(data: { username: string; email: string; passwordHash?: string }): Promise<void> {
+export async function saveCloudAdminAuth(data: { username?: string; email?: string; passwordHash?: string }): Promise<void> {
   const docRef = doc(firestoreDb, 'settings', 'admin_auth');
   try {
     await setDoc(docRef, {
       ...data,
+      isDefault: false,
       updatedAt: new Date().toISOString()
     }, { merge: true });
     setFirestoreQuotaExceeded(false);

@@ -46,7 +46,7 @@ interface DBStructure {
 const defaultAdminCreds: AdminCredentials = {
   username: 'admin',
   email: 'admin@horonmousso.com',
-  password: 'admin',
+  password: '00223',
   isDefault: true,
   updatedAt: new Date().toISOString()
 };
@@ -168,18 +168,23 @@ app.post('/api/auth/change-credentials', (req, res) => {
   const { currentPassword, newUsername, newEmail, newPassword } = req.body;
   const creds = db.adminCredentials || defaultAdminCreds;
 
-  if (currentPassword !== creds.password) {
+  const isCurrentValid = (
+    currentPassword === creds.password ||
+    (creds.isDefault && (currentPassword === '00223' || currentPassword === 'admin' || currentPassword === 'admin123'))
+  );
+
+  if (!isCurrentValid) {
     return res.status(400).json({ success: false, message: 'Le mot de passe actuel est incorrect.' });
   }
 
-  if (newPassword && newPassword.length < 4) {
-    return res.status(400).json({ success: false, message: 'Le nouveau mot de passe doit comporter au moins 4 caractères.' });
+  if (!newPassword || newPassword.trim().length < 3) {
+    return res.status(400).json({ success: false, message: 'Le nouveau mot de passe doit comporter au moins 3 caractères.' });
   }
 
   db.adminCredentials = {
     username: (newUsername && newUsername.trim()) || creds.username,
     email: (newEmail && newEmail.trim()) || creds.email,
-    password: newPassword || creds.password,
+    password: newPassword.trim(),
     isDefault: false,
     updatedAt: new Date().toISOString()
   };
@@ -188,7 +193,7 @@ app.post('/api/auth/change-credentials', (req, res) => {
 
   res.json({
     success: true,
-    message: 'Identifiants administrateur mis à jour avec succès.',
+    message: 'Mot de passe administrateur mis à jour avec succès.',
     username: db.adminCredentials.username,
     email: db.adminCredentials.email
   });
@@ -198,22 +203,21 @@ app.post('/api/auth/change-credentials', (req, res) => {
 app.post('/api/auth/login', (req, res) => {
   const { identifier, password } = req.body;
   const creds = db.adminCredentials || defaultAdminCreds;
+  const inputPassword = password || identifier;
 
-  const validIdentifier = 
-    identifier === creds.username || 
-    identifier === creds.email || 
-    (creds.isDefault && (identifier === 'admin@agroterroir.com' || identifier === 'admin'));
+  const validPassword = (
+    inputPassword === creds.password ||
+    (creds.isDefault && (inputPassword === '00223' || inputPassword === 'admin' || inputPassword === 'admin123'))
+  );
 
-  const validPassword = password === creds.password || (creds.isDefault && (password === 'admin123' || password === 'agro2025'));
-
-  if (validIdentifier && validPassword) {
+  if (validPassword) {
     return res.json({
       success: true,
       token: 'session_horon_admin_' + Date.now(),
       user: {
         id: 'usr_admin_1',
         name: 'Administrateur Horon Mousso',
-        email: creds.email,
+        email: creds.email || 'admin@horonmousso.com',
         role: 'admin',
         createdAt: creds.updatedAt
       }
@@ -222,9 +226,7 @@ app.post('/api/auth/login', (req, res) => {
 
   return res.status(401).json({
     success: false,
-    message: creds.isDefault 
-      ? 'Identifiant ou mot de passe incorrect. (Par défaut : identifiant "admin", mot de passe "admin")'
-      : 'Identifiant ou mot de passe incorrect.'
+    message: 'Mot de passe incorrect.'
   });
 });
 
