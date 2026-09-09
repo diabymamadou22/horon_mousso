@@ -129,6 +129,30 @@
         "read": "true",
         "write": "true"
       }
+    },
+    "hero_banners": {
+      "fields": {
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "badge": { "type": "string" },
+        "badgeColor": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "linkTab": { "type": "string" },
+        "productId": { "type": "string" },
+        "customWhatsAppMessage": { "type": "string" },
+        "buttonText": { "type": "string" },
+        "isPureImage": { "type": "boolean" },
+        "active": { "type": "boolean" },
+        "order": { "type": "number" },
+        "overlayOpacity": { "type": "string" },
+        "textAlignment": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "access": {
+        "read": "true",
+        "write": "true"
+      }
     }
   }
 }

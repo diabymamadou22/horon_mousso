@@ -16,7 +16,7 @@ import {
   Unsubscribe,
   setLogLevel
 } from 'firebase/firestore';
-import { Product, Announcement, MediaItem, CustomerMessage, CompanySettings, Order, ProductReview } from '../types';
+import { Product, Announcement, MediaItem, CustomerMessage, CompanySettings, Order, ProductReview, PromoBanner } from '../types';
 import { initialProducts, initialAnnouncements, initialMedia, initialMessages, initialSettings } from '../data/initialData';
 import { initialOrders } from '../data/initialOrders';
 import { initialReviews } from '../data/initialReviews';
@@ -448,6 +448,23 @@ export function subscribeToCloudSettings(
   });
 }
 
+export function subscribeToCloudHeroBanners(
+  onUpdate: (banners: PromoBanner[]) => void,
+  onError?: (err: Error) => void
+): Unsubscribe {
+  const colRef = collection(firestoreDb, 'hero_banners');
+  return onSnapshot(colRef, (snapshot) => {
+    const list: PromoBanner[] = [];
+    snapshot.forEach(docSnap => {
+      list.push(docSnap.data() as PromoBanner);
+    });
+    list.sort((a, b) => (a.order || 0) - (b.order || 0));
+    onUpdate(filterDeleted(list));
+  }, (err) => {
+    if (onError) onError(err);
+  });
+}
+
 export function subscribeToCloudAdminAuth(
   onUpdate: (auth: { username: string; email: string; isDefault: boolean }) => void,
   onError?: (err: Error) => void
@@ -713,6 +730,50 @@ export async function saveSettingsToFirestore(settings: CompanySettings): Promis
       return;
     }
     handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+// Hero Banners (Dedicated Collection for unlimited banners and high-res sync)
+export async function saveHeroBannerToFirestore(banner: PromoBanner): Promise<void> {
+  const path = `hero_banners/${banner.id}`;
+  try {
+    const docRef = doc(firestoreDb, 'hero_banners', banner.id);
+    await setDoc(docRef, {
+      ...banner,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    setFirestoreQuotaExceeded(false);
+  } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function saveAllHeroBannersToFirestore(banners: PromoBanner[]): Promise<void> {
+  try {
+    const promises = banners.map(b => saveHeroBannerToFirestore(b));
+    await Promise.all(promises);
+  } catch (err) {
+    console.warn('Erreur saveAllHeroBannersToFirestore:', err);
+  }
+}
+
+export async function deleteHeroBannerFromFirestore(id: string): Promise<void> {
+  const path = `hero_banners/${id}`;
+  try {
+    const docRef = doc(firestoreDb, 'hero_banners', id);
+    await deleteDoc(docRef);
+    await saveDeletedIdToFirestore(id);
+    setFirestoreQuotaExceeded(false);
+  } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+      return;
+    }
+    handleFirestoreError(err, OperationType.DELETE, path);
   }
 }
 
