@@ -6,7 +6,9 @@
  */
 
 const STORAGE_KEY = 'horon_deleted_ids';
-const memoryDeletedIds = new Set<string>();
+const memoryDeletedIds = new Set<string>([
+  'med_1', 'med_2', 'med_3', 'med_4', 'med_5', 'med_6', 'med_7'
+]);
 
 // Initialize from localStorage immediately
 if (typeof window !== 'undefined') {

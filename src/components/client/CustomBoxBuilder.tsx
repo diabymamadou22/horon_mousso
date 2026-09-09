@@ -3,6 +3,7 @@ import { Gift, Sparkles, Check, Plus, Trash2, ShoppingBag, MessageCircle, Star }
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../../context/AppContext';
 import { Product } from '../../types';
+import { LazyProductImage } from '../common/LazyProductImage';
 
 export const CustomBoxBuilder: React.FC = () => {
   const { products, addToCart, openOrderWhatsApp } = useApp();
@@ -54,32 +55,32 @@ export const CustomBoxBuilder: React.FC = () => {
   };
 
   return (
-    <section className="relative bg-gradient-to-b from-[#FAF7F2] via-white to-[#F7F4EE] rounded-[36px] border border-stone-200/90 p-6 sm:p-10 lg:p-12 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden">
+    <section className="relative bg-gradient-to-b from-[#FAF7F2] via-white to-[#F7F4EE] rounded-[36px] border border-stone-200/90 p-8 sm:p-12 lg:p-16 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden">
       {/* Decorative luxury stamps */}
       <div className="absolute -top-10 -right-10 w-48 h-48 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-        <div className="space-y-2">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+        <div className="space-y-2.5">
           <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-100 text-amber-950 text-xs font-black uppercase tracking-wider border border-amber-300/40">
             <Gift className="w-3.5 h-3.5 text-amber-700" />
             <span>Expérience Sur-Mesure • Coffret Prestige</span>
           </span>
-          <h2 className="text-2xl sm:text-4xl font-black text-[#0B1E11] tracking-tight font-serif-heading">
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-[#0B1E11] tracking-tight font-serif-heading">
             Composez Votre Coffret Découverte
           </h2>
-          <p className="text-xs sm:text-sm text-stone-600 max-w-xl font-medium">
+          <p className="text-xs sm:text-sm text-stone-600 max-w-xl font-medium leading-relaxed">
             Sélectionnez 3 ou 4 épices artisanales d'exception pour concevoir votre coffret cadeau ou votre assortiment de cuisine personnelle avec réduction exclusive.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200/80 px-4 py-2 rounded-2xl self-start md:self-auto text-xs font-bold text-[#0F2916]">
+        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200/80 px-4 py-2.5 rounded-2xl self-start md:self-auto text-xs font-bold text-[#0F2916]">
           <Sparkles className="w-4 h-4 text-amber-500" />
           <span>-10% pour 3 épices • -15% pour 4 épices</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
         
         {/* Left Column: Product Picker (Catalog of Spices) */}
         <div className="lg:col-span-7 space-y-4">
@@ -107,11 +108,11 @@ export const CustomBoxBuilder: React.FC = () => {
                         : 'bg-white hover:bg-amber-50/40 border-stone-200/80 text-stone-800 hover:border-amber-300'
                   }`}
                 >
-                  <img
+                  <LazyProductImage
                     src={product.mainImage}
                     alt={product.name}
-                    className="w-14 h-14 rounded-xl object-cover shrink-0 border border-black/10"
-                    referrerPolicy="no-referrer"
+                    containerClassName="w-14 h-14 rounded-xl shrink-0 border border-black/10"
+                    className="w-full h-full object-cover"
                   />
                   <div className="flex-1 min-w-0">
                     <p className={`font-bold text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-stone-900'}`}>
@@ -139,10 +140,10 @@ export const CustomBoxBuilder: React.FC = () => {
         </div>
 
         {/* Right Column: Interactive Box Visual Preview & Summary */}
-        <div className="lg:col-span-5 bg-[#0F2916] rounded-3xl p-6 sm:p-7 text-white shadow-2xl border border-amber-500/30 flex flex-col justify-between space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-white/15 pb-3">
-              <div className="flex items-center gap-2">
+        <div className="lg:col-span-5 bg-[#0F2916] rounded-3xl p-6 sm:p-8 text-white shadow-2xl border border-amber-500/30 flex flex-col justify-between space-y-6 sm:space-y-8">
+          <div className="space-y-5">
+            <div className="flex items-center justify-between border-b border-white/15 pb-4">
+              <div className="flex items-center gap-2.5">
                 <Gift className="w-5 h-5 text-amber-400" />
                 <h3 className="font-extrabold text-base sm:text-lg text-white font-serif-heading">
                   Mon Écrin Terroir Horon Mousso
@@ -154,13 +155,13 @@ export const CustomBoxBuilder: React.FC = () => {
             </div>
 
             {/* Visual Box Slots Grid */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3.5 sm:gap-4">
               {[0, 1, 2, 3].map(slotIndex => {
                 const item = selectedProducts[slotIndex];
                 return (
                   <div
                     key={slotIndex}
-                    className={`aspect-4/3 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center p-2.5 text-center relative overflow-hidden transition-all duration-300 ${
+                    className={`aspect-4/3 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center p-3 text-center relative overflow-hidden transition-all duration-300 ${
                       item
                         ? 'border-amber-400/60 bg-black/40'
                         : 'border-white/20 bg-white/5'
@@ -168,11 +169,11 @@ export const CustomBoxBuilder: React.FC = () => {
                   >
                     {item ? (
                       <>
-                        <img
+                        <LazyProductImage
                           src={item.mainImage}
                           alt={item.name}
-                          className="w-full h-14 sm:h-16 object-cover rounded-lg mb-1.5"
-                          referrerPolicy="no-referrer"
+                          containerClassName="w-full h-14 sm:h-16 rounded-lg mb-1.5"
+                          className="w-full h-full object-cover"
                         />
                         <p className="text-[11px] font-bold text-white truncate w-full px-1">
                           {item.name}
@@ -198,13 +199,13 @@ export const CustomBoxBuilder: React.FC = () => {
             </div>
 
             {selectedProducts.length < MIN_BOX_ITEMS && (
-              <p className="text-xs text-amber-300/90 bg-amber-400/10 p-2.5 rounded-xl border border-amber-400/20 text-center font-medium">
+              <p className="text-xs text-amber-300/90 bg-amber-400/10 p-3 rounded-xl border border-amber-400/20 text-center font-medium">
                 Sélectionnez au moins {MIN_BOX_ITEMS} épices pour bénéficier de la réduction coffret.
               </p>
             )}
 
             {/* Price Calculations */}
-            <div className="space-y-2 pt-2 border-t border-white/15 text-xs">
+            <div className="space-y-2.5 pt-3 border-t border-white/15 text-xs">
               <div className="flex justify-between text-stone-300">
                 <span>Total unitaire brut :</span>
                 <span className="font-bold">{subtotal.toLocaleString('fr-FR')} FCFA</span>
@@ -215,7 +216,7 @@ export const CustomBoxBuilder: React.FC = () => {
                   <span>-{discountAmount.toLocaleString('fr-FR')} FCFA</span>
                 </div>
               )}
-              <div className="flex justify-between text-sm sm:text-base font-black text-white pt-2 border-t border-white/10">
+              <div className="flex justify-between text-sm sm:text-base font-black text-white pt-2.5 border-t border-white/10">
                 <span>Prix Final du Coffret :</span>
                 <span className="text-xl sm:text-2xl text-amber-300 tracking-tight">
                   {finalPrice.toLocaleString('fr-FR')} FCFA
@@ -225,11 +226,11 @@ export const CustomBoxBuilder: React.FC = () => {
           </div>
 
           {/* Action CTA */}
-          <div className="space-y-2 pt-2">
+          <div className="space-y-3 pt-2">
             <button
               onClick={handleAddBoxToCart}
               disabled={selectedProducts.length < MIN_BOX_ITEMS}
-              className={`w-full py-3.5 px-4 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-300 shadow-xl cursor-pointer ${
+              className={`w-full py-4 px-5 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-300 shadow-xl cursor-pointer ${
                 selectedProducts.length < MIN_BOX_ITEMS
                   ? 'bg-white/15 text-stone-400 cursor-not-allowed'
                   : boxAdded
@@ -256,7 +257,7 @@ export const CustomBoxBuilder: React.FC = () => {
                 const text = encodeURIComponent(`Bonjour Horon Mousso ! J'ai composé mon Coffret Découverte personnalisé avec : ${names} pour ${finalPrice.toLocaleString('fr-FR')} FCFA. Pouvez-vous confirmer ma commande ?`);
                 window.open(`https://wa.me/22370123456?text=${text}`, '_blank');
               }}
-              className="w-full py-2.5 px-4 rounded-2xl bg-white/10 hover:bg-white/20 text-stone-200 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer border border-white/10"
+              className="w-full py-3 px-4 rounded-2xl bg-white/10 hover:bg-white/20 text-stone-200 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer border border-white/10"
             >
               <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
               <span>Commander directement sur WhatsApp</span>

@@ -3,7 +3,7 @@ import { CompanySettings, Product, Announcement, MediaItem, CustomerMessage } fr
 export const initialSettings: CompanySettings = {
   id: 'settings_main',
   companyName: 'Horon Mousso',
-  logo: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=200&q=80',
+  logo: '/logo.png',
   slogan: 'L’art et la noblesse des épices du terroir, transformées avec excellence et pureté.',
   shortDescription: 'Entreprise agroalimentaire spécialisée dans la sélection, la transformation saine et le conditionnement d\'épices d\'exception, soumbala pur, piments séchés et produits agricoles authentiques.',
   phone: '+223 70 12 34 56',
@@ -250,72 +250,7 @@ export const initialAnnouncements: Announcement[] = [
   }
 ];
 
-export const initialMedia: MediaItem[] = [
-  {
-    id: 'med_1',
-    type: 'image',
-    url: 'https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?auto=format&fit=crop&w=1200&q=80',
-    title: 'Piment rouge moulu en bassine traditionnelle',
-    category: 'produits',
-    caption: 'Finesse de mouture et éclat de couleur rouge rubis naturelle.',
-    createdAt: '2025-01-10T10:00:00Z'
-  },
-  {
-    id: 'med_2',
-    type: 'image',
-    url: 'https://images.unsplash.com/photo-1588252303782-cb80119abd6d?auto=format&fit=crop&w=1200&q=80',
-    title: 'Piments rouges habanero entiers séchés',
-    category: 'produits',
-    caption: 'Séchage hygiénique préservant la texture et le parfum.',
-    createdAt: '2025-01-12T11:00:00Z'
-  },
-  {
-    id: 'med_3',
-    type: 'image',
-    url: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=1200&q=80',
-    title: 'Atelier de tri et d\'assemblage des épices',
-    category: 'production',
-    caption: 'Nos équipes au travail respectant les normes d\'hygiène alimentaire les plus strictes.',
-    createdAt: '2025-01-15T09:30:00Z'
-  },
-  {
-    id: 'med_4',
-    type: 'image',
-    url: 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?auto=format&fit=crop&w=1200&q=80',
-    title: 'Racines de gingembre fraîches avant lavage et séchage',
-    category: 'production',
-    caption: 'Approvisionnement direct auprès de nos producteurs partenaires.',
-    createdAt: '2025-01-18T14:20:00Z'
-  },
-  {
-    id: 'med_5',
-    type: 'image',
-    url: 'https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=1200&q=80',
-    title: 'Présentation de nos produits sur le stand de marché',
-    category: 'marche',
-    caption: 'Contact direct avec les consommateurs et échange avec les restaurateurs.',
-    createdAt: '2025-01-22T08:45:00Z'
-  },
-  {
-    id: 'med_6',
-    type: 'image',
-    url: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1200&q=80',
-    title: 'Champs de piments de nos coopératives partenaires',
-    category: 'entreprise',
-    caption: 'Un partenariat solide avec nos agriculteurs pour une agriculture durable.',
-    createdAt: '2025-01-25T16:00:00Z'
-  },
-  {
-    id: 'med_7',
-    type: 'video',
-    url: 'https://assets.mixkit.co/videos/preview/mixkit-cooking-with-spices-and-vegetables-42777-large.mp4',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=800&q=80',
-    title: 'Vidéo : Du champ à la table, l\'art de transformer nos épices',
-    category: 'evenements',
-    caption: 'Reportage vidéo présentant le procédé de mouture et d\'assaisonnement.',
-    createdAt: '2025-02-01T12:00:00Z'
-  }
-];
+export const initialMedia: MediaItem[] = [];
 
 export const initialMessages: CustomerMessage[] = [
   {

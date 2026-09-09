@@ -17,6 +17,7 @@ import {
 import { useApp } from '../../context/AppContext';
 import { formatFCFA } from '../../utils/cartUtils';
 import { PaymentMethod } from '../../types';
+import { LazyProductImage } from '../common/LazyProductImage';
 
 export const CartDrawer: React.FC = () => {
   const { 
@@ -182,11 +183,11 @@ Bonjour, je viens de passer cette commande. Pouvez-vous me confirmer la disponib
                 <div className="divide-y divide-stone-100 border border-stone-200 rounded-xl overflow-hidden bg-white">
                   {cart.map((item) => (
                     <div key={item.id} className="flex items-center gap-3 p-3">
-                      <img 
+                      <LazyProductImage 
                         src={item.product.mainImage} 
                         alt={item.product.name}
-                        referrerPolicy="no-referrer"
-                        className="w-12 h-12 rounded-lg object-cover bg-stone-100 border border-stone-200 shrink-0"
+                        containerClassName="w-12 h-12 rounded-lg bg-stone-100 border border-stone-200 shrink-0"
+                        className="w-full h-full object-cover"
                       />
                       <div className="flex-1 min-w-0">
                         <h4 className="text-xs font-bold text-stone-900 truncate">

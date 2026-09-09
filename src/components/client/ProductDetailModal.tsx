@@ -19,6 +19,7 @@ import {
   Minus 
 } from 'lucide-react';
 import { ProductReviewsSection } from './ProductReviewsSection';
+import { LazyProductImage } from '../common/LazyProductImage';
 
 export const ProductDetailModal: React.FC = () => {
   const { 
@@ -129,14 +130,15 @@ export const ProductDetailModal: React.FC = () => {
           {/* Photos & Gallery Column */}
           <div className="md:col-span-6 space-y-4">
             <div className="aspect-4/3 sm:aspect-square w-full rounded-2xl overflow-hidden bg-[#FAF9F6] border border-[#E0E0E0] shadow-inner relative">
-              <img
+              <LazyProductImage
                 src={activeImage}
                 alt={product.name}
+                priority={true}
                 className="w-full h-full object-cover transition duration-300"
-                referrerPolicy="no-referrer"
+                containerClassName="w-full h-full"
               />
               {product.isNew && (
-                <div className="absolute top-3 left-3 inline-flex items-center gap-1 bg-[#C53030] text-white text-xs font-black px-2.5 py-1 rounded-md shadow-sm">
+                <div className="absolute top-3 left-3 z-10 inline-flex items-center gap-1 bg-[#C53030] text-white text-xs font-black px-2.5 py-1 rounded-md shadow-sm">
                   <Sparkles className="w-3 h-3" />
                   Nouveauté
                 </div>
@@ -156,11 +158,11 @@ export const ProductDetailModal: React.FC = () => {
                         : 'border-gray-200 opacity-70 hover:opacity-100'
                     }`}
                   >
-                    <img 
+                    <LazyProductImage 
                       src={img} 
                       alt="" 
                       className="w-full h-full object-cover" 
-                      referrerPolicy="no-referrer" 
+                      containerClassName="w-full h-full"
                     />
                   </button>
                 ))}

@@ -110,6 +110,20 @@ export const GalleryPage: React.FC = () => {
             </FadeInItem>
           ))}
         </FadeInStagger>
+      ) : media.length === 0 ? (
+        <FadeInView direction="up" distance={20}>
+          <div className="bg-white rounded-3xl border border-stone-200/80 p-12 text-center max-w-lg mx-auto shadow-sm space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto">
+              <Image className="w-7 h-7" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-[#1B3022]">Galerie en cours d'actualisation</h3>
+              <p className="text-stone-500 text-sm leading-relaxed">
+                De nouveaux clichés et reportages vidéo de nos récoltes, ateliers et produits seront bientôt publiés ici.
+              </p>
+            </div>
+          </div>
+        </FadeInView>
       ) : (
         <FadeInView direction="up" distance={20}>
           <div className="bg-white rounded-2xl border border-[#E0E0E0] p-12 text-center max-w-md mx-auto">

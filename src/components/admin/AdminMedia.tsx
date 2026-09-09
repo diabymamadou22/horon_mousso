@@ -22,11 +22,13 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
   isAddModalOpenInitially = false,
   onCloseAddModalInitial
 }) => {
-  const { media, addMedia, deleteMedia, products, announcements } = useApp();
+  const { media, addMedia, deleteMedia, deleteAllMedia, products, announcements } = useApp();
 
   const [isModalOpen, setIsModalOpen] = useState(isAddModalOpenInitially);
   const [mediaToDelete, setMediaToDelete] = useState<MediaItem | null>(null);
+  const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   // Form states
   const [title, setTitle] = useState('');
@@ -98,6 +100,19 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
     }
   };
 
+  const handleConfirmDeleteAll = async () => {
+    if (isDeletingAll) return;
+    setIsDeletingAll(true);
+    try {
+      const success = await deleteAllMedia();
+      if (success) {
+        setIsDeleteAllModalOpen(false);
+      }
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   // Local file upload for media
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -132,17 +147,49 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={handleOpenAdd}
-          className="inline-flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold py-3 px-5 rounded-xl shadow-xs transition"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>Ajouter un Média</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {media.length > 0 && (
+            <button
+              onClick={() => setIsDeleteAllModalOpen(true)}
+              className="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold py-3 px-4 rounded-xl shadow-2xs transition"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Tout supprimer ({media.length})</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleOpenAdd}
+            className="inline-flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold py-3 px-5 rounded-xl shadow-xs transition"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Ajouter un Média</span>
+          </button>
+        </div>
       </div>
 
-      {/* Media Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      {/* Media Grid or Empty State */}
+      {media.length === 0 ? (
+        <div className="bg-white rounded-3xl p-12 border border-stone-200/90 text-center space-y-4 shadow-2xs">
+          <div className="w-14 h-14 rounded-2xl bg-stone-100 text-stone-400 flex items-center justify-center mx-auto">
+            <ImageIcon className="w-7 h-7" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-extrabold text-stone-800">Aucun média dans la galerie</h3>
+            <p className="text-xs text-stone-500 max-w-sm mx-auto">
+              Tous les médias ont été supprimés. Le portail client affiche maintenant une galerie vide propre. Cliquez sur "Ajouter un Média" pour téléverser de nouveaux visuels.
+            </p>
+          </div>
+          <button
+            onClick={handleOpenAdd}
+            className="inline-flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-xs transition"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Ajouter une photo ou vidéo</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {media.map((item) => (
           <div
             key={item.id}
@@ -195,6 +242,7 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
           </div>
         ))}
       </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {mediaToDelete && (
@@ -227,6 +275,43 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
                 className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
               >
                 {isDeleting ? 'Suppression...' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete ALL Confirmation Modal */}
+      {isDeleteAllModalOpen && (
+        <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 border border-stone-200 shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-extrabold text-stone-900">
+                Tout supprimer dans la galerie ?
+              </h3>
+              <p className="text-xs text-stone-500">
+                Vous êtes sur le point de supprimer définitivement les <span className="font-bold text-stone-800">{media.length} médias</span> de la galerie. Cette action est irréversible et synchronisée sur tous les appareils.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingAll}
+                onClick={() => setIsDeleteAllModalOpen(false)}
+                className="py-2.5 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingAll}
+                onClick={handleConfirmDeleteAll}
+                className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
+              >
+                {isDeletingAll ? 'Suppression...' : 'Oui, tout supprimer'}
               </button>
             </div>
           </div>

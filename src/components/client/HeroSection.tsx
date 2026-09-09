@@ -25,6 +25,7 @@ import {
   useSpring, 
   useMotionValue 
 } from 'motion/react';
+import { LazyProductImage } from '../common/LazyProductImage';
 
 export const HeroSection: React.FC = () => {
   const { settings, setActiveTab, openProductDetail, products, addToCart, openOrderWhatsApp } = useApp();
@@ -324,11 +325,12 @@ export const HeroSection: React.FC = () => {
                       style={{ transform: "translateZ(35px)" }}
                     >
                       {currentProduct?.mainImage ? (
-                        <img
+                        <LazyProductImage
                           src={currentProduct.mainImage}
                           alt={currentProduct.name}
+                          priority={true}
                           className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
+                          containerClassName="w-full h-full"
                         />
                       ) : (
                         <div className="text-6xl select-none">🌿</div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Product } from '../../types';
 import { Search, X, Sparkles, ArrowRight, ShoppingBag, Check, Flame, ChevronRight } from 'lucide-react';
+import { LazyProductImage } from '../common/LazyProductImage';
 
 interface HeaderSearchBarProps {
   isMobile?: boolean;
@@ -236,7 +237,12 @@ export const HeaderSearchBar: React.FC<HeaderSearchBarProps> = ({ isMobile = fal
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-11 h-11 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden shrink-0 flex items-center justify-center">
                           {prod.mainImage ? (
-                            <img src={prod.mainImage} alt={prod.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                            <LazyProductImage
+                              src={prod.mainImage}
+                              alt={prod.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              containerClassName="w-full h-full"
+                            />
                           ) : (
                             <span className="text-lg">🌿</span>
                           )}
@@ -317,12 +323,17 @@ export const HeaderSearchBar: React.FC<HeaderSearchBarProps> = ({ isMobile = fal
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden shrink-0 flex items-center justify-center relative">
                         {prod.mainImage ? (
-                          <img src={prod.mainImage} alt={prod.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          <LazyProductImage
+                            src={prod.mainImage}
+                            alt={prod.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            containerClassName="w-full h-full"
+                          />
                         ) : (
                           <span className="text-xl">🌿</span>
                         )}
                         {prod.isPromotion && (
-                          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                          <span className="absolute top-1 right-1 z-10 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                         )}
                       </div>
 

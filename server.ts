@@ -461,6 +461,34 @@ app.post('/api/media', (req, res) => {
   res.status(201).json(newMedia);
 });
 
+app.delete('/api/media', (_req, res) => {
+  if (!db.deletedIds) db.deletedIds = [];
+  (db.media || []).forEach(m => {
+    if (m && m.id && !db.deletedIds.includes(m.id)) {
+      db.deletedIds.push(m.id);
+    }
+  });
+  db.media = [];
+  saveDB(db);
+  broadcastSync('deleted-ids', db.deletedIds);
+  broadcastSync('media', []);
+  res.json({ success: true, count: 0 });
+});
+
+app.post('/api/media/clear-all', (_req, res) => {
+  if (!db.deletedIds) db.deletedIds = [];
+  (db.media || []).forEach(m => {
+    if (m && m.id && !db.deletedIds.includes(m.id)) {
+      db.deletedIds.push(m.id);
+    }
+  });
+  db.media = [];
+  saveDB(db);
+  broadcastSync('deleted-ids', db.deletedIds);
+  broadcastSync('media', []);
+  res.json({ success: true, count: 0 });
+});
+
 app.delete('/api/media/:id', (req, res) => {
   const { id } = req.params;
   if (!db.deletedIds) db.deletedIds = [];

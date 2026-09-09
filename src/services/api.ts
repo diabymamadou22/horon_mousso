@@ -597,9 +597,11 @@ export const api = {
   async getMedia(): Promise<MediaItem[]> {
     try {
       const cloudMedia = await getCloudMedia();
-      if (Array.isArray(cloudMedia) && cloudMedia.length > 0) {
+      if (Array.isArray(cloudMedia)) {
         const filtered = filterDeleted(cloudMedia);
-        localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filtered));
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filtered));
+        }
         await saveLocalMedia(filtered);
         return filtered;
       }
@@ -613,7 +615,9 @@ export const api = {
         const data = await res.json();
         if (Array.isArray(data)) {
           const filtered = filterDeleted(data);
-          localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filtered));
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filtered));
+          }
           await saveLocalMedia(filtered);
           return filtered;
         }
@@ -621,14 +625,16 @@ export const api = {
     } catch {}
 
     const idbMedia = await getLocalMedia();
-    if (idbMedia && idbMedia.length > 0) {
+    if (Array.isArray(idbMedia)) {
       const filtered = filterDeleted(idbMedia);
-      localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filtered));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filtered));
+      }
       return filtered;
     }
 
-    const cached = localStorage.getItem(STORAGE_KEYS.MEDIA);
-    if (cached) {
+    const cached = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.MEDIA) : null;
+    if (cached !== null) {
       try {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) {
@@ -639,12 +645,11 @@ export const api = {
       } catch {}
     }
 
-    if (typeof window !== 'undefined' && localStorage.getItem('horon_db_initialized')) {
-      return [];
-    }
     const filteredBaseline = filterDeleted(initialMedia);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filteredBaseline));
+    }
     await saveLocalMedia(filteredBaseline);
-    localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filteredBaseline));
     return filteredBaseline;
   },
 
@@ -666,7 +671,9 @@ export const api = {
     try {
       const current = await this.getMedia();
       const updated = [newMedia, ...current.filter(m => m.id !== newId)];
-      localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(updated));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(updated));
+      }
     } catch {}
 
     try {
@@ -691,7 +698,7 @@ export const api = {
 
     await deleteSingleLocalMedia(id);
     try {
-      const cached = localStorage.getItem(STORAGE_KEYS.MEDIA);
+      const cached = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.MEDIA) : null;
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) {
@@ -703,6 +710,47 @@ export const api = {
 
     try {
       await fetch(`/api/media/${id}`, { method: 'DELETE' });
+    } catch {}
+
+    return true;
+  },
+
+  async deleteAllMedia(): Promise<boolean> {
+    // 1. Get all current media items and mark all IDs as permanently deleted
+    try {
+      const current = await this.getMedia();
+      for (const item of current) {
+        if (item && item.id) {
+          await markIdAsDeleted(item.id);
+          try {
+            await deleteMediaFromFirestore(item.id);
+          } catch {}
+        }
+      }
+    } catch {}
+
+    // 2. Also ensure all initial baseline media IDs are marked as permanently deleted
+    const baselineIds = ['med_1', 'med_2', 'med_3', 'med_4', 'med_5', 'med_6', 'med_7'];
+    for (const id of baselineIds) {
+      await markIdAsDeleted(id);
+      try {
+        await deleteMediaFromFirestore(id);
+      } catch {}
+    }
+
+    // 3. Clear local storage & IndexedDB
+    try {
+      await saveLocalMedia([]);
+    } catch {}
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify([]));
+      } catch {}
+    }
+
+    // 4. Clear server database
+    try {
+      await fetch('/api/media', { method: 'DELETE' });
     } catch {}
 
     return true;

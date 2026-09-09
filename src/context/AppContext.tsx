@@ -145,6 +145,7 @@ interface AppContextType {
 
   addMedia: (media: Omit<MediaItem, 'id' | 'createdAt'>) => Promise<MediaItem>;
   deleteMedia: (id: string) => Promise<boolean>;
+  deleteAllMedia: () => Promise<boolean>;
 
   sendContactMessage: (name: string, contact: string, message: string, productRef?: string) => Promise<boolean>;
   toggleMessageStatus: (id: string) => Promise<void>;
@@ -184,9 +185,18 @@ const loadSavedState = <T,>(key: string, fallback: T): T => {
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>(() => loadSavedState(STORAGE_KEYS.PRODUCTS, initialProducts));
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => loadSavedState(STORAGE_KEYS.ANNOUNCEMENTS, initialAnnouncements));
-  const [media, setMedia] = useState<MediaItem[]>(() => loadSavedState(STORAGE_KEYS.MEDIA, initialMedia));
+  const [media, setMedia] = useState<MediaItem[]>(() => {
+    const loaded = loadSavedState<MediaItem[]>(STORAGE_KEYS.MEDIA, []);
+    return filterDeleted(loaded);
+  });
   const [messages, setMessages] = useState<CustomerMessage[]>(() => loadSavedState(STORAGE_KEYS.MESSAGES, []));
-  const [settings, setSettings] = useState<CompanySettings>(() => loadSavedState(STORAGE_KEYS.SETTINGS, initialSettings));
+  const [settings, setSettings] = useState<CompanySettings>(() => {
+    const loaded = loadSavedState(STORAGE_KEYS.SETTINGS, initialSettings);
+    if (loaded && (!loaded.logo || loaded.logo.includes('photo-1596040033229-a9821ebd058d'))) {
+      return { ...loaded, logo: '/logo.png' };
+    }
+    return loaded;
+  });
   const [orders, setOrders] = useState<Order[]>(() => loadSavedState(STORAGE_KEYS.ORDERS, initialOrders));
   const [reviews, setReviews] = useState<ProductReview[]>(() => loadSavedState(STORAGE_KEYS.REVIEWS, initialReviews));
   const [lastPlacedOrder, setLastPlacedOrder] = useState<Order | null>(null);
@@ -309,25 +319,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (!isMounted) return;
 
-        if (prodsRes.status === 'fulfilled' && prodsRes.value && prodsRes.value.length > 0) {
+        if (prodsRes.status === 'fulfilled' && Array.isArray(prodsRes.value)) {
           setProducts(prodsRes.value);
         }
-        if (annsRes.status === 'fulfilled' && annsRes.value && annsRes.value.length > 0) {
+        if (annsRes.status === 'fulfilled' && Array.isArray(annsRes.value)) {
           setAnnouncements(annsRes.value);
         }
-        if (mediaRes.status === 'fulfilled' && mediaRes.value && mediaRes.value.length > 0) {
+        if (mediaRes.status === 'fulfilled' && Array.isArray(mediaRes.value)) {
           setMedia(mediaRes.value);
         }
-        if (msgsRes.status === 'fulfilled' && msgsRes.value && msgsRes.value.length > 0) {
+        if (msgsRes.status === 'fulfilled' && Array.isArray(msgsRes.value)) {
           setMessages(msgsRes.value);
         }
         if (settingsRes.status === 'fulfilled' && settingsRes.value && settingsRes.value.companyName) {
-          setSettings(settingsRes.value);
+          const s = settingsRes.value;
+          if (!s.logo || s.logo.includes('photo-1596040033229-a9821ebd058d')) {
+            s.logo = '/logo.png';
+          }
+          setSettings(s);
         }
-        if (ordersRes.status === 'fulfilled' && ordersRes.value && ordersRes.value.length > 0) {
+        if (ordersRes.status === 'fulfilled' && Array.isArray(ordersRes.value)) {
           setOrders(ordersRes.value);
         }
-        if (reviewsRes.status === 'fulfilled' && reviewsRes.value && reviewsRes.value.length > 0) {
+        if (reviewsRes.status === 'fulfilled' && Array.isArray(reviewsRes.value)) {
           setReviews(reviewsRes.value);
         }
       } catch (err) {
@@ -343,28 +357,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Continuous Auto-Persistence across all tables to localStorage and IndexedDB
   useEffect(() => {
-    if (products && products.length > 0) {
+    if (Array.isArray(products)) {
       try { localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products)); } catch {}
       saveLocalProducts(products).catch(() => {});
     }
   }, [products]);
 
   useEffect(() => {
-    if (announcements && announcements.length > 0) {
+    if (Array.isArray(announcements)) {
       try { localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(announcements)); } catch {}
       saveLocalAnnouncements(announcements).catch(() => {});
     }
   }, [announcements]);
 
   useEffect(() => {
-    if (media && media.length > 0) {
+    if (Array.isArray(media)) {
       try { localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(media)); } catch {}
       saveLocalMedia(media).catch(() => {});
     }
   }, [media]);
 
   useEffect(() => {
-    if (messages) {
+    if (Array.isArray(messages)) {
       try { localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(messages)); } catch {}
       saveLocalMessages(messages).catch(() => {});
     }
@@ -378,14 +392,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [settings]);
 
   useEffect(() => {
-    if (orders && orders.length > 0) {
+    if (Array.isArray(orders)) {
       try { localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders)); } catch {}
       saveLocalOrders(orders).catch(() => {});
     }
   }, [orders]);
 
   useEffect(() => {
-    if (reviews && reviews.length > 0) {
+    if (Array.isArray(reviews)) {
       try { localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(reviews)); } catch {}
       saveLocalReviews(reviews).catch(() => {});
     }
@@ -986,13 +1000,13 @@ Merci de confirmer la prise en charge et le délai !`;
         api.getReviews()
       ]);
 
-      if (prodsRes.status === 'fulfilled' && prodsRes.value?.length) setProducts(prodsRes.value);
-      if (annsRes.status === 'fulfilled' && annsRes.value?.length) setAnnouncements(annsRes.value);
-      if (mediaRes.status === 'fulfilled' && mediaRes.value?.length) setMedia(mediaRes.value);
-      if (msgsRes.status === 'fulfilled' && msgsRes.value?.length) setMessages(msgsRes.value);
+      if (prodsRes.status === 'fulfilled' && Array.isArray(prodsRes.value)) setProducts(prodsRes.value);
+      if (annsRes.status === 'fulfilled' && Array.isArray(annsRes.value)) setAnnouncements(annsRes.value);
+      if (mediaRes.status === 'fulfilled' && Array.isArray(mediaRes.value)) setMedia(mediaRes.value);
+      if (msgsRes.status === 'fulfilled' && Array.isArray(msgsRes.value)) setMessages(msgsRes.value);
       if (settingsRes.status === 'fulfilled' && settingsRes.value?.companyName) setSettings(settingsRes.value);
-      if (ordersRes.status === 'fulfilled' && ordersRes.value?.length) setOrders(ordersRes.value);
-      if (reviewsRes.status === 'fulfilled' && reviewsRes.value?.length) setReviews(reviewsRes.value);
+      if (ordersRes.status === 'fulfilled' && Array.isArray(ordersRes.value)) setOrders(ordersRes.value);
+      if (reviewsRes.status === 'fulfilled' && Array.isArray(reviewsRes.value)) setReviews(reviewsRes.value);
 
       if (conn.isQuotaExceeded) {
         setSyncStatus(prev => ({
@@ -1149,6 +1163,23 @@ Merci de confirmer la prise en charge et le délai !`;
       throw new Error('Échec de suppression du média');
     } catch (err) {
       console.error('Erreur lors de la suppression du média:', err);
+      showToast('Erreur lors de la suppression', 'error');
+      return false;
+    }
+  };
+
+  const deleteAllMedia = async () => {
+    try {
+      const success = await api.deleteAllMedia();
+      if (success) {
+        setMedia([]);
+        if (selectedMedia) setSelectedMedia(null);
+        showToast('Tous les médias ont été supprimés sur tous vos appareils', 'info');
+        return true;
+      }
+      throw new Error('Échec de suppression');
+    } catch (err) {
+      console.error('Erreur lors de la suppression de tous les médias:', err);
       showToast('Erreur lors de la suppression', 'error');
       return false;
     }
@@ -1412,6 +1443,7 @@ Merci de confirmer la prise en charge et le délai !`;
         deleteAnnouncement,
         addMedia,
         deleteMedia,
+        deleteAllMedia,
         sendContactMessage,
         toggleMessageStatus,
         deleteMessage,

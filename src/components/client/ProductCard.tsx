@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Product } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { ArrowUpRight, MessageCircle, Sparkles, Check, Clock, AlertTriangle, ShoppingBag, Eye, Star, Flame, Award } from 'lucide-react';
+import { LazyProductImage } from '../common/LazyProductImage';
 
 interface ProductCardProps {
   product: Product;
@@ -136,12 +137,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         onClick={() => openProductDetail(product.id)}
         className="relative aspect-4/3 w-full bg-stone-50 overflow-hidden cursor-pointer border-b border-stone-100"
       >
-        <img
+        <LazyProductImage
           src={product.mainImage}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-          referrerPolicy="no-referrer"
-          loading="lazy"
+          containerClassName="w-full h-full"
         />
 
         {/* Quick View Hover Overlay */}

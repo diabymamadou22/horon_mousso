@@ -15,6 +15,7 @@ import {
   Upload,
   Image as ImageIcon
 } from 'lucide-react';
+import { LazyProductImage } from '../common/LazyProductImage';
 
 interface AdminProductsProps {
   isAddModalOpenInitially?: boolean;
@@ -246,11 +247,11 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
             filteredProducts.map(prod => (
               <div key={prod.id} className="p-4 space-y-3">
                 <div className="flex items-start gap-3">
-                  <img
+                  <LazyProductImage
                     src={prod.mainImage}
                     alt={prod.name}
-                    className="w-20 h-20 rounded-2xl object-cover bg-stone-100 border border-stone-200 shrink-0"
-                    referrerPolicy="no-referrer"
+                    containerClassName="w-20 h-20 rounded-2xl bg-stone-100 border border-stone-200 shrink-0"
+                    className="w-full h-full object-cover"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -341,11 +342,11 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                   <tr key={prod.id} className="hover:bg-stone-50/70 transition">
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
-                        <img
+                        <LazyProductImage
                           src={prod.mainImage}
-                          alt=""
-                          className="w-12 h-12 rounded-xl object-cover bg-stone-100 border border-stone-200 shrink-0"
-                          referrerPolicy="no-referrer"
+                          alt={prod.name}
+                          containerClassName="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 shrink-0"
+                          className="w-full h-full object-cover"
                         />
                         <div>
                           <div className="font-bold text-stone-900 line-clamp-1">{prod.name}</div>
