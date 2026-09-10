@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, FirebaseStorage } from 'firebase/storage';
 import { 
   getFirestore, 
   initializeFirestore, 
@@ -72,7 +73,23 @@ try {
   }
 }
 
-export { app, firestoreDb, firestoreDb as db, auth };
+let firebaseStorage: FirebaseStorage | null = null;
+try {
+  firebaseStorage = getStorage(app);
+} catch (e) {
+  console.warn('Firebase Storage init notice:', e);
+}
+
+export { 
+  app, 
+  firestoreDb, 
+  firestoreDb as db, 
+  auth, 
+  firebaseStorage, 
+  storageRef, 
+  uploadBytes, 
+  getDownloadURL 
+};
 
 /* =========================================================
    FIRESTORE ERROR HANDLING & CONNECTION VALIDATION
@@ -960,6 +977,40 @@ export async function getCloudHeroBanners(): Promise<PromoBanner[]> {
     return filterDeleted(list);
   } catch (err) {
     console.warn('Firestore getCloudHeroBanners fallback:', err);
+    return [];
+  }
+}
+
+export async function getCloudOrders(): Promise<Order[]> {
+  try {
+    const colRef = collection(firestoreDb, 'orders');
+    const snap = await getDocs(colRef);
+    const list: Order[] = [];
+    snap.forEach(d => list.push(d.data() as Order));
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return filterDeleted(list);
+  } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+    }
+    console.warn('Firestore getCloudOrders fallback:', err);
+    return [];
+  }
+}
+
+export async function getCloudReviews(): Promise<ProductReview[]> {
+  try {
+    const colRef = collection(firestoreDb, 'reviews');
+    const snap = await getDocs(colRef);
+    const list: ProductReview[] = [];
+    snap.forEach(d => list.push(d.data() as ProductReview));
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return filterDeleted(list);
+  } catch (err) {
+    if (isQuotaError(err)) {
+      setFirestoreQuotaExceeded(true);
+    }
+    console.warn('Firestore getCloudReviews fallback:', err);
     return [];
   }
 }

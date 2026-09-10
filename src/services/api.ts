@@ -97,28 +97,38 @@ if (typeof window !== 'undefined') {
   initDeletionTracker();
 }
 
+/**
+ * Safely fetches JSON from an endpoint, verifying Content-Type header to ensure
+ * static SPA servers (e.g. Vercel) returning index.html for 404s never cause JSON syntax parse errors.
+ */
+async function safeFetchJson<T = any>(url: string, options?: RequestInit): Promise<T | null> {
+  try {
+    const res = await fetch(url, options);
+    const contentType = res.headers.get('content-type') || '';
+    if (res.ok && contentType.includes('application/json')) {
+      return await res.json();
+    }
+  } catch {
+    // Gracefully handle offline or Vercel static fallback
+  }
+  return null;
+}
+
 export const api = {
   // Authentication - Multi-device cloud backed with strict session protection
   async login(passwordOrIdentifier: string, optionalPassword?: string): Promise<{ success: boolean; user?: User; token?: string; message?: string }> {
     const password = (optionalPassword !== undefined ? optionalPassword : passwordOrIdentifier).trim();
 
     // 1. Try Express API if server is running
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          sessionStorage.setItem('horon_admin_session', JSON.stringify(data.user));
-          localStorage.removeItem(STORAGE_KEYS.USER); // Ensure no persistent leak
-          return data;
-        }
-      }
-    } catch {
-      // Running on static hosting like Vercel or offline
+    const loginRes = await safeFetchJson<{ success: boolean; user?: User; token?: string; message?: string }>('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    if (loginRes?.success && loginRes.user) {
+      sessionStorage.setItem('horon_admin_session', JSON.stringify(loginRes.user));
+      localStorage.removeItem(STORAGE_KEYS.USER); // Ensure no persistent leak
+      return loginRes;
     }
 
     // 2. Cloud Firestore Auth (for multi-device sync across Vercel, phones, and PCs)
@@ -165,13 +175,9 @@ export const api = {
   },
 
   async getAuthStatus(): Promise<{ isDefault: boolean; username: string; email: string; updatedAt?: string }> {
-    try {
-      const res = await fetch('/api/auth/status');
-      if (res.ok) {
-        return await res.json();
-      }
-    } catch {
-      // Vercel / offline
+    const statusData = await safeFetchJson<{ isDefault: boolean; username: string; email: string; updatedAt?: string }>('/api/auth/status');
+    if (statusData) {
+      return statusData;
     }
 
     // Check Cloud Firestore for active credentials
@@ -254,12 +260,8 @@ export const api = {
 
   // Stats
   async getStats(): Promise<DashboardStats> {
-    try {
-      const res = await fetch('/api/stats');
-      if (res.ok) return await res.json();
-    } catch {
-      // ignore fallback
-    }
+    const serverStats = await safeFetchJson<DashboardStats>('/api/stats');
+    if (serverStats) return serverStats;
     const products = await this.getProducts();
     const announcements = await this.getAnnouncements();
     const media = await this.getMedia();
@@ -301,19 +303,12 @@ export const api = {
     }
 
     // 2. Try local server API if running
-    try {
-      const res = await fetch('/api/products');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const filtered = filterDeleted(data);
-          localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(filtered));
-          await saveLocalProducts(filtered);
-          return filtered;
-        }
-      }
-    } catch {
-      // Vercel / offline
+    const serverProducts = await safeFetchJson<Product[]>('/api/products');
+    if (Array.isArray(serverProducts) && serverProducts.length > 0) {
+      const filtered = filterDeleted(serverProducts);
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(filtered));
+      await saveLocalProducts(filtered);
+      return filtered;
     }
     
     // 3. Permanent IndexedDB
@@ -476,18 +471,13 @@ export const api = {
       console.warn('Erreur cloud announcements:', e);
     }
 
-    try {
-      const res = await fetch('/api/announcements');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const filtered = filterDeleted(data);
-          localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(filtered));
-          await saveLocalAnnouncements(filtered);
-          return filtered;
-        }
-      }
-    } catch {}
+    const serverAnnouncements = await safeFetchJson<Announcement[]>('/api/announcements');
+    if (Array.isArray(serverAnnouncements) && serverAnnouncements.length > 0) {
+      const filtered = filterDeleted(serverAnnouncements);
+      localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(filtered));
+      await saveLocalAnnouncements(filtered);
+      return filtered;
+    }
 
     const idbAnnouncements = await getLocalAnnouncements();
     if (idbAnnouncements && idbAnnouncements.length > 0) {
@@ -633,20 +623,15 @@ export const api = {
       console.warn('Erreur cloud media:', e);
     }
 
-    try {
-      const res = await fetch('/api/media');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const filtered = filterDeleted(data);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filtered));
-          }
-          await saveLocalMedia(filtered);
-          return filtered;
-        }
+    const serverMedia = await safeFetchJson<MediaItem[]>('/api/media');
+    if (Array.isArray(serverMedia) && serverMedia.length > 0) {
+      const filtered = filterDeleted(serverMedia);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(filtered));
       }
-    } catch {}
+      await saveLocalMedia(filtered);
+      return filtered;
+    }
 
     const idbMedia = await getLocalMedia();
     if (Array.isArray(idbMedia)) {
@@ -804,18 +789,13 @@ export const api = {
       console.warn('Erreur cloud messages:', e);
     }
 
-    try {
-      const res = await fetch('/api/messages');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const filtered = filterDeleted(data);
-          localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(filtered));
-          await saveLocalMessages(filtered);
-          return filtered;
-        }
-      }
-    } catch {}
+    const serverMessages = await safeFetchJson<CustomerMessage[]>('/api/messages');
+    if (Array.isArray(serverMessages) && serverMessages.length > 0) {
+      const filtered = filterDeleted(serverMessages);
+      localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(filtered));
+      await saveLocalMessages(filtered);
+      return filtered;
+    }
 
     const idbMessages = await getLocalMessages();
     if (idbMessages && idbMessages.length > 0) {
@@ -954,15 +934,12 @@ export const api = {
       console.warn('Erreur cloud settings:', e);
     }
 
-    try {
-      const res = await fetch('/api/settings');
-      if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(data));
-        await saveLocalSettings(data);
-        return data;
-      }
-    } catch {}
+    const serverSettings = await safeFetchJson<CompanySettings>('/api/settings');
+    if (serverSettings && serverSettings.companyName) {
+      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(serverSettings));
+      await saveLocalSettings(serverSettings);
+      return serverSettings;
+    }
 
     const idbSettings = await getLocalSettings();
     if (idbSettings) {
@@ -1065,18 +1042,13 @@ export const api = {
     }
 
     // 2. Try local server API
-    try {
-      const res = await fetch('/api/orders');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const filtered = filterDeleted(data);
-          localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(filtered));
-          await saveLocalOrders(filtered);
-          return filtered;
-        }
-      }
-    } catch {}
+    const serverOrders = await safeFetchJson<Order[]>('/api/orders');
+    if (Array.isArray(serverOrders) && serverOrders.length > 0) {
+      const filtered = filterDeleted(serverOrders);
+      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(filtered));
+      await saveLocalOrders(filtered);
+      return filtered;
+    }
 
     // 3. IndexedDB
     const idbOrders = await getLocalOrders();
@@ -1221,17 +1193,12 @@ export const api = {
     }
 
     // 2. Try local server API
-    try {
-      const res = await fetch('/api/reviews');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          allReviews = filterDeleted(data);
-          localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(allReviews));
-          await saveLocalReviews(allReviews);
-        }
-      }
-    } catch {}
+    const serverReviews = await safeFetchJson<ProductReview[]>('/api/reviews');
+    if (Array.isArray(serverReviews) && serverReviews.length > 0) {
+      allReviews = filterDeleted(serverReviews);
+      localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(allReviews));
+      await saveLocalReviews(allReviews);
+    }
 
     // 2. IndexedDB
     if (allReviews.length === 0) {
