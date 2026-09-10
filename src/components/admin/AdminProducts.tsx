@@ -319,15 +319,19 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     }
   };
 
-  // High performance & persistent image upload with Firebase Cloud Storage + fallback
+  // High performance & persistent image upload with fallback
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      e.target.value = '';
       setIsUploadingImage(true);
       setUploadStatusText('Optimisation...');
       try {
         const result = await uploadMediaFile(file, (msg) => setUploadStatusText(msg), 'products');
-        setMainImage(result.url);
+        if (result && result.url) {
+          setMainImage(result.url);
+          markTouched('mainImage');
+        }
       } catch (err) {
         console.error('Erreur téléversement image produit:', err);
       } finally {
@@ -340,6 +344,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   const handleAdditionalImagesFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    e.target.value = '';
     setIsUploadingAdditional(true);
     setUploadStatusText('Téléversement des photos...');
     try {
@@ -975,14 +980,25 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                     />
                   </label>
                   {mainImage && (
-                    <div className="flex items-center gap-2 bg-white px-2.5 py-1 rounded-lg border border-stone-200 shadow-2xs">
-                      <img src={mainImage} alt="preview" className="w-7 h-7 rounded object-cover border" />
+                    <div className="flex items-center gap-2 bg-white px-2.5 py-1.5 rounded-xl border border-stone-200 shadow-2xs">
+                      <img src={mainImage} alt="preview" className="w-8 h-8 rounded-lg object-cover border border-stone-200" />
                       <div className="flex flex-col">
-                        <span className="text-[11px] text-stone-700 font-bold truncate max-w-[150px]">Photo prête</span>
+                        <span className="text-[11px] text-stone-800 font-bold truncate max-w-[140px]">Photo prête</span>
                         <span className="text-[9px] text-emerald-600 font-semibold">
-                          {mainImage.includes('firebasestorage.googleapis.com') ? '☁️ Firebase Storage' : mainImage.startsWith('/uploads') ? '💾 Serveur' : '🔗 URL Externe'}
+                          {mainImage.startsWith('data:') ? '⚡ Photo optimisée locale' : mainImage.startsWith('/uploads') ? '💾 Serveur' : '🔗 URL'}
                         </span>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMainImage('');
+                          markTouched('mainImage');
+                        }}
+                        className="p-1 text-stone-400 hover:text-red-600 rounded-lg hover:bg-stone-100 transition cursor-pointer"
+                        title="Retirer cette photo"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1012,6 +1028,27 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                     placeholder="https://... (photo 2)&#10;https://... (photo 3) ou cliquez sur « + Ajouter des photos »"
                     className="w-full text-xs p-2 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-700"
                   />
+                  {additionalImagesText.trim() && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {additionalImagesText.split('\n').map(s => s.trim()).filter(Boolean).map((imgUrl, idx) => (
+                        <div key={idx} className="relative group">
+                          <img src={imgUrl} alt={`Photo ${idx + 1}`} className="w-11 h-11 rounded-lg object-cover border border-stone-200 shadow-2xs" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const list = additionalImagesText.split('\n').map(s => s.trim()).filter(Boolean);
+                              list.splice(idx, 1);
+                              setAdditionalImagesText(list.join('\n'));
+                            }}
+                            className="absolute -top-1.5 -right-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full p-0.5 shadow-xs cursor-pointer"
+                            title="Supprimer cette photo"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

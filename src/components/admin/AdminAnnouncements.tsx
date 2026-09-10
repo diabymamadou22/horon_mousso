@@ -131,10 +131,11 @@ export const AdminAnnouncements: React.FC<AdminAnnouncementsProps> = ({
     }
   };
 
-  // Local file upload helper with image optimization & local persistence
+  // Local file upload helper with image optimization & persistence
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      e.target.value = '';
       setIsUploading(true);
       try {
         const result = await uploadMediaFile(file);

@@ -134,10 +134,11 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
     }
   };
 
-  // Optimized file upload for photos & videos with Firebase Cloud Storage + fallback
+  // Optimized file upload for photos & videos with server + fallback
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      e.target.value = '';
       setIsUploading(true);
       setUploadStatusText('Traitement du fichier...');
       try {
