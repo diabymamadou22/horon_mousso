@@ -22,6 +22,7 @@ import {
   Play,
   Pause,
   Monitor,
+  Tablet,
   Smartphone,
   Sliders,
   Image as ImageIcon,
@@ -34,9 +35,15 @@ import {
   AlignCenter,
   AlignRight,
   PackageCheck,
-  FolderOpen
+  FolderOpen,
+  Layers,
+  Database,
+  CloudUpload,
+  CheckCircle,
+  FileImage
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { compressImage, compressMultipleImages } from '../../utils/imageCompressor';
 
 // Banques d'images prêtes à l'emploi et modèles
 const BANNER_PRESETS = [
@@ -223,7 +230,7 @@ export const AdminBanners: React.FC = () => {
 
   // Filters & Views
   const [filterMode, setFilterMode] = useState<'all' | 'active' | 'inactive'>('all');
-  const [simulatorDevice, setSimulatorDevice] = useState<'desktop' | 'mobile'>('desktop');
+  const [simulatorDevice, setSimulatorDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [simIndex, setSimIndex] = useState(0);
   const [isSimPaused, setIsSimPaused] = useState(false);
 
@@ -236,6 +243,12 @@ export const AdminBanners: React.FC = () => {
   );
   const [transitionEffect, setTransitionEffect] = useState<'slide' | 'fade' | 'zoom'>(
     settings.heroBannerTransition || 'slide'
+  );
+  const [globalBannerFit, setGlobalBannerFit] = useState<'contain' | 'cover' | 'auto'>(
+    settings.heroBannerFit || 'contain'
+  );
+  const [globalBannerHeight, setGlobalBannerHeight] = useState<'compact' | 'standard' | 'large' | 'auto'>(
+    settings.heroBannerHeight || 'standard'
   );
   const [isSavingGlobal, setIsSavingGlobal] = useState(false);
 
@@ -253,6 +266,7 @@ export const AdminBanners: React.FC = () => {
     customWhatsAppMessage: string;
     buttonText: string;
     isPureImage: boolean;
+    imageFit: 'contain' | 'cover' | 'auto';
     active: boolean;
   }>({
     title: '',
@@ -267,12 +281,27 @@ export const AdminBanners: React.FC = () => {
     customWhatsAppMessage: '',
     buttonText: 'Découvrir la sélection',
     isPureImage: false,
+    imageFit: 'contain',
     active: true
   });
 
   const [activeImageTab, setActiveImageTab] = useState<'upload' | 'media' | 'presets' | 'url'>('upload');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Batch Upload State (pour ajouter plusieurs images à la fois et synchroniser avec Firestore)
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [batchFiles, setBatchFiles] = useState<File[]>([]);
+  const [batchMode, setBatchMode] = useState<'pure' | 'with_text'>('pure');
+  const [batchDefaultTab, setBatchDefaultTab] = useState<string>('produits');
+  const [batchUploading, setBatchUploading] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; filename: string }>({
+    current: 0,
+    total: 0,
+    filename: ''
+  });
+  const batchFileInputRef = useRef<HTMLInputElement>(null);
+  const [isSyncingWithDb, setIsSyncingWithDb] = useState(false);
 
   // Reset simulator index when banners change
   useEffect(() => {
@@ -306,6 +335,7 @@ export const AdminBanners: React.FC = () => {
       customWhatsAppMessage: '',
       buttonText: 'Commander maintenant',
       isPureImage: false,
+      imageFit: 'contain',
       active: true
     });
     setActiveImageTab('upload');
@@ -328,6 +358,7 @@ export const AdminBanners: React.FC = () => {
       customWhatsAppMessage: banner.customWhatsAppMessage || '',
       buttonText: banner.buttonText || 'Découvrir',
       isPureImage: !!banner.isPureImage,
+      imageFit: banner.imageFit || 'contain',
       active: banner.active
     });
     setActiveImageTab('upload');
@@ -372,8 +403,8 @@ export const AdminBanners: React.FC = () => {
     showToast(`Modèle "${tmpl.categoryName}" ajouté au panneau !`, 'success');
   };
 
-  // Handle file upload
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle single file upload with automated image compression
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -382,23 +413,107 @@ export const AdminBanners: React.FC = () => {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert("L'image est trop volumineuse. Veuillez choisir une image de moins de 5 Mo.");
+    try {
+      setIsUploading(true);
+      const compressed = await compressImage(file, { maxWidth: 1920, maxHeight: 1080, quality: 0.84 });
+      setFormState(prev => ({ ...prev, imageUrl: compressed }));
+    } catch (err) {
+      console.error('Erreur compression:', err);
+      alert("Erreur lors de l'optimisation de l'image.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Handle batch selection of multiple images
+  const handleBatchFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const validFiles = (Array.from(files) as File[]).filter(f => f.type.startsWith('image/'));
+    if (validFiles.length === 0) {
+      alert('Veuillez sélectionner des fichiers images valides.');
       return;
     }
 
-    setIsUploading(true);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setFormState(prev => ({ ...prev, imageUrl: base64 }));
-      setIsUploading(false);
-    };
-    reader.onerror = () => {
-      alert("Erreur lors de la lecture de l'image.");
-      setIsUploading(false);
-    };
-    reader.readAsDataURL(file);
+    setBatchFiles(validFiles);
+    setIsBatchModalOpen(true);
+    // Reset file input so selecting same files again will fire onChange
+    if (e.target) e.target.value = '';
+  };
+
+  // Execute batch compression and synchronize with Firestore database
+  const handleExecuteBatchUpload = async () => {
+    if (batchFiles.length === 0) return;
+
+    setBatchUploading(true);
+    setBatchProgress({ current: 0, total: batchFiles.length, filename: '' });
+
+    try {
+      const results = await compressMultipleImages(
+        batchFiles,
+        { maxWidth: 1920, maxHeight: 1080, quality: 0.82 },
+        (current, total, filename) => {
+          setBatchProgress({ current, total, filename });
+        }
+      );
+
+      if (results.length === 0) {
+        showToast('Aucune image n\'a pu être traitée.', 'error');
+        setBatchUploading(false);
+        return;
+      }
+
+      const startIndex = banners.length;
+      const newBanners: PromoBanner[] = results.map((item, idx) => {
+        const cleanTitle = item.name
+          .replace(/[_-]/g, ' ')
+          .replace(/\b\w/g, c => c.toUpperCase());
+
+        return {
+          id: `banner_${Date.now()}_${idx}`,
+          title: batchMode === 'with_text' ? cleanTitle : undefined,
+          subtitle: batchMode === 'with_text' ? "Produit authentique de qualité supérieure • Horon Mousso Mali" : undefined,
+          badge: batchMode === 'with_text' ? "NOUVEAUTÉ" : undefined,
+          badgeColor: 'gold',
+          overlayOpacity: batchMode === 'with_text' ? 'medium' : 'none',
+          textAlignment: 'left',
+          imageUrl: item.url,
+          linkTab: batchDefaultTab,
+          buttonText: 'Commander',
+          isPureImage: batchMode === 'pure',
+          imageFit: 'contain',
+          active: true,
+          order: startIndex + idx + 1,
+          createdAt: new Date().toISOString()
+        };
+      });
+
+      const updated = [...banners, ...newBanners];
+      await saveHeroBanners(updated);
+
+      showToast(`${newBanners.length} nouvelle(s) photo(s) ajoutée(s) et synchronisée(s) avec la base de données Firestore !`, 'success');
+      setIsBatchModalOpen(false);
+      setBatchFiles([]);
+    } catch (err) {
+      console.error('Erreur traitement par lot:', err);
+      showToast('Erreur lors de la synchronisation des images', 'error');
+    } finally {
+      setBatchUploading(false);
+    }
+  };
+
+  // Force database synchronization
+  const handleForceDbSync = async () => {
+    setIsSyncingWithDb(true);
+    try {
+      await saveHeroBanners(banners);
+      showToast('Synchronisation avec Google Cloud Firestore confirmée et vérifiée !', 'success');
+    } catch {
+      showToast('Erreur lors de la synchronisation avec la base de données', 'error');
+    } finally {
+      setIsSyncingWithDb(false);
+    }
   };
 
   // Save Banner (Add or Edit)
@@ -428,6 +543,7 @@ export const AdminBanners: React.FC = () => {
             customWhatsAppMessage: formState.customWhatsAppMessage || undefined,
             buttonText: formState.buttonText,
             isPureImage: formState.isPureImage,
+            imageFit: formState.imageFit,
             active: formState.active
           };
         }
@@ -448,6 +564,7 @@ export const AdminBanners: React.FC = () => {
         customWhatsAppMessage: formState.customWhatsAppMessage || undefined,
         buttonText: formState.buttonText,
         isPureImage: formState.isPureImage,
+        imageFit: formState.imageFit,
         active: formState.active,
         order: banners.length + 1,
         createdAt: new Date().toISOString()
@@ -504,9 +621,11 @@ export const AdminBanners: React.FC = () => {
       await updateSettings({
         heroBannerAutoplay: autoplayEnabled,
         heroBannerInterval: Number(rotationInterval),
-        heroBannerTransition: transitionEffect
+        heroBannerTransition: transitionEffect,
+        heroBannerFit: globalBannerFit,
+        heroBannerHeight: globalBannerHeight
       });
-      showToast('Paramètres de défilement enregistrés avec succès !', 'success');
+      showToast('Paramètres du panneau enregistrés avec succès !', 'success');
     } catch (e) {
       showToast('Erreur lors de l’enregistrement', 'error');
     } finally {
@@ -606,6 +725,11 @@ export const AdminBanners: React.FC = () => {
               {activeBanners.length} affiche{activeBanners.length > 1 ? 's' : ''} en diffusion
             </span>
 
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-200 text-xs font-bold border border-amber-500/30">
+              <Database className="w-3 h-3 text-amber-400" />
+              Base Firestore Synchronisée ({banners.length} affiches)
+            </span>
+
             <span className="text-xs text-stone-400">
               Cadence : <strong className="text-white">{rotationInterval}s</strong> {autoplayEnabled ? '(Auto)' : '(Manuel)'}
             </span>
@@ -614,20 +738,50 @@ export const AdminBanners: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+          {/* Multi-Images Batch Import */}
+          <button
+            type="button"
+            onClick={() => batchFileInputRef.current?.click()}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700/90 hover:bg-emerald-600 text-white font-bold text-xs shadow-lg transition border border-emerald-400/40 cursor-pointer transform hover:scale-105 active:scale-95"
+            title="Ajouter plusieurs photos en une seule fois"
+          >
+            <CloudUpload className="w-4 h-4 text-emerald-200" />
+            <span>+ Ajouter plusieurs photos</span>
+          </button>
+          <input
+            ref={batchFileInputRef}
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleBatchFileSelect}
+            className="hidden"
+          />
+
           <button
             onClick={() => setIsTemplatesModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-300 font-bold text-xs border border-amber-300/30 transition cursor-pointer"
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-300 font-bold text-xs border border-amber-300/30 transition cursor-pointer"
           >
             <Sparkles className="w-4 h-4" />
-            <span>Idées & Modèles</span>
+            <span className="hidden sm:inline">Idées & Modèles</span>
           </button>
 
           <button
             onClick={handleOpenNewModal}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-neutral-950 font-black text-xs shadow-lg transition transform hover:scale-105 active:scale-95 cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-neutral-950 font-black text-xs shadow-lg transition transform hover:scale-105 active:scale-95 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Créer une affiche</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleForceDbSync}
+            disabled={isSyncingWithDb}
+            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-stone-200 text-xs font-semibold border border-white/10 transition cursor-pointer disabled:opacity-50"
+            title="Forcer la synchronisation avec Firestore"
+          >
+            <Database className={`w-3.5 h-3.5 text-amber-300 ${isSyncingWithDb ? 'animate-spin' : ''}`} />
+            <span className="hidden xl:inline">Sync DB</span>
           </button>
 
           <button
@@ -674,7 +828,19 @@ export const AdminBanners: React.FC = () => {
                 }`}
               >
                 <Monitor className="w-3.5 h-3.5" />
-                <span>Ordinateur (16:9)</span>
+                <span>Ordinateur</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSimulatorDevice('tablet')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  simulatorDevice === 'tablet'
+                    ? 'bg-white text-stone-900 shadow-xs'
+                    : 'text-stone-500 hover:text-stone-900'
+                }`}
+              >
+                <Tablet className="w-3.5 h-3.5" />
+                <span>Tablette</span>
               </button>
               <button
                 type="button"
@@ -725,34 +891,53 @@ export const AdminBanners: React.FC = () => {
         ) : (
           <div className="flex justify-center bg-stone-950 p-3 sm:p-5 rounded-2xl">
             <div
-              className={`relative overflow-hidden rounded-xl shadow-2xl transition-all duration-300 border border-stone-800 ${
+              className={`relative overflow-hidden rounded-xl shadow-2xl transition-all duration-300 border border-stone-800 bg-neutral-950 ${
                 simulatorDevice === 'desktop'
                   ? 'w-full max-w-4xl h-[280px] sm:h-[360px] md:h-[420px]'
-                  : 'w-[320px] sm:w-[360px] h-[480px]'
+                  : simulatorDevice === 'tablet'
+                  ? 'w-[520px] sm:w-[580px] h-[380px]'
+                  : 'w-[320px] sm:w-[350px] h-[460px]'
               }`}
             >
               {currentSimBanner && (
                 <div className="relative w-full h-full">
-                  <img
-                    src={currentSimBanner.imageUrl}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
+                  {/* Layer 1: Ambient blur background */}
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
+                    <img
+                      src={currentSimBanner.imageUrl}
+                      alt=""
+                      className="w-full h-full object-cover object-center blur-2xl scale-125 opacity-35 brightness-[0.45]"
+                    />
+                    <div className="absolute inset-0 bg-neutral-950/25" />
+                  </div>
 
-                  {/* Gradient */}
-                  <div
-                    className={`absolute inset-0 ${
-                      currentSimBanner.isPureImage
-                        ? 'bg-gradient-to-t from-black/60 via-transparent to-black/20'
-                        : currentSimBanner.overlayOpacity === 'light'
-                        ? 'bg-gradient-to-t sm:bg-gradient-to-r from-black/70 via-black/35 to-transparent'
-                        : currentSimBanner.overlayOpacity === 'dark'
-                        ? 'bg-gradient-to-t sm:bg-gradient-to-r from-black/95 via-black/80 to-black/40'
-                        : currentSimBanner.overlayOpacity === 'none'
-                        ? 'bg-gradient-to-t sm:bg-gradient-to-r from-black/40 via-transparent to-transparent'
-                        : 'bg-gradient-to-t sm:bg-gradient-to-r from-black/90 via-black/65 to-black/20'
-                    }`}
-                  />
+                  {/* Layer 2: 100% visible, uncropped image */}
+                  <div className="relative z-1 w-full h-full flex items-center justify-center p-1 sm:p-2">
+                    <img
+                      src={currentSimBanner.imageUrl}
+                      alt=""
+                      className={`w-full h-full ${
+                        (currentSimBanner.imageFit || globalBannerFit) !== 'cover'
+                          ? 'object-contain object-center drop-shadow-xl'
+                          : 'object-cover object-center'
+                      }`}
+                    />
+                  </div>
+
+                  {/* Gradient overlay for readability if texts exist */}
+                  {!currentSimBanner.isPureImage && (
+                    <div
+                      className={`absolute inset-0 z-2 ${
+                        currentSimBanner.overlayOpacity === 'light'
+                          ? 'bg-gradient-to-t sm:bg-gradient-to-r from-black/70 via-black/35 to-transparent'
+                          : currentSimBanner.overlayOpacity === 'dark'
+                          ? 'bg-gradient-to-t sm:bg-gradient-to-r from-black/95 via-black/80 to-black/40'
+                          : currentSimBanner.overlayOpacity === 'none'
+                          ? 'bg-gradient-to-t sm:bg-gradient-to-r from-black/40 via-transparent to-transparent'
+                          : 'bg-gradient-to-t sm:bg-gradient-to-r from-black/90 via-black/65 to-black/20'
+                      }`}
+                    />
+                  )}
 
                   {/* Content */}
                   {!currentSimBanner.isPureImage ? (
@@ -809,8 +994,9 @@ export const AdminBanners: React.FC = () => {
                     </div>
                   ) : (
                     <div className="absolute bottom-4 left-4 z-10">
-                      <span className="px-3 py-1 rounded-full bg-black/60 text-white text-xs font-semibold backdrop-blur-xs border border-white/20">
-                        Affiche pleine (Cliquable)
+                      <span className="px-3 py-1 rounded-full bg-black/70 text-amber-300 text-xs font-bold backdrop-blur-xs border border-white/20 flex items-center gap-1.5">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Affiche 100% visible & entière</span>
                       </span>
                     </div>
                   )}
@@ -888,7 +1074,7 @@ export const AdminBanners: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Autoplay toggle */}
           <div className="bg-white p-4 rounded-2xl border border-stone-200 flex flex-col justify-between">
             <div>
@@ -899,7 +1085,7 @@ export const AdminBanners: React.FC = () => {
             </div>
             <div className="pt-3 flex items-center justify-between">
               <span className="text-xs font-semibold text-stone-600">
-                {autoplayEnabled ? 'Activé (Auto)' : 'Manuel (Flèches seules)'}
+                {autoplayEnabled ? 'Activé (Auto)' : 'Manuel'}
               </span>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
@@ -916,9 +1102,9 @@ export const AdminBanners: React.FC = () => {
           {/* Interval */}
           <div className="bg-white p-4 rounded-2xl border border-stone-200 flex flex-col justify-between">
             <div>
-              <div className="text-xs font-bold text-stone-800">Durée d'Affichage par Affiche</div>
+              <div className="text-xs font-bold text-stone-800">Durée par Affiche</div>
               <div className="text-[11px] text-stone-500 mt-0.5">
-                Temps avant le passage à la pub suivante.
+                Temps d'exposition de chaque pub.
               </div>
             </div>
             <div className="pt-3">
@@ -928,10 +1114,10 @@ export const AdminBanners: React.FC = () => {
                 onChange={e => setRotationInterval(Number(e.target.value))}
                 className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
               >
-                <option value={4}>4 secondes (Rapide & dynamique)</option>
-                <option value={6}>6 secondes (Recommandé - Équilibré)</option>
-                <option value={8}>8 secondes (Confortable pour lire)</option>
-                <option value={10}>10 secondes (Posé & contemplation)</option>
+                <option value={4}>4 secondes (Rapide)</option>
+                <option value={6}>6 secondes (Équilibré)</option>
+                <option value={8}>8 secondes (Confortable)</option>
+                <option value={10}>10 secondes (Posé)</option>
                 <option value={12}>12 secondes (Très lent)</option>
               </select>
             </div>
@@ -942,7 +1128,7 @@ export const AdminBanners: React.FC = () => {
             <div>
               <div className="text-xs font-bold text-stone-800">Effet de Transition</div>
               <div className="text-[11px] text-stone-500 mt-0.5">
-                Style visuel lors du changement d'affiche.
+                Animation lors du changement d'affiche.
               </div>
             </div>
             <div className="pt-3">
@@ -951,9 +1137,55 @@ export const AdminBanners: React.FC = () => {
                 onChange={e => setTransitionEffect(e.target.value as 'slide' | 'fade' | 'zoom')}
                 className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
               >
-                <option value="slide">Glissement latéral (Slide dynamique)</option>
-                <option value="fade">Fondu enchaîné (Fade doux & élégant)</option>
-                <option value="zoom">Zoom doux (Effet cinéma & prestige)</option>
+                <option value="slide">Glissement (Slide)</option>
+                <option value="fade">Fondu (Fade)</option>
+                <option value="zoom">Zoom prestige</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Cadrage Responsive (Anti-Coupure) */}
+          <div className="bg-white p-4 rounded-2xl border border-emerald-200 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-1 text-xs font-bold text-emerald-900">
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Cadrage Multi-Écrans</span>
+              </div>
+              <div className="text-[11px] text-stone-500 mt-0.5">
+                Assure la visibilité totale sur PC, tablette et téléphone.
+              </div>
+            </div>
+            <div className="pt-3">
+              <select
+                value={globalBannerFit}
+                onChange={e => setGlobalBannerFit(e.target.value as 'contain' | 'cover' | 'auto')}
+                className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-emerald-300 bg-emerald-50/50 text-emerald-950 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="contain">Entière sans coupure (100% lisible)</option>
+                <option value="cover">Plein cadre (Remplissage total)</option>
+                <option value="auto">Automatique adaptatif</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Hauteur du Panneau */}
+          <div className="bg-white p-4 rounded-2xl border border-stone-200 flex flex-col justify-between">
+            <div>
+              <div className="text-xs font-bold text-stone-800">Hauteur du Panneau</div>
+              <div className="text-[11px] text-stone-500 mt-0.5">
+                Échelle verticale sur ordinateurs et mobiles.
+              </div>
+            </div>
+            <div className="pt-3">
+              <select
+                value={globalBannerHeight}
+                onChange={e => setGlobalBannerHeight(e.target.value as 'compact' | 'standard' | 'large' | 'auto')}
+                className="w-full text-xs font-bold px-3 py-2 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="standard">Standard équilibré (Recommandé)</option>
+                <option value="large">Grand format immersif</option>
+                <option value="compact">Format compact & dynamique</option>
+                <option value="auto">Automatique fluide</option>
               </select>
             </div>
           </div>
@@ -976,6 +1208,38 @@ export const AdminBanners: React.FC = () => {
           SECTION 3 : LISTE DES AFFICHES ET ACTIONS (Ordre, activation, doublon)
       ========================================================================= */}
       <div className="space-y-4">
+        {/* Multi-Photo Quick Dropzone / Import Card */}
+        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50/50 border border-emerald-200 rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-start gap-3.5">
+            <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-md shrink-0">
+              <CloudUpload className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider mb-1">
+                <Sparkles className="w-3 h-3 text-emerald-600" />
+                <span>Nouveau : Importation Multiple & Synchronisation</span>
+              </div>
+              <h3 className="text-sm sm:text-base font-black text-stone-900">
+                Ajoutez plusieurs photos d'un coup dans le panneau publicitaire
+              </h3>
+              <p className="text-xs text-stone-600 mt-0.5 max-w-xl leading-relaxed">
+                Sélectionnez 2, 5, 10 ou plus de photos de vos produits ou affiches. Elles sont automatiquement optimisées (légères et nettes) puis synchronisées directement avec la base de données Firestore.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-stretch sm:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => batchFileInputRef.current?.click()}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-[#2D5A27] hover:bg-[#23471f] text-white font-bold text-xs shadow-md hover:shadow-lg transition cursor-pointer"
+            >
+              <FileImage className="w-4 h-4 text-emerald-200" />
+              <span>Choisir plusieurs photos...</span>
+            </button>
+          </div>
+        </div>
+
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-stone-900">
@@ -1401,10 +1665,21 @@ export const AdminBanners: React.FC = () => {
 
                 {/* Live Form Image Preview */}
                 {formState.imageUrl && (
-                  <div className="relative rounded-2xl overflow-hidden border border-stone-300 h-40 bg-stone-950 mt-3 shadow-inner">
-                    <img src={formState.imageUrl} alt="Aperçu" className="w-full h-full object-cover" />
+                  <div className="relative rounded-2xl overflow-hidden border border-stone-300 h-44 bg-neutral-950 mt-3 shadow-inner">
+                    {/* Ambient blur backdrop */}
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                      <img src={formState.imageUrl} alt="" className="w-full h-full object-cover blur-xl opacity-40 scale-110" />
+                    </div>
+                    {/* Main image */}
+                    <img 
+                      src={formState.imageUrl} 
+                      alt="Aperçu" 
+                      className={`relative z-1 w-full h-full ${
+                        formState.imageFit === 'cover' ? 'object-cover' : 'object-contain'
+                      }`} 
+                    />
                     <div
-                      className={`absolute inset-0 p-4 flex flex-col justify-end text-white ${
+                      className={`absolute inset-0 z-2 p-4 flex flex-col justify-end text-white ${
                         formState.overlayOpacity === 'light'
                           ? 'bg-gradient-to-t from-black/70 via-black/35 to-transparent'
                           : formState.overlayOpacity === 'dark'
@@ -1432,11 +1707,67 @@ export const AdminBanners: React.FC = () => {
                         </span>
                       )}
                       <p className="text-sm font-bold truncate">
-                        {formState.title || (formState.isPureImage ? 'Affiche pure' : 'Titre de la pub')}
+                        {formState.title || (formState.isPureImage ? 'Affiche pure (100% visible)' : 'Titre de la pub')}
                       </p>
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* CADRAGE DE CETTE AFFICHE (MULTI-ÉCRANS) */}
+              <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Cadrage sur Écrans (Ordinateur, Tablette, Mobile)</span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                    Lisibilité Garantie
+                  </span>
+                </div>
+                <p className="text-[11px] text-stone-500">
+                  Assurez que votre affiche s'affiche entièrement sans couper les textes ou les offres.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setFormState(prev => ({ ...prev, imageFit: 'contain' }))}
+                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                      formState.imageFit === 'contain'
+                        ? 'border-emerald-600 bg-emerald-50/70 text-emerald-950 font-bold'
+                        : 'border-stone-200 bg-white hover:border-stone-300 text-stone-700'
+                    }`}
+                  >
+                    <div className="text-xs font-bold">Entière (100% visible)</div>
+                    <div className="text-[10px] text-stone-500 mt-0.5">Aucune coupure de texte (Recommandé)</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormState(prev => ({ ...prev, imageFit: 'cover' }))}
+                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                      formState.imageFit === 'cover'
+                        ? 'border-emerald-600 bg-emerald-50/70 text-emerald-950 font-bold'
+                        : 'border-stone-200 bg-white hover:border-stone-300 text-stone-700'
+                    }`}
+                  >
+                    <div className="text-xs font-bold">Plein cadre (Rempli)</div>
+                    <div className="text-[10px] text-stone-500 mt-0.5">Remplissage sans bandes d'arrière-plan</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormState(prev => ({ ...prev, imageFit: 'auto' }))}
+                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                      formState.imageFit === 'auto'
+                        ? 'border-emerald-600 bg-emerald-50/70 text-emerald-950 font-bold'
+                        : 'border-stone-200 bg-white hover:border-stone-300 text-stone-700'
+                    }`}
+                  >
+                    <div className="text-xs font-bold">Automatique</div>
+                    <div className="text-[10px] text-stone-500 mt-0.5">Suit les réglages généraux</div>
+                  </button>
+                </div>
               </div>
 
               {/* MODE TOGGLE : AFFICHE PURE OU AVEC TEXTES */}
@@ -1844,6 +2175,253 @@ export const AdminBanners: React.FC = () => {
                     {previewBanner.buttonText || 'Découvrir'}
                   </span>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL 4 : AJOUTER PLUSIEURS IMAGES (LOT) ET SYNCHRONISATION DIRECTE
+      ========================================================================= */}
+      {isBatchModalOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+          <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-stone-200 overflow-hidden my-6 animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-5 sm:p-6 bg-gradient-to-r from-[#1B3022] via-[#23471f] to-[#1B3022] text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="p-2.5 rounded-2xl bg-amber-400 text-neutral-950 font-black shadow-md flex items-center justify-center">
+                  <CloudUpload className="w-6 h-6" />
+                </span>
+                <div>
+                  <h3 className="font-bold text-base sm:text-lg">
+                    Ajouter Plusieurs Photos au Panneau ({batchFiles.length} photo{batchFiles.length > 1 ? 's' : ''})
+                  </h3>
+                  <p className="text-xs text-emerald-200">
+                    Optimisation automatique et synchronisation immédiate avec la base de données Firestore.
+                  </p>
+                </div>
+              </div>
+
+              {!batchUploading && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsBatchModalOpen(false);
+                    setBatchFiles([]);
+                  }}
+                  className="p-2 text-stone-300 hover:text-white rounded-xl hover:bg-white/10 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+            {/* Content */}
+            <div className="p-5 sm:p-7 space-y-6 max-h-[75vh] overflow-y-auto">
+              {/* 1. Previews of selected photos */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-800">
+                    1. Photos sélectionnées ({batchFiles.length})
+                  </label>
+                  <button
+                    type="button"
+                    disabled={batchUploading}
+                    onClick={() => batchFileInputRef.current?.click()}
+                    className="text-xs font-bold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Ajouter d'autres photos</span>
+                  </button>
+                </div>
+
+                {batchFiles.length === 0 ? (
+                  <div className="p-8 border-2 border-dashed border-stone-300 rounded-2xl text-center space-y-2">
+                    <p className="text-xs text-stone-500">Aucune photo sélectionnée.</p>
+                    <button
+                      type="button"
+                      onClick={() => batchFileInputRef.current?.click()}
+                      className="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold cursor-pointer transition"
+                    >
+                      Sélectionner des fichiers
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {batchFiles.map((file, idx) => {
+                      const tempUrl = URL.createObjectURL(file);
+                      const sizeKb = Math.round(file.size / 1024);
+                      return (
+                        <div
+                          key={idx}
+                          className="relative rounded-2xl overflow-hidden border border-stone-200 bg-stone-50 group aspect-4/3 flex flex-col shadow-2xs"
+                        >
+                          <img
+                            src={tempUrl}
+                            alt={file.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90 p-2 flex flex-col justify-end text-white text-[10px]">
+                            <span className="font-bold truncate">{file.name}</span>
+                            <span className="text-stone-300 text-[9px]">{sizeKb} Ko</span>
+                          </div>
+
+                          {!batchUploading && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBatchFiles(prev => prev.filter((_, i) => i !== idx));
+                              }}
+                              className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/60 hover:bg-rose-600 text-white transition cursor-pointer"
+                              title="Retirer cette photo"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Format & Options */}
+              <div className="space-y-4 pt-4 border-t border-stone-200">
+                <label className="text-xs font-bold uppercase tracking-wider text-stone-800 block">
+                  2. Style d'affichage des photos
+                </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div
+                    onClick={() => !batchUploading && setBatchMode('pure')}
+                    className={`p-4 rounded-2xl border-2 transition cursor-pointer ${
+                      batchMode === 'pure'
+                        ? 'border-emerald-600 bg-emerald-50/50'
+                        : 'border-stone-200 hover:border-stone-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 font-bold text-xs text-stone-900">
+                      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        batchMode === 'pure' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-stone-300'
+                      }`}>
+                        {batchMode === 'pure' && <Check className="w-2.5 h-2.5" />}
+                      </span>
+                      <span>Affiches pures (Recommandé)</span>
+                    </div>
+                    <p className="text-[11px] text-stone-500 mt-1 pl-6 leading-relaxed">
+                      Idéal si vos images contiennent déjà du texte, vos logos ou des offres promotionnelles graphiques. Aucun texte ne sera surimposé.
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => !batchUploading && setBatchMode('with_text')}
+                    className={`p-4 rounded-2xl border-2 transition cursor-pointer ${
+                      batchMode === 'with_text'
+                        ? 'border-emerald-600 bg-emerald-50/50'
+                        : 'border-stone-200 hover:border-stone-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 font-bold text-xs text-stone-900">
+                      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        batchMode === 'with_text' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-stone-300'
+                      }`}>
+                        {batchMode === 'with_text' && <Check className="w-2.5 h-2.5" />}
+                      </span>
+                      <span>Bannières avec Titre & Bouton</span>
+                    </div>
+                    <p className="text-[11px] text-stone-500 mt-1 pl-6 leading-relaxed">
+                      Génère un titre automatique à partir du nom du fichier photo, avec un badge doré et un bouton d'action vers WhatsApp.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Redirection */}
+              <div className="space-y-2 pt-4 border-t border-stone-200">
+                <label className="text-xs font-bold uppercase tracking-wider text-stone-800 block">
+                  3. Redirection au clic pour ces photos
+                </label>
+                <select
+                  value={batchDefaultTab}
+                  disabled={batchUploading}
+                  onChange={e => setBatchDefaultTab(e.target.value)}
+                  className="w-full text-xs font-semibold px-3.5 py-2.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="produits">Section Produits & Boutique (Catalogue complet)</option>
+                  <option value="actualites">Section Actualités & Événements</option>
+                  <option value="galerie">Galerie Terroir & Photos</option>
+                  <option value="contact">Contact & Commande WhatsApp direct</option>
+                </select>
+              </div>
+
+              {/* Upload & Sync Progress */}
+              {batchUploading && (
+                <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-amber-900 flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin text-amber-600" />
+                      Optimisation et synchronisation avec la base de données...
+                    </span>
+                    <span className="font-extrabold text-amber-900">
+                      {batchProgress.current} / {batchProgress.total}
+                    </span>
+                  </div>
+
+                  <div className="w-full bg-amber-200/60 rounded-full h-2.5 overflow-hidden">
+                    <div
+                      className="bg-emerald-600 h-2.5 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${batchProgress.total > 0 ? (batchProgress.current / batchProgress.total) * 100 : 0}%`
+                      }}
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-amber-800 truncate">
+                    Fichier en cours : <span className="font-mono font-bold">{batchProgress.filename}</span>
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-4 sm:p-5 bg-stone-50 border-t border-stone-200 flex items-center justify-between">
+              <div className="text-xs text-stone-500 hidden sm:flex items-center gap-1.5">
+                <Database className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Synchronisation cloud temps réel</span>
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  disabled={batchUploading}
+                  onClick={() => {
+                    setIsBatchModalOpen(false);
+                    setBatchFiles([]);
+                  }}
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-200 transition cursor-pointer disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+
+                <button
+                  type="button"
+                  disabled={batchUploading || batchFiles.length === 0}
+                  onClick={handleExecuteBatchUpload}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#23471f] text-white font-bold text-xs shadow-md transition disabled:opacity-50 cursor-pointer"
+                >
+                  {batchUploading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Synchronisation en cours...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CloudUpload className="w-4 h-4" />
+                      <span>Importer & Synchroniser ({batchFiles.length} photos)</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>

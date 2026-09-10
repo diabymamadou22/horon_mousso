@@ -9,7 +9,8 @@ import {
   Order,
   OrderStatus,
   PaymentStatus,
-  ProductReview
+  ProductReview,
+  PromoBanner
 } from '../types';
 import { 
   initialProducts, 
@@ -66,6 +67,10 @@ import {
   updateMessageStatusInFirestore,
   deleteMessageFromFirestore,
   saveSettingsToFirestore,
+  getCloudHeroBanners,
+  saveHeroBannerToFirestore,
+  saveAllHeroBannersToFirestore,
+  deleteHeroBannerFromFirestore,
   saveOrderToFirestore,
   updateOrderStatusInFirestore,
   deleteOrderFromFirestore,
@@ -975,6 +980,47 @@ export const api = {
     } catch {}
 
     return updated;
+  },
+
+  /* =========================================================
+     HERO BANNERS (DEDICATED CLOUD + LOCAL CACHE SYNC)
+  ========================================================= */
+  async getHeroBanners(): Promise<PromoBanner[]> {
+    try {
+      const cloudBanners = await getCloudHeroBanners();
+      if (Array.isArray(cloudBanners) && cloudBanners.length > 0) {
+        return cloudBanners;
+      }
+    } catch (e) {
+      console.warn('Erreur cloud banners:', e);
+    }
+    const settings = await this.getSettings();
+    return settings.heroBanners || [];
+  },
+
+  async saveHeroBanners(banners: PromoBanner[]): Promise<PromoBanner[]> {
+    try {
+      await saveAllHeroBannersToFirestore(banners);
+    } catch (e) {
+      console.warn('Erreur Firestore saveAllHeroBanners:', e);
+    }
+
+    // Also update settings to guarantee full local/cloud consistency
+    await this.updateSettings({ heroBanners: banners });
+    return banners;
+  },
+
+  async deleteHeroBanner(id: string): Promise<boolean> {
+    await markIdAsDeleted(id);
+    try {
+      await deleteHeroBannerFromFirestore(id);
+    } catch (e) {
+      console.warn('Erreur Firestore deleteHeroBanner:', e);
+    }
+    const settings = await this.getSettings();
+    const updated = (settings.heroBanners || []).filter(b => b.id !== id);
+    await this.updateSettings({ heroBanners: updated });
+    return true;
   },
 
   /* =========================================================

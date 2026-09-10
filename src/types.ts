@@ -148,6 +148,7 @@ export interface PromoBanner {
   productId?: string; // Optional direct link to a specific product
   buttonText?: string;
   isPureImage?: boolean; // If true, only shows the image billboard without overlay text
+  imageFit?: 'contain' | 'cover' | 'auto'; // 'contain' (100% visible entier sans coupure), 'cover' (remplissage plein cadre), 'auto' (adaptatif)
   badgeColor?: 'gold' | 'green' | 'red' | 'blue' | 'black';
   textAlignment?: 'left' | 'center' | 'right';
   overlayOpacity?: 'light' | 'medium' | 'dark' | 'none';
@@ -175,6 +176,8 @@ export interface CompanySettings {
   heroBannerAutoplay?: boolean;
   heroBannerInterval?: number; // Défilement en secondes (ex: 4, 6, 8, 10)
   heroBannerTransition?: 'slide' | 'fade' | 'zoom';
+  heroBannerFit?: 'contain' | 'cover' | 'auto'; // Mode par défaut pour l'affichage de l'image (contain: 100% entière sans coupure)
+  heroBannerHeight?: 'compact' | 'standard' | 'large' | 'auto'; // Hauteur du panneau
   qualityCommitment: string;
   producersCommitment: string;
   mission: string;

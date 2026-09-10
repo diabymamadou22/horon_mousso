@@ -950,6 +950,20 @@ export async function getCloudSettings(): Promise<CompanySettings | null> {
   }
 }
 
+export async function getCloudHeroBanners(): Promise<PromoBanner[]> {
+  try {
+    const colRef = collection(firestoreDb, 'hero_banners');
+    const snap = await getDocs(colRef);
+    const list: PromoBanner[] = [];
+    snap.forEach(d => list.push(d.data() as PromoBanner));
+    list.sort((a, b) => (a.order || 0) - (b.order || 0));
+    return filterDeleted(list);
+  } catch (err) {
+    console.warn('Firestore getCloudHeroBanners fallback:', err);
+    return [];
+  }
+}
+
 export async function getCloudAdminAuth(): Promise<{ username: string; email: string; passwordHash: string; isDefault: boolean }> {
   try {
     const docRef = doc(firestoreDb, 'settings', 'admin_auth');

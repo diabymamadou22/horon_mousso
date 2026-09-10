@@ -42,6 +42,7 @@ import {
   subscribeToCloudMedia,
   subscribeToCloudMessages,
   subscribeToCloudSettings,
+  subscribeToCloudHeroBanners,
   subscribeToCloudAdminAuth,
   subscribeToCloudOrders,
   subscribeToCloudReviews,
@@ -727,6 +728,16 @@ Merci de confirmer la prise en charge et le délai !`;
           }
         }, handleSubError);
 
+        // 5b. Live Hero Banners Subscription (Dedicated Collection)
+        const unsubHeroBanners = subscribeToCloudHeroBanners((cloudBanners) => {
+          if (Array.isArray(cloudBanners) && cloudBanners.length > 0) {
+            setSettings(prev => ({
+              ...prev,
+              heroBanners: cloudBanners
+            }));
+          }
+        }, handleSubError);
+
         // 6. Live Admin Auth Subscription
         const unsubAuth = subscribeToCloudAdminAuth((cloudAuth) => {
           if (cloudAuth) {
@@ -785,6 +796,7 @@ Merci de confirmer la prise en charge et le délai !`;
           unsubMedia, 
           unsubMsgs, 
           unsubSettings, 
+          unsubHeroBanners,
           unsubAuth, 
           unsubOrders, 
           unsubReviews, 
@@ -1240,10 +1252,10 @@ Merci de confirmer la prise en charge et le délai !`;
   const saveHeroBanners = async (banners: PromoBanner[]) => {
     try {
       setSettings(prev => ({ ...prev, heroBanners: banners }));
-      await api.updateSettings({ heroBanners: banners });
-      showToast('Bannières du panneau publicitaire enregistrées avec succès', 'success');
+      await api.saveHeroBanners(banners);
+      showToast('Bannières du panneau publicitaire synchronisées avec la base de données Firestore', 'success');
     } catch {
-      showToast('Erreur lors de l\'enregistrement des bannières', 'error');
+      showToast('Erreur lors de la synchronisation des bannières', 'error');
     }
   };
 

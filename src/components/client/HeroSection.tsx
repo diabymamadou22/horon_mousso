@@ -11,7 +11,9 @@ import {
   Pause, 
   Play,
   Layers,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Maximize2,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -70,6 +72,7 @@ export const HeroSection: React.FC = () => {
   const [direction, setDirection] = useState<1 | -1>(1);
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [lightboxImage, setLightboxImage] = useState<PromoBanner | null>(null);
   const touchStartXRef = useRef<number | null>(null);
 
   const isAutoplayEnabled = settings.heroBannerAutoplay !== false;
@@ -266,6 +269,24 @@ export const HeroSection: React.FC = () => {
     }
   };
 
+  // Determine if image should fit entirely (contain) or crop (cover)
+  const bannerFit = currentBanner.imageFit || settings.heroBannerFit || 'contain';
+  const isContainMode = bannerFit !== 'cover';
+
+  // Responsive container height based on user settings
+  const getContainerHeightClass = () => {
+    const h = settings.heroBannerHeight || 'standard';
+    switch (h) {
+      case 'compact':
+        return 'h-[230px] min-[400px]:h-[270px] sm:h-[340px] md:h-[400px] lg:h-[460px]';
+      case 'large':
+        return 'h-[320px] min-[400px]:h-[380px] sm:h-[460px] md:h-[530px] lg:h-[600px]';
+      case 'standard':
+      default:
+        return 'h-[270px] min-[400px]:h-[320px] sm:h-[390px] md:h-[460px] lg:h-[520px] xl:h-[550px]';
+    }
+  };
+
   return (
     <section 
       className="relative w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-2 sm:pt-4"
@@ -280,7 +301,7 @@ export const HeroSection: React.FC = () => {
         onTouchEnd={handleTouchEnd}
       >
         {/* Aspect Ratio Container for True Advertising Billboard */}
-        <div className="relative w-full h-[320px] sm:h-[420px] md:h-[480px] lg:h-[530px] overflow-hidden">
+        <div className={`relative w-full ${getContainerHeightClass()} overflow-hidden`}>
           <AnimatePresence initial={false} custom={direction}>
             <motion.div
               key={currentBanner.id || currentIndex}
@@ -292,99 +313,147 @@ export const HeroSection: React.FC = () => {
               className="absolute inset-0 w-full h-full cursor-pointer"
               onClick={() => handleBannerAction(currentBanner)}
             >
-              {/* Background Poster Image */}
-              <img
-                src={currentBanner.imageUrl}
-                alt={currentBanner.title || 'Affiche publicitaire Horon Mousso'}
-                className="w-full h-full object-cover object-center transform scale-100 transition-transform duration-7000 ease-out group-hover:scale-105"
-                loading={currentIndex === 0 ? 'eager' : 'lazy'}
-                referrerPolicy="no-referrer"
-              />
+              {/* 1. Ambient Blurred Background Layer (Samples photo colors, fills negative space without letterboxing) */}
+              <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
+                <img
+                  src={currentBanner.imageUrl}
+                  alt=""
+                  aria-hidden="true"
+                  className="w-full h-full object-cover object-center blur-2xl sm:blur-3xl scale-125 opacity-35 sm:opacity-45 brightness-[0.45] select-none"
+                />
+                <div className="absolute inset-0 bg-neutral-950/30" />
+              </div>
 
-              {/* Dynamic Gradient Overlay */}
-              <div 
-                className={`absolute inset-0 transition-opacity duration-500 ${getOverlayStyle(currentBanner.overlayOpacity, currentBanner.isPureImage)}`} 
-              />
+              {/* 2. Core Image Layer: 100% visible, uncropped and intact */}
+              <div className="relative z-1 w-full h-full flex items-center justify-center p-1 sm:p-2">
+                <img
+                  src={currentBanner.imageUrl}
+                  alt={currentBanner.title || 'Affiche publicitaire Horon Mousso'}
+                  className={`w-full h-full transition-all duration-700 ease-out ${
+                    isContainMode
+                      ? 'object-contain object-center drop-shadow-2xl'
+                      : 'object-cover object-center transform scale-100 group-hover:scale-105'
+                  }`}
+                  loading={currentIndex === 0 ? 'eager' : 'lazy'}
+                  referrerPolicy="no-referrer"
+                />
+              </div>
 
-              {/* Billboard Banner Content */}
+              {/* 3. Subtle Gradient Overlay ONLY if not pure image */}
               {!currentBanner.isPureImage && (
-                <div className={`absolute inset-0 p-5 sm:p-8 md:p-12 lg:p-14 flex flex-col justify-end sm:justify-center max-w-2xl sm:max-w-xl md:max-w-2xl text-white z-10 space-y-3 sm:space-y-4 ${getTextAlignmentStyle(currentBanner.textAlignment)}`}>
-                  {/* Badge */}
-                  {currentBanner.badge && (
+                <div 
+                  className={`absolute inset-0 transition-opacity duration-500 z-5 pointer-events-none ${getOverlayStyle(currentBanner.overlayOpacity, false)}`} 
+                />
+              )}
+
+              {/* 4. Billboard Banner Content (Enhanced mobile readability card) */}
+              {!currentBanner.isPureImage && (
+                <div className={`absolute inset-0 p-3 sm:p-8 md:p-12 lg:p-14 flex flex-col justify-end sm:justify-center z-10 ${getTextAlignmentStyle(currentBanner.textAlignment)}`}>
+                  <div className="max-w-xl sm:max-w-xl md:max-w-2xl bg-neutral-950/80 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none p-3.5 sm:p-0 rounded-2xl border border-white/15 sm:border-0 shadow-xl sm:shadow-none space-y-2.5 sm:space-y-4">
+                    {/* Badge */}
+                    {currentBanner.badge && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15, duration: 0.4 }}
+                      >
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full font-black text-[10px] sm:text-xs tracking-wider uppercase shadow-lg backdrop-blur-md border ${getBadgeStyle(currentBanner.badgeColor)}`}>
+                          <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                          <span>{currentBanner.badge}</span>
+                        </span>
+                      </motion.div>
+                    )}
+
+                    {/* Title */}
+                    {currentBanner.title && (
+                      <motion.h2
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.25, duration: 0.45 }}
+                        className="text-lg sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-tight leading-[1.2] text-white drop-shadow-md font-serif-heading line-clamp-2 sm:line-clamp-none"
+                      >
+                        {currentBanner.title}
+                      </motion.h2>
+                    )}
+
+                    {/* Subtitle */}
+                    {currentBanner.subtitle && (
+                      <motion.p
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.35, duration: 0.45 }}
+                        className="text-xs sm:text-sm md:text-base text-stone-200 line-clamp-2 sm:line-clamp-3 leading-relaxed drop-shadow-sm font-medium"
+                      >
+                        {currentBanner.subtitle}
+                      </motion.p>
+                    )}
+
+                    {/* Action Button */}
                     <motion.div
-                      initial={{ opacity: 0, y: 15 }}
+                      initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.15, duration: 0.4 }}
+                      transition={{ delay: 0.45, duration: 0.45 }}
+                      className="pt-1 sm:pt-2"
                     >
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full font-black text-[10px] sm:text-xs tracking-wider uppercase shadow-lg backdrop-blur-md border ${getBadgeStyle(currentBanner.badgeColor)}`}>
-                        <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                        <span>{currentBanner.badge}</span>
-                      </span>
+                      <button
+                        id={`btn-banner-action-${currentBanner.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleBannerAction(currentBanner);
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-xl hover:shadow-emerald-600/40 transition-all transform hover:scale-105 active:scale-95 cursor-pointer border border-emerald-400/40"
+                      >
+                        {currentBanner.linkTab === 'whatsapp' ? (
+                          <MessageCircle className="w-4 h-4 text-emerald-200" />
+                        ) : (
+                          <ShoppingBag className="w-4 h-4 text-amber-300" />
+                        )}
+                        <span>{currentBanner.buttonText || 'Découvrir la sélection'}</span>
+                        <ArrowRight className="w-3.5 h-3.5 text-white/80" />
+                      </button>
                     </motion.div>
-                  )}
-
-                  {/* Title */}
-                  {currentBanner.title && (
-                    <motion.h2
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.25, duration: 0.45 }}
-                      className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-tight leading-[1.15] text-white drop-shadow-md font-serif-heading"
-                    >
-                      {currentBanner.title}
-                    </motion.h2>
-                  )}
-
-                  {/* Subtitle */}
-                  {currentBanner.subtitle && (
-                    <motion.p
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.35, duration: 0.45 }}
-                      className="text-xs sm:text-sm md:text-base text-stone-200 line-clamp-2 sm:line-clamp-3 leading-relaxed drop-shadow-sm font-medium"
-                    >
-                      {currentBanner.subtitle}
-                    </motion.p>
-                  )}
-
-                  {/* Action Button */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.45, duration: 0.45 }}
-                    className="pt-1 sm:pt-2"
-                  >
-                    <button
-                      id={`btn-banner-action-${currentBanner.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleBannerAction(currentBanner);
-                      }}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-xl hover:shadow-emerald-600/40 transition-all transform hover:scale-105 active:scale-95 cursor-pointer border border-emerald-400/40"
-                    >
-                      {currentBanner.linkTab === 'whatsapp' ? (
-                        <MessageCircle className="w-4 h-4 text-emerald-200" />
-                      ) : (
-                        <ShoppingBag className="w-4 h-4 text-amber-300" />
-                      )}
-                      <span>{currentBanner.buttonText || 'Découvrir la sélection'}</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-white/80" />
-                    </button>
-                  </motion.div>
+                  </div>
                 </div>
               )}
 
-              {/* If Pure Image, show floating pill badge in corner indicating it's clickable */}
+              {/* 5. Pure Image floating badge + Fullscreen button */}
               {currentBanner.isPureImage && (
-                <div className="absolute bottom-5 left-5 sm:bottom-8 sm:left-8 z-10">
-                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black/60 text-white/90 text-xs font-semibold backdrop-blur-md border border-white/20">
-                    <span>Cliquez pour voir les offres</span>
+                <div className="absolute bottom-3 left-3 sm:bottom-6 sm:left-6 z-10 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/70 hover:bg-black/85 text-white text-[11px] sm:text-xs font-bold backdrop-blur-md border border-white/20 shadow-lg transition">
+                    <span>Toucher pour voir l'offre</span>
                     <ArrowRight className="w-3 h-3 text-amber-400" />
                   </span>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxImage(currentBanner);
+                    }}
+                    className="p-1.5 sm:p-2 rounded-full bg-black/70 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 shadow-lg transition cursor-pointer hover:scale-110 active:scale-95"
+                    title="Agrandir en plein écran"
+                    aria-label="Agrandir en plein écran"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300" />
+                  </button>
                 </div>
               )}
             </motion.div>
           </AnimatePresence>
+
+          {/* Top-Left Quick Lightbox Button (Available for all slides) */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightboxImage(currentBanner);
+            }}
+            className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 p-2 rounded-full bg-black/50 hover:bg-black/80 text-white/90 hover:text-white backdrop-blur-md border border-white/20 shadow-md transition cursor-pointer opacity-70 hover:opacity-100"
+            title="Afficher l'affiche en grand format"
+            aria-label="Afficher l'affiche en grand format"
+          >
+            <Maximize2 className="w-3.5 h-3.5 text-stone-200" />
+          </button>
 
           {/* Left Arrow Button */}
           {banners.length > 1 && (
@@ -484,6 +553,69 @@ export const HeroSection: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* =========================================================================
+          MODAL LIGHTBOX : AFFICHAGE PLEIN ÉCRAN POUR TOUT TYPE D'ÉCRAN
+      ========================================================================= */}
+      <AnimatePresence>
+        {lightboxImage && (
+          <div
+            className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-6"
+            onClick={() => setLightboxImage(null)}
+          >
+            {/* Close & Action Bar */}
+            <div 
+              className="w-full max-w-5xl flex items-center justify-between text-white pb-3"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-lg bg-amber-400/20 text-amber-300 text-xs font-bold border border-amber-400/30">
+                  Affiche 100% lisible & entière
+                </span>
+                <span className="text-xs text-stone-300 hidden sm:inline">
+                  Tous écrans (PC, tablette, mobile)
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const bannerToAct = lightboxImage;
+                    setLightboxImage(null);
+                    handleBannerAction(bannerToAct);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-md cursor-pointer"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Profiter de l'offre</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setLightboxImage(null)}
+                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+                  title="Fermer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Image in Full Lightbox */}
+            <div 
+              className="relative max-w-5xl max-h-[82vh] w-full flex items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-neutral-950 p-2 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <img
+                src={lightboxImage.imageUrl}
+                alt={lightboxImage.title || 'Affiche'}
+                className="max-h-[80vh] w-auto max-w-full object-contain rounded-lg"
+              />
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
     </section>
   );
 };
