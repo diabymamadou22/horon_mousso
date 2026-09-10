@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Product, ProductAvailability } from '../../types';
 import { 
@@ -9,13 +9,96 @@ import {
   Check, 
   X, 
   AlertTriangle, 
+  AlertCircle,
   Eye, 
   Sparkles,
   Package,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 import { LazyProductImage } from '../common/LazyProductImage';
+import { uploadMediaFile } from '../../utils/mediaUpload';
+
+export interface ProductFormErrors {
+  name?: string;
+  format?: string;
+  description?: string;
+  price?: string;
+  mainImage?: string;
+}
+
+/**
+ * Checks if a user-entered price string represents a negative value.
+ * Handles forms like: "-1500", "- 1500", "-500 FCFA", "-10 €", or starting with minus.
+ */
+export const checkNegativePrice = (priceVal: string): boolean => {
+  const trimmed = priceVal.trim();
+  if (!trimmed) return false;
+
+  // 1. Check for negative signs before digits or at beginning
+  if (/-\s*\d+/.test(trimmed) || /^\s*-/.test(trimmed)) {
+    return true;
+  }
+
+  // 2. Extract first numeric token with optional sign
+  const match = trimmed.replace(/\s+/g, '').match(/(-?\d+(?:[.,]\d+)?)/);
+  if (match) {
+    const num = parseFloat(match[0].replace(',', '.'));
+    if (!isNaN(num) && num < 0) return true;
+  }
+
+  return false;
+};
+
+/**
+ * Validates product form in real-time, preventing empty required fields and negative prices.
+ */
+export const validateProductForm = (
+  valName: string,
+  valFormat: string,
+  valDesc: string,
+  valPrice: string,
+  valImage: string
+): ProductFormErrors => {
+  const errs: ProductFormErrors = {};
+
+  // Name: mandatory, non-empty, min 2 chars
+  const trimmedName = valName.trim();
+  if (!trimmedName) {
+    errs.name = 'Le nom du produit est obligatoire.';
+  } else if (trimmedName.length < 2) {
+    errs.name = 'Le nom du produit doit comporter au moins 2 caractères.';
+  }
+
+  // Format: mandatory, non-empty
+  const trimmedFormat = valFormat.trim();
+  if (!trimmedFormat) {
+    errs.format = 'Le format / conditionnement est obligatoire (ex: Sachet 100g, Sac 25kg).';
+  }
+
+  // Description: mandatory, non-empty, min 5 chars
+  const trimmedDesc = valDesc.trim();
+  if (!trimmedDesc) {
+    errs.description = 'La description courte est obligatoire.';
+  } else if (trimmedDesc.length < 5) {
+    errs.description = 'La description doit comporter au moins 5 caractères.';
+  }
+
+  // Price: optional, but strictly cannot be negative
+  if (valPrice && checkNegativePrice(valPrice)) {
+    errs.price = 'Le prix ne peut pas être négatif. Indiquez un montant positif (ex: 1 500 FCFA).';
+  }
+
+  // Main Image: mandatory, non-empty
+  const trimmedImage = valImage.trim();
+  if (!trimmedImage) {
+    errs.mainImage = 'Une photo principale est obligatoire pour la présentation du produit.';
+  }
+
+  return errs;
+};
 
 interface AdminProductsProps {
   isAddModalOpenInitially?: boolean;
@@ -51,6 +134,43 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   const [origin, setOrigin] = useState('');
   const [usageAdvice, setUsageAdvice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isUploadingAdditional, setIsUploadingAdditional] = useState(false);
+  const [uploadStatusText, setUploadStatusText] = useState('');
+  const [successAlert, setSuccessAlert] = useState('');
+
+  // Real-time validation state
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+
+  const markTouched = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+  };
+
+  // Real-time validation computation on every keystroke/change
+  const errors = useMemo(() => {
+    return validateProductForm(name, format, description, price, mainImage);
+  }, [name, format, description, price, mainImage]);
+
+  const isFormValid = Object.keys(errors).length === 0;
+
+  const shouldShowError = (field: keyof ProductFormErrors) => {
+    if (!errors[field]) return false;
+    // Negative price is an active error - show immediately in real-time as user types
+    if (field === 'price' && errors.price) return true;
+    // Other fields show error if field was interacted with (touched) or after submit attempt
+    return Boolean(hasAttemptedSubmit || touched[field]);
+  };
+
+  const isFieldValid = (field: keyof ProductFormErrors) => {
+    if (errors[field]) return false;
+    if (field === 'name') return name.trim().length >= 2;
+    if (field === 'format') return format.trim().length > 0;
+    if (field === 'description') return description.trim().length >= 5;
+    if (field === 'mainImage') return mainImage.trim().length > 0;
+    if (field === 'price') return price.trim().length > 0 && !checkNegativePrice(price);
+    return false;
+  };
 
   const resetForm = () => {
     setName('');
@@ -68,6 +188,9 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setOrigin('Terroir agricole local');
     setUsageAdvice('');
     setEditingProduct(null);
+    setSuccessAlert('');
+    setTouched({});
+    setHasAttemptedSubmit(false);
   };
 
   const handleOpenAdd = () => {
@@ -91,6 +214,8 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setComposition(p.composition || '');
     setOrigin(p.origin || '');
     setUsageAdvice(p.usageAdvice || '');
+    setTouched({});
+    setHasAttemptedSubmit(false);
     setIsModalOpen(true);
   };
 
@@ -100,11 +225,24 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     if (onCloseAddModalInitial) onCloseAddModalInitial();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !format.trim() || !description.trim()) return;
+  const saveProductData = async (addAnother = false) => {
+    setHasAttemptedSubmit(true);
+
+    // Strictly validate against empty required fields and negative prices
+    const validationErrors = validateProductForm(name, format, description, price, mainImage);
+    if (Object.keys(validationErrors).length > 0) {
+      setTouched({
+        name: true,
+        format: true,
+        description: true,
+        price: true,
+        mainImage: true
+      });
+      return;
+    }
 
     setIsSubmitting(true);
+    setSuccessAlert('');
     const additionalImages = additionalImagesText
       .split('\n')
       .map(s => s.trim())
@@ -113,45 +251,59 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     try {
       if (editingProduct) {
         await updateProduct(editingProduct.id, {
-          name,
+          name: name.trim(),
           category,
-          description,
-          fullDescription,
-          price,
-          format,
+          description: description.trim(),
+          fullDescription: fullDescription.trim(),
+          price: price.trim(),
+          format: format.trim(),
           availability,
-          mainImage: mainImage || 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=800&q=80',
+          mainImage: mainImage.trim() || 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=800&q=80',
           additionalImages,
           isNew,
           isFeatured,
-          composition,
-          origin,
-          usageAdvice
+          composition: composition.trim(),
+          origin: origin.trim(),
+          usageAdvice: usageAdvice.trim()
         });
+        handleCloseModal();
       } else {
-        await addProduct({
-          name,
+        const created = await addProduct({
+          name: name.trim(),
           category,
-          description,
-          fullDescription,
-          price,
-          format,
+          description: description.trim(),
+          fullDescription: fullDescription.trim(),
+          price: price.trim(),
+          format: format.trim(),
           availability,
-          mainImage: mainImage || 'https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?auto=format&fit=crop&w=800&q=80',
+          mainImage: mainImage.trim() || 'https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?auto=format&fit=crop&w=800&q=80',
           additionalImages,
           isNew,
           isFeatured,
-          composition,
-          origin,
-          usageAdvice
+          composition: composition.trim(),
+          origin: origin.trim(),
+          usageAdvice: usageAdvice.trim()
         });
+
+        if (addAnother) {
+          // Keep modal open and ready for the next product!
+          resetForm();
+          setSuccessAlert(`« ${created.name} » ajouté avec succès ! Vous pouvez maintenant saisir le produit suivant.`);
+          setTimeout(() => setSuccessAlert(''), 5000);
+        } else {
+          handleCloseModal();
+        }
       }
-      handleCloseModal();
     } catch (err) {
-      console.error(err);
+      console.error('Erreur enregistrement produit:', err);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await saveProductData(false);
   };
 
   const handleConfirmDelete = async () => {
@@ -167,17 +319,50 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     }
   };
 
-  // Image upload simulation / preview
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // High performance & persistent image upload with Firebase Cloud Storage + fallback
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setMainImage(reader.result);
+      setIsUploadingImage(true);
+      setUploadStatusText('Optimisation...');
+      try {
+        const result = await uploadMediaFile(file, (msg) => setUploadStatusText(msg), 'products');
+        setMainImage(result.url);
+      } catch (err) {
+        console.error('Erreur téléversement image produit:', err);
+      } finally {
+        setIsUploadingImage(false);
+        setUploadStatusText('');
+      }
+    }
+  };
+
+  const handleAdditionalImagesFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setIsUploadingAdditional(true);
+    setUploadStatusText('Téléversement des photos...');
+    try {
+      const urls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setUploadStatusText(`Téléversement ${i + 1}/${files.length}...`);
+        const result = await uploadMediaFile(file, (msg) => setUploadStatusText(`Photo ${i + 1}/${files.length}: ${msg}`), 'products');
+        if (result.url) {
+          urls.push(result.url);
         }
-      };
-      reader.readAsDataURL(file);
+      }
+      if (urls.length > 0) {
+        setAdditionalImagesText(prev => {
+          const current = prev.trim();
+          return current ? `${current}\n${urls.join('\n')}` : urls.join('\n');
+        });
+      }
+    } catch (err) {
+      console.error('Erreur téléversement photos additionnelles:', err);
+    } finally {
+      setIsUploadingAdditional(false);
+      setUploadStatusText('');
     }
   };
 
@@ -191,22 +376,22 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       {/* Top Header */}
-      <div className="bg-white rounded-3xl p-6 border border-stone-200/90 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-stone-200/90 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-stone-900 tracking-tight flex items-center gap-2">
-            <Package className="w-6 h-6 text-emerald-700" />
+          <h1 className="text-lg sm:text-xl font-extrabold text-stone-900 tracking-tight flex items-center gap-2">
+            <Package className="w-5 h-5 text-emerald-700" />
             <span>Gestion des Produits Agricoles & Épices</span>
           </h1>
-          <p className="text-xs text-stone-500 mt-1">
+          <p className="text-xs text-stone-500 mt-0.5">
             Ajoutez, modifiez ou retirez des produits du catalogue public. ({products.length} au total)
           </p>
         </div>
 
         <button
           onClick={handleOpenAdd}
-          className="inline-flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold py-3 px-5 rounded-xl shadow-xs transition"
+          className="inline-flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-xs transition"
         >
           <PlusCircle className="w-4 h-4" />
           <span>Ajouter un Produit</span>
@@ -493,19 +678,58 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              {/* Validation Alert Banner upon attempted submit with errors */}
+              {hasAttemptedSubmit && !isFormValid && (
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3 text-rose-900 text-xs font-medium animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <span className="font-bold text-rose-950 block">Impossible d'enregistrer le produit :</span>
+                    <ul className="list-disc list-inside mt-1 space-y-0.5 text-rose-700 text-[11px]">
+                      {errors.name && <li>Nom : {errors.name}</li>}
+                      {errors.price && <li>Prix : {errors.price}</li>}
+                      {errors.format && <li>Format : {errors.format}</li>}
+                      {errors.description && <li>Description : {errors.description}</li>}
+                      {errors.mainImage && <li>Photo principale : {errors.mainImage}</li>}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">
-                    Nom du Produit <span className="text-red-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-stone-700">
+                      Nom du Produit <span className="text-red-500">*</span>
+                    </label>
+                    {isFieldValid('name') && (
+                      <span className="text-[10px] text-emerald-600 font-semibold inline-flex items-center gap-0.5">
+                        <Check className="w-3 h-3" /> Valide
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
-                    required
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onBlur={() => markTouched('name')}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      markTouched('name');
+                    }}
                     placeholder="Ex: Piment Rouge en Poudre"
-                    className="w-full text-xs p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-700 focus:bg-white"
+                    className={`w-full text-xs p-2.5 rounded-xl border transition ${
+                      shouldShowError('name')
+                        ? 'border-red-400 bg-red-50/20 text-stone-900 focus:ring-2 focus:ring-red-500 focus:border-red-500'
+                        : isFieldValid('name')
+                        ? 'border-emerald-300 bg-emerald-50/10 focus:ring-2 focus:ring-emerald-700'
+                        : 'border-stone-200 bg-stone-50 focus:ring-2 focus:ring-emerald-700 focus:bg-white'
+                    }`}
                   />
+                  {shouldShowError('name') && (
+                    <p className="mt-1 text-[11px] font-semibold text-red-600 flex items-center gap-1 animate-in fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{errors.name}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -526,30 +750,97 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">
-                    Prix (facultatif)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-stone-700">
+                      Prix (facultatif)
+                    </label>
+                    {isFieldValid('price') && (
+                      <span className="text-[10px] text-emerald-600 font-semibold inline-flex items-center gap-0.5">
+                        <Check className="w-3 h-3" /> Valide
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={price}
-                    onChange={(e) => setPrice(e.target.value)}
+                    onBlur={() => markTouched('price')}
+                    onChange={(e) => {
+                      setPrice(e.target.value);
+                      markTouched('price');
+                    }}
                     placeholder="Ex: 1 500 FCFA ou Sur devis"
-                    className="w-full text-xs p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-700 focus:bg-white"
+                    className={`w-full text-xs p-2.5 rounded-xl border transition ${
+                      shouldShowError('price')
+                        ? 'border-red-400 bg-red-50/20 text-stone-900 focus:ring-2 focus:ring-red-500 focus:border-red-500'
+                        : isFieldValid('price')
+                        ? 'border-emerald-300 bg-emerald-50/10 focus:ring-2 focus:ring-emerald-700'
+                        : 'border-stone-200 bg-stone-50 focus:ring-2 focus:ring-emerald-700 focus:bg-white'
+                    }`}
                   />
+                  {shouldShowError('price') ? (
+                    <div className="mt-1 flex items-center justify-between gap-1 text-[11px] font-semibold text-red-600 animate-in fade-in">
+                      <div className="flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{errors.price}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const positive = price.replace(/-/g, '').trim();
+                          setPrice(positive);
+                        }}
+                        className="text-[10px] text-red-700 underline font-bold hover:text-red-800 whitespace-nowrap cursor-pointer ml-1"
+                      >
+                        Rendre positif
+                      </button>
+                    </div>
+                  ) : (
+                    !errors.price && price.trim() && /^\d+$/.test(price.trim()) && (
+                      <button
+                        type="button"
+                        onClick={() => setPrice(`${Number(price).toLocaleString('fr-FR')} FCFA`)}
+                        className="mt-1 text-[10px] text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-flex items-center gap-1 font-medium transition cursor-pointer"
+                      >
+                        <span>Convertir en « {Number(price).toLocaleString('fr-FR')} FCFA »</span>
+                      </button>
+                    )
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">
-                    Format / Conditionnement <span className="text-red-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-stone-700">
+                      Format / Conditionnement <span className="text-red-500">*</span>
+                    </label>
+                    {isFieldValid('format') && (
+                      <span className="text-[10px] text-emerald-600 font-semibold inline-flex items-center gap-0.5">
+                        <Check className="w-3 h-3" /> Valide
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
-                    required
                     value={format}
-                    onChange={(e) => setFormat(e.target.value)}
+                    onBlur={() => markTouched('format')}
+                    onChange={(e) => {
+                      setFormat(e.target.value);
+                      markTouched('format');
+                    }}
                     placeholder="Ex: Sachet 100g, 500g, Sac 25kg"
-                    className="w-full text-xs p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-700 focus:bg-white"
+                    className={`w-full text-xs p-2.5 rounded-xl border transition ${
+                      shouldShowError('format')
+                        ? 'border-red-400 bg-red-50/20 text-stone-900 focus:ring-2 focus:ring-red-500 focus:border-red-500'
+                        : isFieldValid('format')
+                        ? 'border-emerald-300 bg-emerald-50/10 focus:ring-2 focus:ring-emerald-700'
+                        : 'border-stone-200 bg-stone-50 focus:ring-2 focus:ring-emerald-700 focus:bg-white'
+                    }`}
                   />
+                  {shouldShowError('format') && (
+                    <p className="mt-1 text-[11px] font-semibold text-red-600 flex items-center gap-1 animate-in fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{errors.format}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -569,17 +860,39 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">
-                  Description Courte <span className="text-red-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-stone-700">
+                    Description Courte <span className="text-red-500">*</span>
+                  </label>
+                  {isFieldValid('description') && (
+                    <span className="text-[10px] text-emerald-600 font-semibold inline-flex items-center gap-0.5">
+                      <Check className="w-3 h-3" /> Valide
+                    </span>
+                  )}
+                </div>
                 <textarea
-                  required
                   rows={2}
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onBlur={() => markTouched('description')}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    markTouched('description');
+                  }}
                   placeholder="Résumé pour les cartes du catalogue..."
-                  className="w-full text-xs p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-700 focus:bg-white"
+                  className={`w-full text-xs p-2.5 rounded-xl border transition ${
+                    shouldShowError('description')
+                      ? 'border-red-400 bg-red-50/20 text-stone-900 focus:ring-2 focus:ring-red-500 focus:border-red-500'
+                      : isFieldValid('description')
+                      ? 'border-emerald-300 bg-emerald-50/10 focus:ring-2 focus:ring-emerald-700'
+                      : 'border-stone-200 bg-stone-50 focus:ring-2 focus:ring-emerald-700 focus:bg-white'
+                  }`}
                 />
+                {shouldShowError('description') && (
+                  <p className="mt-1 text-[11px] font-semibold text-red-600 flex items-center gap-1 animate-in fade-in">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{errors.description}</span>
+                  </p>
+                )}
               </div>
 
               <div>
@@ -595,6 +908,14 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                 />
               </div>
 
+              {/* Success Banner when adding consecutive products */}
+              {successAlert && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-emerald-800 text-xs font-semibold animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{successAlert}</span>
+                </div>
+              )}
+
               {/* Photos Management */}
               <div className="space-y-3 p-4 bg-stone-50 rounded-2xl border border-stone-200">
                 <label className="block text-xs font-bold text-stone-900">
@@ -602,46 +923,93 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                 </label>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-stone-600 mb-1">
-                    URL de la Photo Principale
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-semibold text-stone-600">
+                      URL de la Photo Principale <span className="text-red-500">*</span>
+                    </label>
+                    {isFieldValid('mainImage') && (
+                      <span className="text-[10px] text-emerald-600 font-semibold inline-flex items-center gap-0.5">
+                        <Check className="w-3 h-3" /> Photo définie
+                      </span>
+                    )}
+                  </div>
                   <input
-                    type="url"
+                    type="text"
                     value={mainImage}
-                    onChange={(e) => setMainImage(e.target.value)}
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full text-xs p-2.5 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-700"
+                    onBlur={() => markTouched('mainImage')}
+                    onChange={(e) => {
+                      setMainImage(e.target.value);
+                      markTouched('mainImage');
+                    }}
+                    placeholder="https://... ou téléversez ci-dessous (Firebase Storage & Local)"
+                    className={`w-full text-xs p-2.5 rounded-xl border transition ${
+                      shouldShowError('mainImage')
+                        ? 'border-red-400 bg-red-50/20 text-stone-900 focus:ring-2 focus:ring-red-500 focus:border-red-500'
+                        : isFieldValid('mainImage')
+                        ? 'border-emerald-300 bg-emerald-50/10 focus:ring-2 focus:ring-emerald-700'
+                        : 'border-stone-200 bg-white focus:ring-2 focus:ring-emerald-700'
+                    }`}
                   />
+                  {shouldShowError('mainImage') && (
+                    <p className="mt-1 text-[11px] font-semibold text-red-600 flex items-center gap-1 animate-in fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{errors.mainImage}</span>
+                    </p>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <label className="cursor-pointer inline-flex items-center gap-1.5 bg-stone-200 hover:bg-stone-300 text-stone-800 text-[11px] font-bold py-1.5 px-3 rounded-lg transition">
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Téléverser une image locale</span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className={`cursor-pointer inline-flex items-center gap-1.5 ${isUploadingImage ? 'bg-stone-300 text-stone-500 cursor-not-allowed' : 'bg-emerald-700 hover:bg-emerald-800 text-white'} text-[11px] font-bold py-2 px-3.5 rounded-xl transition shadow-xs`}>
+                    {isUploadingImage ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Upload className="w-3.5 h-3.5" />
+                    )}
+                    <span>{isUploadingImage ? (uploadStatusText || 'Téléversement...') : 'Téléverser photo principale'}</span>
                     <input
                       type="file"
                       accept="image/*"
+                      disabled={isUploadingImage}
                       onChange={handleImageFileChange}
                       className="hidden"
                     />
                   </label>
                   {mainImage && (
-                    <div className="flex items-center gap-2">
-                      <img src={mainImage} alt="preview" className="w-8 h-8 rounded object-cover border" />
-                      <span className="text-[10px] text-stone-400">Aperçu</span>
+                    <div className="flex items-center gap-2 bg-white px-2.5 py-1 rounded-lg border border-stone-200 shadow-2xs">
+                      <img src={mainImage} alt="preview" className="w-7 h-7 rounded object-cover border" />
+                      <div className="flex flex-col">
+                        <span className="text-[11px] text-stone-700 font-bold truncate max-w-[150px]">Photo prête</span>
+                        <span className="text-[9px] text-emerald-600 font-semibold">
+                          {mainImage.includes('firebasestorage.googleapis.com') ? '☁️ Firebase Storage' : mainImage.startsWith('/uploads') ? '💾 Serveur' : '🔗 URL Externe'}
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-stone-600 mb-1">
-                    Photos supplémentaires (une URL par ligne)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-semibold text-stone-600">
+                      Photos supplémentaires (une URL par ligne)
+                    </label>
+                    <label className={`cursor-pointer inline-flex items-center gap-1 text-[10px] font-bold ${isUploadingAdditional ? 'text-stone-400 cursor-not-allowed' : 'text-emerald-700 hover:text-emerald-800'}`}>
+                      <Upload className="w-3 h-3" />
+                      <span>{isUploadingAdditional ? 'Envoi...' : '+ Ajouter des photos'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        disabled={isUploadingAdditional}
+                        onChange={handleAdditionalImagesFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
                   <textarea
                     rows={2}
                     value={additionalImagesText}
                     onChange={(e) => setAdditionalImagesText(e.target.value)}
-                    placeholder="https://... (photo 2)&#10;https://... (photo 3)"
+                    placeholder="https://... (photo 2)&#10;https://... (photo 3) ou cliquez sur « + Ajouter des photos »"
                     className="w-full text-xs p-2 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-700"
                   />
                 </div>
@@ -655,7 +1023,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                     type="text"
                     value={composition}
                     onChange={(e) => setComposition(e.target.value)}
-                    placeholder="Ex: 100% Piment rouge"
+                    placeholder="Ex: 100% piment séché pur"
                     className="w-full p-2 bg-stone-50 border border-stone-200 rounded-xl"
                   />
                 </div>
@@ -704,22 +1072,74 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                 </label>
               </div>
 
-              {/* Action Buttons */}
-              <div className="pt-4 border-t border-stone-100 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl transition"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-6 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl shadow-sm transition disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Enregistrement...' : 'Enregistrer le produit'}
-                </button>
+              {/* Action Buttons & Real-time Status */}
+              <div className="pt-4 border-t border-stone-100 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  {isFormValid ? (
+                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg inline-flex items-center gap-1.5 shadow-2xs">
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      Formulaire valide
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg inline-flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                      {Object.keys(errors).length} champ{Object.keys(errors).length > 1 ? 's' : ''} à compléter ou corriger
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl transition cursor-pointer"
+                  >
+                    Fermer
+                  </button>
+                  {!editingProduct && (
+                    <button
+                      type="button"
+                      disabled={isSubmitting || isUploadingImage || isUploadingAdditional || (!isFormValid && hasAttemptedSubmit)}
+                      onClick={() => {
+                        if (!isFormValid) {
+                          setHasAttemptedSubmit(true);
+                          setTouched({ name: true, format: true, description: true, price: true, mainImage: true });
+                          return;
+                        }
+                        saveProductData(true);
+                      }}
+                      title={!isFormValid ? 'Corrigez les erreurs avant d\'enregistrer' : undefined}
+                      className={`px-4 py-2.5 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+                        !isFormValid && hasAttemptedSubmit
+                          ? 'bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed'
+                          : 'bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800'
+                      }`}
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" />
+                      <span>Enregistrer & ajouter un autre</span>
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || isUploadingImage || isUploadingAdditional || (!isFormValid && hasAttemptedSubmit)}
+                    onClick={(e) => {
+                      if (!isFormValid) {
+                        e.preventDefault();
+                        setHasAttemptedSubmit(true);
+                        setTouched({ name: true, format: true, description: true, price: true, mainImage: true });
+                      }
+                    }}
+                    title={!isFormValid ? 'Corrigez les erreurs avant d\'enregistrer' : undefined}
+                    className={`px-5 py-2.5 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer ${
+                      !isFormValid && hasAttemptedSubmit
+                        ? 'bg-stone-400 cursor-not-allowed'
+                        : 'bg-emerald-800 hover:bg-emerald-900'
+                    }`}
+                  >
+                    {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <span>{isSubmitting ? 'Enregistrement...' : editingProduct ? 'Mettre à jour le produit' : 'Enregistrer le produit'}</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>

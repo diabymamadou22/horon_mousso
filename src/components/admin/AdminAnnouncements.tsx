@@ -12,8 +12,10 @@ import {
   X, 
   Upload, 
   Eye, 
-  CheckCircle2 
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
+import { uploadMediaFile } from '../../utils/mediaUpload';
 
 interface AdminAnnouncementsProps {
   isAddModalOpenInitially?: boolean;
@@ -41,6 +43,7 @@ export const AdminAnnouncements: React.FC<AdminAnnouncementsProps> = ({
   const [content, setContent] = useState('');
   const [status, setStatus] = useState<'publie' | 'brouillon'>('publie');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const resetForm = () => {
     setTitle('');
@@ -128,37 +131,39 @@ export const AdminAnnouncements: React.FC<AdminAnnouncementsProps> = ({
     }
   };
 
-  // Local file upload preview helper
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Local file upload helper with image optimization & local persistence
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setImage(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      setIsUploading(true);
+      try {
+        const result = await uploadMediaFile(file);
+        setImage(result.url);
+      } catch (err) {
+        console.error('Erreur téléversement image annonce:', err);
+      } finally {
+        setIsUploading(false);
+      }
     }
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       {/* Header */}
-      <div className="bg-white rounded-3xl p-6 border border-stone-200/90 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-stone-200/90 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-stone-900 tracking-tight flex items-center gap-2">
-            <Megaphone className="w-6 h-6 text-amber-700" />
+          <h1 className="text-lg sm:text-xl font-extrabold text-stone-900 tracking-tight flex items-center gap-2">
+            <Megaphone className="w-5 h-5 text-amber-700" />
             <span>Gestion des Annonces & Actualités</span>
           </h1>
-          <p className="text-xs text-stone-500 mt-1">
+          <p className="text-xs text-stone-500 mt-0.5">
             Publiez les nouveautés, arrivages, ateliers et vidéos pour vos clients. ({announcements.length} au total)
           </p>
         </div>
 
         <button
           onClick={handleOpenAdd}
-          className="inline-flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold py-3 px-5 rounded-xl shadow-xs transition"
+          className="inline-flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-xs transition"
         >
           <PlusCircle className="w-4 h-4" />
           <span>Publier une Annonce</span>
@@ -166,7 +171,7 @@ export const AdminAnnouncements: React.FC<AdminAnnouncementsProps> = ({
       </div>
 
       {/* Announcements List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {announcements.map((ann) => (
           <div
             key={ann.id}

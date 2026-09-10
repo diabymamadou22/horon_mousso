@@ -10,8 +10,11 @@ import {
   AlertTriangle, 
   X, 
   Upload, 
-  ExternalLink 
+  ExternalLink,
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
+import { uploadMediaFile } from '../../utils/mediaUpload';
 
 interface AdminMediaProps {
   isAddModalOpenInitially?: boolean;
@@ -40,6 +43,9 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
   const [relatedProductId, setRelatedProductId] = useState('');
   const [relatedAnnouncementId, setRelatedAnnouncementId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatusText, setUploadStatusText] = useState('');
+  const [successAlert, setSuccessAlert] = useState('');
 
   const resetForm = () => {
     setTitle('');
@@ -50,6 +56,7 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
     setCaption('');
     setRelatedProductId('');
     setRelatedAnnouncementId('');
+    setSuccessAlert('');
   };
 
   const handleOpenAdd = () => {
@@ -63,28 +70,42 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
     if (onCloseAddModalInitial) onCloseAddModalInitial();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const saveMediaData = async (addAnother = false) => {
     if (!title.trim() || !url.trim()) return;
 
     setIsSubmitting(true);
+    setSuccessAlert('');
     try {
-      await addMedia({
-        title,
+      const created = await addMedia({
+        title: title.trim(),
         type,
-        url,
-        thumbnailUrl: thumbnailUrl || url,
+        url: url.trim(),
+        thumbnailUrl: thumbnailUrl?.trim() || (type === 'image' ? url.trim() : undefined),
         category,
-        caption,
-        relatedProductId: relatedProductId || undefined,
-        relatedAnnouncementId: relatedAnnouncementId || undefined
+        caption: caption.trim(),
+        productId: relatedProductId.trim() || undefined,
+        announcementId: relatedAnnouncementId.trim() || undefined,
+        relatedProductId: relatedProductId.trim() || undefined,
+        relatedAnnouncementId: relatedAnnouncementId.trim() || undefined
       });
-      handleCloseModal();
+
+      if (addAnother) {
+        resetForm();
+        setSuccessAlert(`« ${created.title} » sauvegardé ! Vous pouvez ajouter le média suivant.`);
+        setTimeout(() => setSuccessAlert(''), 5000);
+      } else {
+        handleCloseModal();
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Erreur enregistrement média:', err);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await saveMediaData(false);
   };
 
   const handleConfirmDelete = async () => {
@@ -113,36 +134,43 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
     }
   };
 
-  // Local file upload for media
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Optimized file upload for photos & videos with Firebase Cloud Storage + fallback
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setUrl(reader.result);
-          if (file.type.startsWith('video/')) {
-            setType('video');
-          } else {
-            setType('image');
-            setThumbnailUrl(reader.result);
+      setIsUploading(true);
+      setUploadStatusText('Traitement du fichier...');
+      try {
+        const result = await uploadMediaFile(file, (msg) => setUploadStatusText(msg), 'gallery');
+        setUrl(result.url);
+        if (result.type === 'video') {
+          setType('video');
+          if (result.thumbnailUrl) {
+            setThumbnailUrl(result.thumbnailUrl);
           }
+        } else {
+          setType('image');
+          setThumbnailUrl(result.thumbnailUrl || result.url);
         }
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('Erreur téléversement média:', err);
+      } finally {
+        setIsUploading(false);
+        setUploadStatusText('');
+      }
     }
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       {/* Header */}
-      <div className="bg-white rounded-3xl p-6 border border-stone-200/90 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-stone-200/90 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-stone-900 tracking-tight flex items-center gap-2">
-            <ImageIcon className="w-6 h-6 text-sky-700" />
+          <h1 className="text-lg sm:text-xl font-extrabold text-stone-900 tracking-tight flex items-center gap-2">
+            <ImageIcon className="w-5 h-5 text-sky-700" />
             <span>Gestion des Médias (Photos & Vidéos)</span>
           </h1>
-          <p className="text-xs text-stone-500 mt-1">
+          <p className="text-xs text-stone-500 mt-0.5">
             Alimentez la galerie publique et associez des visuels aux fiches produits et annonces. ({media.length} médias)
           </p>
         </div>
@@ -151,7 +179,7 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
           {media.length > 0 && (
             <button
               onClick={() => setIsDeleteAllModalOpen(true)}
-              className="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold py-3 px-4 rounded-xl shadow-2xs transition"
+              className="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold py-2.5 px-3.5 rounded-xl shadow-2xs transition"
             >
               <Trash2 className="w-4 h-4" />
               <span>Tout supprimer ({media.length})</span>
@@ -160,7 +188,7 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
 
           <button
             onClick={handleOpenAdd}
-            className="inline-flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold py-3 px-5 rounded-xl shadow-xs transition"
+            className="inline-flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-xs transition"
           >
             <PlusCircle className="w-4 h-4" />
             <span>Ajouter un Média</span>
@@ -336,6 +364,14 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              {/* Success Alert Banner */}
+              {successAlert && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-emerald-800 text-xs font-semibold animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{successAlert}</span>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-stone-700 mb-1">
                   Titre du Média <span className="text-red-500">*</span>
@@ -381,27 +417,47 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-stone-700 mb-1">
-                  URL du Média (Image ou Vidéo) <span className="text-red-500">*</span>
+                  URL ou Fichier du Média <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   required
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://... (direct link)"
+                  placeholder="https://... ou téléversez votre fichier ci-dessous"
                   className="w-full text-xs p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-700"
                 />
-                <div className="mt-2">
-                  <label className="cursor-pointer inline-flex items-center gap-1.5 bg-stone-200 hover:bg-stone-300 text-stone-800 text-[11px] font-bold py-1 px-3 rounded-lg transition">
-                    <Upload className="w-3 h-3" />
-                    <span>Téléverser un fichier local</span>
+                <div className="mt-2.5 flex flex-wrap items-center gap-3">
+                  <label className={`cursor-pointer inline-flex items-center gap-1.5 ${isUploading ? 'bg-stone-300 text-stone-500 cursor-not-allowed' : 'bg-emerald-700 hover:bg-emerald-800 text-white'} text-[11px] font-bold py-2 px-3.5 rounded-xl transition shadow-xs`}>
+                    {isUploading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Upload className="w-3.5 h-3.5" />
+                    )}
+                    <span>{isUploading ? (uploadStatusText || 'Téléversement...') : type === 'video' ? 'Téléverser vidéo MP4' : 'Téléverser image'}</span>
                     <input
                       type="file"
+                      disabled={isUploading}
                       accept={type === 'video' ? 'video/*' : 'image/*'}
                       onChange={handleFileUpload}
                       className="hidden"
                     />
                   </label>
+                  {url && (
+                    <div className="flex items-center gap-2 bg-stone-50 px-2.5 py-1 rounded-lg border border-stone-200 shadow-2xs">
+                      {type === 'image' ? (
+                        <img src={url} alt="Aperçu" className="w-6 h-6 rounded object-cover border" />
+                      ) : (
+                        <Video className="w-4 h-4 text-emerald-700" />
+                      )}
+                      <div className="flex flex-col">
+                        <span className="text-[11px] text-stone-700 font-bold">Fichier prêt & persistant</span>
+                        <span className="text-[9px] text-emerald-600 font-semibold">
+                          {url.includes('firebasestorage.googleapis.com') ? '☁️ Firebase Storage' : url.startsWith('/uploads') ? '💾 Serveur' : '🔗 URL Externe'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -411,7 +467,7 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
                     Miniature pour la vidéo (URL Image)
                   </label>
                   <input
-                    type="url"
+                    type="text"
                     value={thumbnailUrl}
                     onChange={(e) => setThumbnailUrl(e.target.value)}
                     placeholder="https://... (image affichée avant lecture)"
@@ -462,20 +518,30 @@ export const AdminMedia: React.FC<AdminMediaProps> = ({
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-stone-100 flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-stone-100 flex flex-wrap items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={handleCloseModal}
                   className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl transition"
                 >
-                  Annuler
+                  Fermer
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmitting || isUploading}
+                  onClick={() => saveMediaData(true)}
+                  className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold rounded-xl transition disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>Enregistrer & ajouter un autre</span>
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="px-6 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl shadow-sm transition disabled:opacity-50"
+                  disabled={isSubmitting || isUploading}
+                  className="px-5 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl shadow-sm transition disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  {isSubmitting ? 'Enregistrement...' : 'Ajouter le média'}
+                  {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSubmitting ? 'Enregistrement...' : 'Ajouter le média'}</span>
                 </button>
               </div>
             </form>

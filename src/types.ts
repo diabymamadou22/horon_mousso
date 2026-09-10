@@ -109,6 +109,8 @@ export interface MediaItem {
   category: MediaCategory;
   productId?: string;
   announcementId?: string;
+  relatedProductId?: string;
+  relatedAnnouncementId?: string;
   thumbnailUrl?: string;
   caption?: string;
   createdAt: string;

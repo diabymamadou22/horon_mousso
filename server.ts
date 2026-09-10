@@ -15,8 +15,15 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3000;
 
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+app.use(express.json({ limit: '60mb' }));
+app.use(express.urlencoded({ extended: true, limit: '60mb' }));
+
+// Static uploads directory for media files (images & videos)
+const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // Database storage file path
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -228,6 +235,62 @@ app.post('/api/auth/login', (req, res) => {
     success: false,
     message: 'Mot de passe incorrect.'
   });
+});
+
+// File & Media Upload Endpoint (Supports Images & Videos up to 50MB)
+app.post('/api/upload', (req, res) => {
+  try {
+    const { data, filename, type } = req.body;
+    if (!data || typeof data !== 'string') {
+      return res.status(400).json({ success: false, error: 'Données de fichier manquantes' });
+    }
+
+    let fileBuffer: Buffer;
+    let extension = type === 'video' ? 'mp4' : 'jpg';
+
+    if (data.startsWith('data:')) {
+      const match = data.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        const mimeType = match[1];
+        fileBuffer = Buffer.from(match[2], 'base64');
+        if (mimeType.includes('jpeg') || mimeType.includes('jpg')) extension = 'jpg';
+        else if (mimeType.includes('png')) extension = 'png';
+        else if (mimeType.includes('webp')) extension = 'webp';
+        else if (mimeType.includes('gif')) extension = 'gif';
+        else if (mimeType.includes('mp4')) extension = 'mp4';
+        else if (mimeType.includes('webm')) extension = 'webm';
+        else if (mimeType.includes('quicktime') || mimeType.includes('mov')) extension = 'mov';
+      } else {
+        fileBuffer = Buffer.from(data, 'base64');
+      }
+    } else {
+      fileBuffer = Buffer.from(data, 'base64');
+    }
+
+    if (filename && filename.includes('.')) {
+      const extFromName = filename.split('.').pop()?.toLowerCase();
+      if (extFromName && ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'webm', 'mov', 'ogg'].includes(extFromName)) {
+        extension = extFromName === 'jpeg' ? 'jpg' : extFromName;
+      }
+    }
+
+    const prefix = type === 'video' || extension === 'mp4' || extension === 'webm' || extension === 'mov' ? 'vid' : 'img';
+    const uniqueName = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${extension}`;
+    const targetPath = path.join(UPLOADS_DIR, uniqueName);
+    fs.writeFileSync(targetPath, fileBuffer);
+
+    const publicUrl = `/uploads/${uniqueName}`;
+    return res.json({
+      success: true,
+      url: publicUrl,
+      filename: uniqueName,
+      size: fileBuffer.length,
+      type: prefix === 'vid' ? 'video' : 'image'
+    });
+  } catch (err: any) {
+    console.error('Erreur téléversement fichier:', err);
+    return res.status(500).json({ success: false, error: err?.message || 'Erreur lors du téléversement' });
+  }
 });
 
 // Stats endpoint

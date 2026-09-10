@@ -55,6 +55,8 @@ import {
   getCloudMedia,
   getCloudMessages,
   getCloudSettings,
+  getCloudOrders,
+  getCloudReviews,
   getCloudAdminAuth,
   saveCloudAdminAuth,
   saveProductToFirestore,
@@ -349,29 +351,37 @@ export const api = {
   },
 
   async createProduct(product: Omit<Product, 'id' | 'createdAt'>): Promise<Product> {
-    const newId = 'prod_' + Date.now();
+    const newId = 'prod_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
     const newProd: Product = {
       ...product,
       id: newId,
       createdAt: new Date().toISOString()
     };
 
-    // 1. Save to Cloud Firestore so all devices get the new product instantly
+    // 1. Save to Cloud Firestore
     try {
       await saveProductToFirestore(newProd);
     } catch (e) {
-      console.warn('Erreur sauvegarde Firestore product:', e);
+      console.warn('Note sauvegarde Firestore product (relais local actif):', e);
     }
 
-    // 2. Update local caches
-    await saveSingleLocalProduct(newProd);
+    // 2. Save to local IndexedDB and cache
     try {
-      const current = await this.getProducts();
-      const updated = [newProd, ...current.filter(p => p.id !== newId)];
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+      await saveSingleLocalProduct(newProd);
     } catch {}
 
-    // 3. Optional local server sync
+    try {
+      const cached = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+      const currentList: Product[] = cached ? JSON.parse(cached) : [];
+      const updated = [newProd, ...currentList.filter(p => p.id !== newId)];
+      try {
+        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+      } catch {
+        // Safe fallback if localStorage quota reached
+      }
+    } catch {}
+
+    // 3. Sync with local server
     try {
       await fetch('/api/products', {
         method: 'POST',
@@ -507,7 +517,7 @@ export const api = {
   },
 
   async createAnnouncement(announcement: Omit<Announcement, 'id' | 'createdAt'>): Promise<Announcement> {
-    const newId = 'ann_' + Date.now();
+    const newId = 'ann_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
     const newAnn: Announcement = {
       ...announcement,
       id: newId,
@@ -518,14 +528,20 @@ export const api = {
     try {
       await saveAnnouncementToFirestore(newAnn);
     } catch (e) {
-      console.warn('Erreur Firestore create announcement:', e);
+      console.warn('Note Firestore create announcement:', e);
     }
 
-    await saveSingleLocalAnnouncement(newAnn);
     try {
-      const current = await this.getAnnouncements();
-      const updated = [newAnn, ...current.filter(a => a.id !== newId)];
-      localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(updated));
+      await saveSingleLocalAnnouncement(newAnn);
+    } catch {}
+
+    try {
+      const cached = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS);
+      const currentList: Announcement[] = cached ? JSON.parse(cached) : [];
+      const updated = [newAnn, ...currentList.filter(a => a.id !== newId)];
+      try {
+        localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(updated));
+      } catch {}
     } catch {}
 
     try {
@@ -662,25 +678,33 @@ export const api = {
   },
 
   async createMedia(media: Omit<MediaItem, 'id' | 'createdAt'>): Promise<MediaItem> {
-    const newId = 'med_' + Date.now();
+    const newId = 'med_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
     const newMedia: MediaItem = {
       ...media,
       id: newId,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      productId: media.productId || media.relatedProductId || undefined,
+      announcementId: media.announcementId || media.relatedAnnouncementId || undefined
     };
 
     try {
       await saveMediaToFirestore(newMedia);
     } catch (e) {
-      console.warn('Erreur Firestore create media:', e);
+      console.warn('Note Firestore create media:', e);
     }
 
-    await saveSingleLocalMedia(newMedia);
     try {
-      const current = await this.getMedia();
-      const updated = [newMedia, ...current.filter(m => m.id !== newId)];
+      await saveSingleLocalMedia(newMedia);
+    } catch {}
+
+    try {
+      const cached = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.MEDIA) : null;
+      const currentList: MediaItem[] = cached ? JSON.parse(cached) : [];
+      const updated = [newMedia, ...currentList.filter(m => m.id !== newId)];
       if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(updated));
+        try {
+          localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(updated));
+        } catch {}
       }
     } catch {}
 
@@ -1027,7 +1051,20 @@ export const api = {
      ORDERS & DELIVERIES (CLOUD + LOCAL PERSISTENCE)
   ========================================================= */
   async getOrders(): Promise<Order[]> {
-    // 1. Try local server API
+    // 1. Cloud Firestore (Single Source of Truth across all devices)
+    try {
+      const cloudOrders = await getCloudOrders();
+      if (Array.isArray(cloudOrders) && cloudOrders.length > 0) {
+        const filtered = filterDeleted(cloudOrders);
+        localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(filtered));
+        await saveLocalOrders(filtered);
+        return filtered;
+      }
+    } catch (e) {
+      console.warn('Erreur cloud orders:', e);
+    }
+
+    // 2. Try local server API
     try {
       const res = await fetch('/api/orders');
       if (res.ok) {
@@ -1041,7 +1078,7 @@ export const api = {
       }
     } catch {}
 
-    // 2. IndexedDB
+    // 3. IndexedDB
     const idbOrders = await getLocalOrders();
     if (idbOrders && idbOrders.length > 0) {
       const filtered = filterDeleted(idbOrders);
@@ -1049,7 +1086,7 @@ export const api = {
       return filtered;
     }
 
-    // 3. LocalStorage
+    // 4. LocalStorage
     const cached = localStorage.getItem(STORAGE_KEYS.ORDERS);
     if (cached) {
       try {
@@ -1165,8 +1202,25 @@ export const api = {
      CUSTOMER REVIEWS & RATINGS (SOCIAL PROOF)
   ========================================================= */
   async getReviews(productId?: string): Promise<ProductReview[]> {
-    // 1. Try local server API
     let allReviews: ProductReview[] = [];
+
+    // 1. Cloud Firestore (Single Source of Truth across all devices)
+    try {
+      const cloudReviews = await getCloudReviews();
+      if (Array.isArray(cloudReviews) && cloudReviews.length > 0) {
+        allReviews = filterDeleted(cloudReviews);
+        localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(allReviews));
+        await saveLocalReviews(allReviews);
+        if (productId) {
+          return allReviews.filter(r => r.productId === productId);
+        }
+        return allReviews;
+      }
+    } catch (e) {
+      console.warn('Erreur cloud reviews:', e);
+    }
+
+    // 2. Try local server API
     try {
       const res = await fetch('/api/reviews');
       if (res.ok) {

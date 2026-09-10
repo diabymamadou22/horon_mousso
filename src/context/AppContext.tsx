@@ -54,7 +54,8 @@ import {
 import {
   filterDeleted,
   syncDeletedIdsFromCloud,
-  onDeletedIdsChange
+  onDeletedIdsChange,
+  isIdDeleted
 } from '../lib/deletionTracker';
 
 export type PublicTab = 'accueil' | 'produits' | 'actualites' | 'galerie' | 'a_propos' | 'contact';
@@ -712,9 +713,9 @@ Merci de confirmer la prise en charge et le délai !`;
           }
         }, handleSubError);
 
-        // 4. Live Messages & Orders Subscription
+        // 4. Live Messages Subscription
         const unsubMsgs = subscribeToCloudMessages((cloudMsgs) => {
-          if (cloudMsgs && cloudMsgs.length > 0) {
+          if (Array.isArray(cloudMsgs)) {
             setMessages(cloudMsgs);
             saveLocalMessages(cloudMsgs).catch(() => {});
           }
@@ -747,7 +748,7 @@ Merci de confirmer la prise en charge et le délai !`;
 
         // 7. Live Commercial Orders Subscription
         const unsubOrders = subscribeToCloudOrders((cloudOrders) => {
-          if (cloudOrders && cloudOrders.length > 0) {
+          if (Array.isArray(cloudOrders)) {
             setOrders(cloudOrders);
             localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(cloudOrders));
             saveLocalOrders(cloudOrders).catch(() => {});
@@ -756,7 +757,7 @@ Merci de confirmer la prise en charge et le délai !`;
 
         // 8. Live Customer Reviews Subscription
         const unsubReviews = subscribeToCloudReviews((cloudReviews) => {
-          if (cloudReviews && cloudReviews.length > 0) {
+          if (Array.isArray(cloudReviews)) {
             setReviews(cloudReviews);
             localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(cloudReviews));
             saveLocalReviews(cloudReviews).catch(() => {});
@@ -911,7 +912,16 @@ Merci de confirmer la prise en charge et le délai !`;
               }
               if (Array.isArray(snap.products) && snap.products.length > 0) {
                 const filtered = filterDeleted<Product>(snap.products as Product[]);
-                setProducts(filtered);
+                setProducts(prev => {
+                  const map = new Map<string, Product>();
+                  filtered.forEach(p => map.set(p.id, p));
+                  prev.forEach(p => {
+                    if (!isIdDeleted(p.id) && !map.has(p.id)) {
+                      map.set(p.id, p);
+                    }
+                  });
+                  return Array.from(map.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                });
                 saveLocalProducts(filtered).catch(() => {});
               }
               if (Array.isArray(snap.announcements)) {
@@ -921,7 +931,16 @@ Merci de confirmer la prise en charge et le délai !`;
               }
               if (Array.isArray(snap.media)) {
                 const filtered = filterDeleted<MediaItem>(snap.media as MediaItem[]);
-                setMedia(filtered);
+                setMedia(prev => {
+                  const map = new Map<string, MediaItem>();
+                  filtered.forEach(m => map.set(m.id, m));
+                  prev.forEach(m => {
+                    if (!isIdDeleted(m.id) && !map.has(m.id)) {
+                      map.set(m.id, m);
+                    }
+                  });
+                  return Array.from(map.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                });
                 saveLocalMedia(filtered).catch(() => {});
               }
               if (Array.isArray(snap.messages)) {
