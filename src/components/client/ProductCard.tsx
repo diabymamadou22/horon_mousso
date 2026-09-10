@@ -28,37 +28,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     return match ? parseInt(match[0], 10) : 1500;
   }, [product.price]);
 
-  // Interactive weight formats
-  const availableWeights = useMemo(() => {
-    if (product.category === 'piments') {
-      return [
-        { label: '100g', factor: 1 },
-        { label: '250g', factor: 2.2 },
-        { label: '500g', factor: 4.1 }
-      ];
-    } else if (product.category === 'produits_transformes') {
-      return [
-        { label: '250g', factor: 1 },
-        { label: '500g', factor: 1.85 },
-        { label: '1kg', factor: 3.5 }
-      ];
-    } else {
-      return [
-        { label: '150g', factor: 1 },
-        { label: '300g', factor: 1.9 },
-        { label: '500g', factor: 3.1 }
-      ];
-    }
-  }, [product.category]);
+  // User customized variants (NON-AUTOMATIC: strictly defined by admin, no fake calculations)
+  const hasVariants = Boolean(product.priceVariants && product.priceVariants.length > 0);
+  const [selectedVariantIdx, setSelectedVariantIdx] = useState<number>(0);
+  const currentVariant = hasVariants && product.priceVariants ? product.priceVariants[selectedVariantIdx] || product.priceVariants[0] : null;
 
-  const [selectedWeightIdx, setSelectedWeightIdx] = useState<number>(0);
-  const currentWeight = availableWeights[selectedWeightIdx];
-
-  const calculatedPriceStr = useMemo(() => {
-    if (!product.price) return '1 500 FCFA';
-    const computed = Math.round(basePriceNum * currentWeight.factor);
-    return `${computed.toLocaleString('fr-FR')} FCFA`;
-  }, [basePriceNum, currentWeight, product.price]);
+  const displayPriceStr = currentVariant ? currentVariant.price : (product.price || '1 500 FCFA');
+  const displayFormatStr = currentVariant ? currentVariant.label : (product.format || 'Standard');
 
   // Heat Level
   const heatLevel = useMemo(() => {
@@ -112,13 +88,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Create an item with the selected weight label
     const customProduct = {
       ...product,
-      format: `${currentWeight.label} (Sélection Gourmet)`,
-      price: calculatedPriceStr
+      format: displayFormatStr,
+      price: displayPriceStr
     };
-    addToCart(customProduct, 1);
+    addToCart(customProduct, 1, displayFormatStr);
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 1600);
   };
@@ -185,7 +160,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           {/* Category & Brand Micro-tag */}
           <div className="flex items-center justify-between text-[11px] text-stone-400 font-bold uppercase tracking-wider">
             <span>Horon Mousso Terroir</span>
-            <span>{product.format || '100g'}</span>
+            <span>{displayFormatStr}</span>
           </div>
 
           {/* Product Title */}
@@ -221,33 +196,35 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             {product.description}
           </p>
 
-          {/* Format Picker */}
-          <div className="mt-2 pt-1.5 border-t border-stone-100 flex items-center gap-1">
-            {availableWeights.map((w, idx) => (
-              <button
-                key={w.label}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedWeightIdx(idx);
-                }}
-                className={`flex-1 py-0.5 px-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
-                  selectedWeightIdx === idx
-                    ? 'bg-stone-900 text-white shadow-xs'
-                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                }`}
-              >
-                {w.label}
-              </button>
-            ))}
-          </div>
+          {/* Format Picker: ONLY displayed if custom variants with specific prices were defined by admin */}
+          {hasVariants && product.priceVariants && (
+            <div className="mt-2 pt-1.5 border-t border-stone-100 flex items-center gap-1">
+              {product.priceVariants.map((v, idx) => (
+                <button
+                  key={v.label + idx}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedVariantIdx(idx);
+                  }}
+                  className={`flex-1 py-0.5 px-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                    selectedVariantIdx === idx
+                      ? 'bg-stone-900 text-white shadow-xs'
+                      : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Price area (Fnac bold price) */}
           <div className="mt-2 flex items-baseline justify-between pt-1.5 border-t border-stone-100">
             <div className="flex flex-col">
               <span className="text-[10px] text-stone-400 font-bold uppercase">Prix TTC</span>
               <span className="text-base sm:text-lg font-black text-stone-900 tracking-tight">
-                {calculatedPriceStr}
+                {displayPriceStr}
               </span>
             </div>
             <span className="text-[10px] font-bold text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded-md">
@@ -304,8 +281,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               e.stopPropagation();
               openOrderWhatsApp({
                 ...product,
-                format: `${currentWeight.label} (Sélection)`,
-                price: calculatedPriceStr
+                format: displayFormatStr,
+                price: displayPriceStr
               });
             }}
             className="inline-flex items-center justify-center p-2 rounded-xl border border-emerald-500/30 text-emerald-700 bg-emerald-50 hover:bg-emerald-600 hover:text-white transition cursor-pointer shrink-0"

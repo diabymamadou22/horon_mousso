@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Product, ProductAvailability } from '../../types';
+import { Product, ProductAvailability, ProductPriceVariant } from '../../types';
 import { 
   PlusCircle, 
   Search, 
@@ -16,7 +16,9 @@ import {
   Upload,
   Image as ImageIcon,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Scale,
+  Plus
 } from 'lucide-react';
 import { LazyProductImage } from '../common/LazyProductImage';
 import { uploadMediaFile } from '../../utils/mediaUpload';
@@ -133,6 +135,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   const [composition, setComposition] = useState('');
   const [origin, setOrigin] = useState('');
   const [usageAdvice, setUsageAdvice] = useState('');
+  const [priceVariants, setPriceVariants] = useState<ProductPriceVariant[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isUploadingAdditional, setIsUploadingAdditional] = useState(false);
@@ -187,6 +190,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setComposition('');
     setOrigin('Terroir agricole local');
     setUsageAdvice('');
+    setPriceVariants([]);
     setEditingProduct(null);
     setSuccessAlert('');
     setTouched({});
@@ -214,6 +218,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setComposition(p.composition || '');
     setOrigin(p.origin || '');
     setUsageAdvice(p.usageAdvice || '');
+    setPriceVariants(p.priceVariants ? p.priceVariants.map(v => ({ ...v })) : []);
     setTouched({});
     setHasAttemptedSubmit(false);
     setIsModalOpen(true);
@@ -248,6 +253,10 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
       .map(s => s.trim())
       .filter(Boolean);
 
+    const cleanedPriceVariants = priceVariants
+      .map(v => ({ label: v.label.trim(), price: v.price.trim() }))
+      .filter(v => v.label && v.price);
+
     try {
       if (editingProduct) {
         await updateProduct(editingProduct.id, {
@@ -257,6 +266,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
           fullDescription: fullDescription.trim(),
           price: price.trim(),
           format: format.trim(),
+          priceVariants: cleanedPriceVariants,
           availability,
           mainImage: mainImage.trim() || 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=800&q=80',
           additionalImages,
@@ -275,6 +285,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
           fullDescription: fullDescription.trim(),
           price: price.trim(),
           format: format.trim(),
+          priceVariants: cleanedPriceVariants,
           availability,
           mainImage: mainImage.trim() || 'https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?auto=format&fit=crop&w=800&q=80',
           additionalImages,
@@ -561,12 +572,23 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                       {prod.category === 'piments' ? 'Piments' : prod.category === 'epices' ? 'Épices' : 'Transformé'}
                     </td>
 
-                    <td className="py-3.5 px-4 text-stone-600 font-medium max-w-[200px] truncate" title={prod.format}>
-                      {prod.format}
+                    <td className="py-3.5 px-4 text-stone-600 font-medium max-w-[220px]">
+                      <div className="truncate font-semibold" title={prod.format}>{prod.format}</div>
+                      {prod.priceVariants && prod.priceVariants.length > 0 && (
+                        <div className="text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60 inline-flex items-center gap-1 mt-0.5 font-bold">
+                          <Scale className="w-3 h-3 text-amber-600" />
+                          <span>{prod.priceVariants.length} tarif(s) personnalisé(s)</span>
+                        </div>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-4 font-extrabold text-emerald-800">
-                      {prod.price || '—'}
+                      <div>{prod.price || '—'}</div>
+                      {prod.priceVariants && prod.priceVariants.length > 0 && (
+                        <div className="text-[10px] text-stone-500 font-medium max-w-[180px] truncate" title={prod.priceVariants.map(v => `${v.label}: ${v.price}`).join(' • ')}>
+                          {prod.priceVariants.map(v => `${v.label}: ${v.price}`).join(', ')}
+                        </div>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -862,6 +884,118 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                     <option value="rupture">Rupture de stock</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Personnalisation manuelle des prix par grammage / conditionnement */}
+              <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-amber-200/80 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-xs font-black text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <Scale className="w-4 h-4 text-amber-600" />
+                      <span>Personnalisation des prix par grammage / format</span>
+                    </h4>
+                    <p className="text-[11px] text-stone-500 mt-0.5">
+                      Définissez vous-même vos formats ou grammages avec leur prix exact (ex: 100g = 1 500 FCFA, 500g = 6 000 FCFA). Aucun calcul automatique n'est imposé.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPriceVariants(prev => [...prev, { label: '', price: '' }]);
+                      }}
+                      className="text-xs font-bold bg-[#0F2916] hover:bg-[#184424] text-white px-3 py-1.5 rounded-xl transition inline-flex items-center gap-1 cursor-pointer shadow-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Ajouter un grammage</span>
+                    </button>
+                  </div>
+                </div>
+
+                {priceVariants.length === 0 ? (
+                  <div className="text-center py-3 px-4 rounded-xl border border-dashed border-stone-300 bg-white/70 text-[11px] text-stone-500">
+                    <span>Aucun grammage personnalisé configuré. Le produit affichera uniquement votre prix principal unique (<b>{price || 'Prix renseigné ci-dessus'}</b>) sans boutons superflus.</span>
+                    <div className="mt-2 flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPriceVariants([
+                            { label: '100g', price: price || '1 500 FCFA' },
+                            { label: '250g', price: '3 500 FCFA' },
+                            { label: '500g', price: '6 000 FCFA' }
+                          ]);
+                        }}
+                        className="text-[10px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition cursor-pointer"
+                      >
+                        + Proposer 3 grammages (100g, 250g, 500g)
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-12 gap-2 text-[10px] font-bold uppercase tracking-wider text-stone-500 px-1">
+                      <div className="col-span-1 text-center">N°</div>
+                      <div className="col-span-5">Grammage / Format</div>
+                      <div className="col-span-5">Prix personnalisé</div>
+                      <div className="col-span-1 text-center">Suppr.</div>
+                    </div>
+                    {priceVariants.map((variant, idx) => (
+                      <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white p-2 rounded-xl border border-stone-200 shadow-xs">
+                        <div className="col-span-1 text-center text-xs font-bold text-stone-400">
+                          #{idx + 1}
+                        </div>
+                        <div className="col-span-5">
+                          <input
+                            type="text"
+                            value={variant.label}
+                            onChange={(e) => {
+                              const newVariants = [...priceVariants];
+                              newVariants[idx] = { ...newVariants[idx], label: e.target.value };
+                              setPriceVariants(newVariants);
+                            }}
+                            placeholder="Ex: 100g, 250g, 1kg ou Sac 25kg"
+                            className="w-full text-xs p-2 rounded-lg border border-stone-200 bg-stone-50 focus:bg-white focus:ring-1 focus:ring-emerald-700"
+                          />
+                        </div>
+                        <div className="col-span-5">
+                          <input
+                            type="text"
+                            value={variant.price}
+                            onChange={(e) => {
+                              const newVariants = [...priceVariants];
+                              newVariants[idx] = { ...newVariants[idx], price: e.target.value };
+                              setPriceVariants(newVariants);
+                            }}
+                            placeholder="Ex: 1 500 FCFA"
+                            className="w-full text-xs p-2 rounded-lg border border-stone-200 bg-stone-50 focus:bg-white focus:ring-1 focus:ring-emerald-700 font-semibold text-emerald-900"
+                          />
+                        </div>
+                        <div className="col-span-1 text-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPriceVariants(priceVariants.filter((_, i) => i !== idx));
+                            }}
+                            className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                            title="Supprimer ce tarif"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1">
+                      <span>Les clients pourront choisir entre ces grammages avec leur prix exact.</span>
+                      <button
+                        type="button"
+                        onClick={() => setPriceVariants([])}
+                        className="text-stone-500 hover:text-rose-600 underline font-medium cursor-pointer"
+                      >
+                        Effacer tous les grammages
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

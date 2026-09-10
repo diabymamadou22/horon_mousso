@@ -79,7 +79,14 @@ export const HeaderSearchBar: React.FC<HeaderSearchBarProps> = ({ isMobile = fal
 
   const handleQuickAdd = (e: React.MouseEvent, product: Product) => {
     e.stopPropagation();
-    addToCart(product, 1, product.format || '100g');
+    const activeFormat = product.priceVariants && product.priceVariants.length > 0
+      ? product.priceVariants[0].label
+      : (product.format || 'Standard');
+    const activePrice = product.priceVariants && product.priceVariants.length > 0
+      ? product.priceVariants[0].price
+      : product.price;
+
+    addToCart({ ...product, format: activeFormat, price: activePrice }, 1, activeFormat);
     setAddedItemIds(prev => ({ ...prev, [product.id]: true }));
     setTimeout(() => {
       setAddedItemIds(prev => ({ ...prev, [product.id]: false }));
@@ -254,7 +261,7 @@ export const HeaderSearchBar: React.FC<HeaderSearchBarProps> = ({ isMobile = fal
                           <p className="text-[11px] text-stone-500 truncate flex items-center gap-1.5">
                             <span className="font-semibold text-emerald-800">{prod.price}</span>
                             <span>•</span>
-                            <span>{prod.format || '100g'}</span>
+                            <span>{prod.format || 'Standard'}</span>
                           </p>
                         </div>
                       </div>
@@ -351,7 +358,7 @@ export const HeaderSearchBar: React.FC<HeaderSearchBarProps> = ({ isMobile = fal
                         <p className="text-[11px] text-stone-500 truncate flex items-center gap-1.5">
                           <span className="font-extrabold text-[#0F2916]">{prod.price}</span>
                           <span>•</span>
-                          <span>{prod.format || '100g'}</span>
+                          <span>{prod.format || 'Standard'}</span>
                           <span>•</span>
                           <span className="text-amber-800/80 font-medium">{prod.category}</span>
                         </p>

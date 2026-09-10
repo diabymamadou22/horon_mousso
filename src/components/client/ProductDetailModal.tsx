@@ -41,6 +41,7 @@ export const ProductDetailModal: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [selectedFormat, setSelectedFormat] = useState('');
+  const [selectedVariantIdx, setSelectedVariantIdx] = useState<number>(0);
 
   const product = products.find(p => p.id === selectedProductId);
 
@@ -48,12 +49,22 @@ export const ProductDetailModal: React.FC = () => {
   useEffect(() => {
     if (product) {
       setQuantity(1);
-      const formats = product.format ? product.format.split(',').map(f => f.trim()) : [];
-      setSelectedFormat(formats[0] || 'Standard');
+      setSelectedVariantIdx(0);
+      if (product.priceVariants && product.priceVariants.length > 0) {
+        setSelectedFormat(product.priceVariants[0].label);
+      } else {
+        const formats = product.format ? product.format.split(',').map(f => f.trim()) : [];
+        setSelectedFormat(formats[0] || 'Standard');
+      }
     }
   }, [product]);
 
   if (!product) return null;
+
+  const hasVariants = Boolean(product.priceVariants && product.priceVariants.length > 0);
+  const activeVariant = hasVariants && product.priceVariants ? product.priceVariants[selectedVariantIdx] || product.priceVariants[0] : null;
+  const activePriceStr = activeVariant ? activeVariant.price : (product.price || '');
+  const activeFormatStr = activeVariant ? activeVariant.label : (selectedFormat || product.format || 'Standard');
 
   const allImages = [product.mainImage, ...(product.additionalImages || [])].filter(Boolean);
   const activeImage = allImages[activeImageIndex] || product.mainImage;
@@ -195,11 +206,11 @@ export const ProductDetailModal: React.FC = () => {
                 {product.name}
               </h2>
 
-              {product.price && (
+              {activePriceStr && (
                 <div className="flex items-baseline gap-3">
                   <span className="text-xs font-bold uppercase tracking-wider text-stone-500">Tarif unitaire :</span>
                   <span className="text-2xl sm:text-3xl font-black text-[#0F2916] tracking-tight">
-                    {product.price}
+                    {activePriceStr}
                   </span>
                 </div>
               )}
@@ -211,7 +222,9 @@ export const ProductDetailModal: React.FC = () => {
                   <span>Conditionnements & Formats disponibles :</span>
                 </div>
                 <div className="font-semibold text-stone-700 pl-5">
-                  {product.format}
+                  {hasVariants && product.priceVariants
+                    ? product.priceVariants.map(v => `${v.label} (${v.price})`).join(' • ')
+                    : product.format}
                 </div>
               </div>
 
@@ -261,8 +274,34 @@ export const ProductDetailModal: React.FC = () => {
 
             {/* Commander / Contact Section */}
             <div className="pt-6 border-t border-stone-200 space-y-4">
-              {/* Format selection if available */}
-              {availableFormats.length > 1 && (
+              {/* Format selection if custom variants or multiple formats exist */}
+              {hasVariants && product.priceVariants && product.priceVariants.length > 0 ? (
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-2">
+                    Sélectionnez le format / grammage :
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {product.priceVariants.map((v, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setSelectedVariantIdx(idx);
+                          setSelectedFormat(v.label);
+                        }}
+                        className={`text-xs px-3.5 py-2.5 rounded-xl border font-bold transition cursor-pointer flex items-center gap-2 ${
+                          selectedVariantIdx === idx
+                            ? 'border-[#0F2916] bg-[#0F2916] text-amber-300 shadow-xs'
+                            : 'border-stone-200 text-stone-700 hover:border-emerald-600/40 bg-white'
+                        }`}
+                      >
+                        <span>{v.label}</span>
+                        <span className="text-[11px] opacity-85">({v.price})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : availableFormats.length > 1 ? (
                 <div>
                   <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-2">
                     Sélectionnez le format / conditionnement :
@@ -284,7 +323,7 @@ export const ProductDetailModal: React.FC = () => {
                     ))}
                   </div>
                 </div>
-              )}
+              ) : null}
 
               {/* Quantity selector */}
               {product.availability !== 'rupture' && (
@@ -319,7 +358,12 @@ export const ProductDetailModal: React.FC = () => {
                 {product.availability !== 'rupture' && (
                   <button
                     onClick={() => {
-                      addToCart(product, quantity, selectedFormat);
+                      const itemToAdd = {
+                        ...product,
+                        format: activeFormatStr,
+                        price: activePriceStr
+                      };
+                      addToCart(itemToAdd, quantity, activeFormatStr);
                     }}
                     className="w-full flex items-center justify-center gap-2.5 bg-[#0F2916] hover:bg-[#184424] text-white font-extrabold text-sm py-4 px-6 rounded-2xl shadow-md transition transform active:scale-98 cursor-pointer border border-emerald-600/30"
                   >
@@ -330,7 +374,11 @@ export const ProductDetailModal: React.FC = () => {
 
                 {/* Direct WhatsApp button */}
                 <button
-                  onClick={() => openOrderWhatsApp(product)}
+                  onClick={() => openOrderWhatsApp({
+                    ...product,
+                    format: activeFormatStr,
+                    price: activePriceStr
+                  }, quantity)}
                   className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-[#B82B2B] to-[#D93838] hover:from-[#A02222] hover:to-[#C02E2E] text-white font-extrabold text-sm py-4 px-6 rounded-2xl shadow-md transition transform active:scale-98 cursor-pointer border border-red-400/30"
                 >
                   <MessageCircle className="w-5 h-5" />

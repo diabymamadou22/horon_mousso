@@ -7,6 +7,11 @@ export type ProductCategory =
 
 export type ProductAvailability = 'disponible' | 'sur_commande' | 'rupture';
 
+export interface ProductPriceVariant {
+  label: string; // e.g. "100g", "250g", "500g", "1kg", "Sac 25kg"
+  price: string; // e.g. "1 500 FCFA", "3 500 FCFA"
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -15,6 +20,7 @@ export interface Product {
   fullDescription?: string;
   price?: string; // e.g. "1 500 FCFA" or "3.50 €" or "Sur devis"
   format: string; // e.g. "Sachet 100g, 250g, 1kg, Sac 25kg"
+  priceVariants?: ProductPriceVariant[]; // Personalisation des prix par grammage / format (non-automatique)
   availability: ProductAvailability;
   stockQuantity?: number; // Stock réel en unités
   lowStockThreshold?: number; // Seuil d'alerte (ex: 10)
