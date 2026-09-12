@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { compressImage, compressMultipleImages } from '../../utils/imageCompressor';
+import { uploadMediaFile } from '../../utils/mediaUpload';
 
 // Banques d'images prêtes à l'emploi et modèles
 const BANNER_PRESETS = [
@@ -403,7 +404,7 @@ export const AdminBanners: React.FC = () => {
     showToast(`Modèle "${tmpl.categoryName}" ajouté au panneau !`, 'success');
   };
 
-  // Handle single file upload with automated image compression
+  // Handle single file upload with automated persistent cloud/server storage & compression
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -415,11 +416,16 @@ export const AdminBanners: React.FC = () => {
 
     try {
       setIsUploading(true);
-      const compressed = await compressImage(file, { maxWidth: 1920, maxHeight: 1080, quality: 0.84 });
-      setFormState(prev => ({ ...prev, imageUrl: compressed }));
+      const uploadRes = await uploadMediaFile(file, undefined, 'banners');
+      setFormState(prev => ({ ...prev, imageUrl: uploadRes.url }));
     } catch (err) {
-      console.error('Erreur compression:', err);
-      alert("Erreur lors de l'optimisation de l'image.");
+      console.warn('Fallback compression locale pour la bannière:', err);
+      try {
+        const compressed = await compressImage(file, { maxWidth: 1920, maxHeight: 1080, quality: 0.84 });
+        setFormState(prev => ({ ...prev, imageUrl: compressed }));
+      } catch {
+        alert("Erreur lors de l'optimisation de l'image.");
+      }
     } finally {
       setIsUploading(false);
     }
@@ -450,13 +456,23 @@ export const AdminBanners: React.FC = () => {
     setBatchProgress({ current: 0, total: batchFiles.length, filename: '' });
 
     try {
-      const results = await compressMultipleImages(
-        batchFiles,
-        { maxWidth: 1920, maxHeight: 1080, quality: 0.82 },
-        (current, total, filename) => {
-          setBatchProgress({ current, total, filename });
+      const results: { name: string; url: string }[] = [];
+
+      for (let i = 0; i < batchFiles.length; i++) {
+        const file = batchFiles[i];
+        setBatchProgress({ current: i + 1, total: batchFiles.length, filename: file.name });
+        try {
+          const uploadRes = await uploadMediaFile(
+            file,
+            (msg) => setBatchProgress({ current: i + 1, total: batchFiles.length, filename: `${file.name} - ${msg}` }),
+            'banners'
+          );
+          results.push({ name: file.name, url: uploadRes.url });
+        } catch {
+          const localCompressed = await compressImage(file, { maxWidth: 1920, maxHeight: 1080, quality: 0.82 });
+          results.push({ name: file.name, url: localCompressed });
         }
-      );
+      }
 
       if (results.length === 0) {
         showToast('Aucune image n\'a pu être traitée.', 'error');

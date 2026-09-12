@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { MediaCategory, MediaItem } from '../../types';
 import { FadeInView, FadeInStagger, FadeInItem } from '../common/FadeInView';
-import { Image, Video, Play, X, Layers } from 'lucide-react';
+import { Image, Video, Play, X, Layers, Film } from 'lucide-react';
+import { LazyProductImage } from '../common/LazyProductImage';
 
 export const GalleryPage: React.FC = () => {
   const { media } = useApp();
@@ -71,21 +72,40 @@ export const GalleryPage: React.FC = () => {
             <FadeInItem key={item.id}>
               <div
                 onClick={() => setActiveMedia(item)}
+                style={{ contentVisibility: 'auto', containIntrinsicSize: '280px' }}
                 className="group relative aspect-square rounded-2xl overflow-hidden bg-[#FAF9F6] border border-[#E0E0E0] shadow-xs hover:shadow-md cursor-pointer transition transform hover:-translate-y-0.5"
               >
-                <img
-                  src={item.thumbnailUrl || item.url}
-                  alt={item.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  referrerPolicy="no-referrer"
-                  loading="lazy"
-                />
+                {/* Media Preview: Image or Video */}
+                {item.type === 'video' ? (
+                  item.thumbnailUrl ? (
+                    <LazyProductImage
+                      src={item.thumbnailUrl}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-[#182F1E] via-[#24422A] to-[#0F1E14] flex flex-col items-center justify-center p-4 text-white">
+                      <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                        <Play className="w-7 h-7 text-amber-400 fill-amber-400 ml-1" />
+                      </div>
+                      <span className="text-xs font-semibold text-stone-200 line-clamp-1 max-w-[85%] text-center">
+                        {item.title}
+                      </span>
+                    </div>
+                  )
+                ) : (
+                  <LazyProductImage
+                    src={item.url}
+                    alt={item.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                )}
 
                 {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition pointer-events-none"></div>
 
                 {/* Type Badge */}
-                <div className="absolute top-3 right-3">
+                <div className="absolute top-3 right-3 pointer-events-none">
                   {item.type === 'video' ? (
                     <span className="w-8 h-8 rounded-full bg-[#2D5A27] text-white flex items-center justify-center shadow">
                       <Play className="w-4 h-4 ml-0.5" fill="currentColor" />
@@ -98,7 +118,7 @@ export const GalleryPage: React.FC = () => {
                 </div>
 
                 {/* Caption at bottom */}
-                <div className="absolute bottom-0 inset-x-0 p-4 text-white space-y-1">
+                <div className="absolute bottom-0 inset-x-0 p-4 text-white space-y-1 pointer-events-none">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">
                     {item.category}
                   </span>

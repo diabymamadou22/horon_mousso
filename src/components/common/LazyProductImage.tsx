@@ -46,6 +46,27 @@ export function getLowResPlaceholder(url?: string | null): string | null {
 }
 
 /**
+ * Optimizes image URLs (e.g. Unsplash) to fetch crisp yet lightweight images
+ * avoiding downloading unnecessary 4K textures during scroll.
+ */
+export function getOptimizedImageUrl(url?: string | null, targetWidth: number = 700): string {
+  if (!url || typeof url !== 'string') return '';
+  if (url.includes('images.unsplash.com')) {
+    try {
+      const u = new URL(url);
+      u.searchParams.set('w', targetWidth.toString());
+      u.searchParams.set('auto', 'format');
+      u.searchParams.set('fit', 'crop');
+      u.searchParams.set('q', '80');
+      return u.toString();
+    } catch {
+      return url;
+    }
+  }
+  return url;
+}
+
+/**
  * Minimalist inline warm SVG placeholder matching Horon Mousso's artisanal palette
  */
 const WARM_SHIMMER_PLACEHOLDER = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 30'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23FAF6F0' /%3E%3Cstop offset='50%25' stop-color='%23F0E8DC' /%3E%3Cstop offset='100%25' stop-color='%23FAF6F0' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='40' height='30' fill='url(%23g)' /%3E%3C/svg%3E`;
@@ -102,7 +123,7 @@ export const LazyProductImage: React.FC<LazyProductImageProps> = ({
       {/* 2. Main Full-Resolution Image with Native Lazy Loading & Smooth Decode */}
       {src && !hasError ? (
         <img
-          src={src}
+          src={getOptimizedImageUrl(src, 700)}
           alt={alt}
           loading={priority ? 'eager' : 'lazy'}
           decoding="async"

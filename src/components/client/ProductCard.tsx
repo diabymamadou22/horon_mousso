@@ -104,6 +104,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.12, margin: '-25px' }}
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      style={{ contentVisibility: 'auto', containIntrinsicSize: '420px' }}
       className="group bg-white rounded-2xl border border-stone-200 hover:border-[#E5A100] shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden relative"
     >
       

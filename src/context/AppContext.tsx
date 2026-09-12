@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo, useRef } from 'react';
 import { 
   Product, 
   Announcement, 
@@ -32,7 +32,8 @@ import {
   saveLocalMessages,
   saveLocalSettings,
   saveLocalOrders,
-  saveLocalReviews
+  saveLocalReviews,
+  saveLocalHeroBanners
 } from '../lib/indexedDb';
 import {
   seedFirestoreIfEmpty,
@@ -197,7 +198,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [settings, setSettings] = useState<CompanySettings>(() => {
     const loaded = loadSavedState(STORAGE_KEYS.SETTINGS, initialSettings);
     if (loaded && (!loaded.logo || loaded.logo.includes('photo-1596040033229-a9821ebd058d'))) {
-      return { ...loaded, logo: '/logo.png' };
+      loaded.logo = '/logo.png';
+    }
+    const savedBanners = loadSavedState<PromoBanner[] | null>(STORAGE_KEYS.HERO_BANNERS, null);
+    if (savedBanners && Array.isArray(savedBanners) && savedBanners.length > 0) {
+      loaded.heroBanners = savedBanners;
     }
     return loaded;
   });
@@ -205,6 +210,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [reviews, setReviews] = useState<ProductReview[]>(() => loadSavedState(STORAGE_KEYS.REVIEWS, initialReviews));
   const [lastPlacedOrder, setLastPlacedOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const hasHydratedRef = useRef<boolean>(false);
 
   // Computed Real-Time Stats directly reactive to Firestore onSnapshot
   const stats: DashboardStats = useMemo(() => {
@@ -309,6 +315,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           mediaRes,
           msgsRes,
           settingsRes,
+          bannersRes,
           ordersRes,
           reviewsRes
         ] = await Promise.allSettled([
@@ -317,6 +324,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           api.getMedia(),
           api.getMessages(),
           api.getSettings(),
+          api.getHeroBanners(),
           api.getOrders(),
           api.getReviews()
         ]);
@@ -335,12 +343,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (msgsRes.status === 'fulfilled' && Array.isArray(msgsRes.value)) {
           setMessages(msgsRes.value);
         }
+
+        let resolvedBanners: PromoBanner[] | null = null;
+        if (bannersRes.status === 'fulfilled' && Array.isArray(bannersRes.value) && bannersRes.value.length > 0) {
+          resolvedBanners = bannersRes.value;
+        }
+
         if (settingsRes.status === 'fulfilled' && settingsRes.value && settingsRes.value.companyName) {
           const s = settingsRes.value;
           if (!s.logo || s.logo.includes('photo-1596040033229-a9821ebd058d')) {
             s.logo = '/logo.png';
           }
-          setSettings(s);
+          if (resolvedBanners && resolvedBanners.length > 0) {
+            s.heroBanners = resolvedBanners;
+            setSettings(s);
+          } else if (!s.heroBanners || s.heroBanners.length === 0) {
+            setSettings(prev => ({
+              ...s,
+              heroBanners: (prev.heroBanners && prev.heroBanners.length > 0) ? prev.heroBanners : s.heroBanners
+            }));
+          } else {
+            setSettings(s);
+          }
+        } else if (resolvedBanners && resolvedBanners.length > 0) {
+          setSettings(prev => ({
+            ...prev,
+            heroBanners: resolvedBanners!
+          }));
         }
         if (ordersRes.status === 'fulfilled' && Array.isArray(ordersRes.value)) {
           setOrders(ordersRes.value);
@@ -351,7 +380,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch (err) {
         console.warn('Initial data hydration notice:', err);
       } finally {
-        if (isMounted) setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+          hasHydratedRef.current = true;
+        }
       }
     };
 
@@ -361,13 +393,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Continuous Auto-Persistence across all tables to localStorage and IndexedDB
   useEffect(() => {
-    if (Array.isArray(products)) {
+    if (!hasHydratedRef.current) return;
+    if (Array.isArray(products) && products.length > 0) {
       try { localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products)); } catch {}
       saveLocalProducts(products).catch(() => {});
     }
   }, [products]);
 
   useEffect(() => {
+    if (!hasHydratedRef.current) return;
     if (Array.isArray(announcements)) {
       try { localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(announcements)); } catch {}
       saveLocalAnnouncements(announcements).catch(() => {});
@@ -375,13 +409,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [announcements]);
 
   useEffect(() => {
-    if (Array.isArray(media)) {
-      try { localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(media)); } catch {}
+    if (!hasHydratedRef.current) return;
+    if (Array.isArray(media) && media.length > 0) {
+      try {
+        const safeMedia = media.map(m => (m.url && m.url.startsWith('data:video/')) ? { ...m, url: m.thumbnailUrl || '' } : m);
+        localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(safeMedia));
+      } catch {}
       saveLocalMedia(media).catch(() => {});
     }
   }, [media]);
 
   useEffect(() => {
+    if (!hasHydratedRef.current) return;
     if (Array.isArray(messages)) {
       try { localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(messages)); } catch {}
       saveLocalMessages(messages).catch(() => {});
@@ -389,13 +428,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [messages]);
 
   useEffect(() => {
+    if (!hasHydratedRef.current) return;
     if (settings && settings.companyName) {
       try { localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings)); } catch {}
       saveLocalSettings(settings).catch(() => {});
+      if (settings.heroBanners && Array.isArray(settings.heroBanners) && settings.heroBanners.length > 0) {
+        try { localStorage.setItem(STORAGE_KEYS.HERO_BANNERS, JSON.stringify(settings.heroBanners)); } catch {}
+        saveLocalHeroBanners(settings.heroBanners).catch(() => {});
+      }
     }
   }, [settings]);
 
   useEffect(() => {
+    if (!hasHydratedRef.current) return;
     if (Array.isArray(orders)) {
       try { localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders)); } catch {}
       saveLocalOrders(orders).catch(() => {});
@@ -403,6 +448,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [orders]);
 
   useEffect(() => {
+    if (!hasHydratedRef.current) return;
     if (Array.isArray(reviews)) {
       try { localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(reviews)); } catch {}
       saveLocalReviews(reviews).catch(() => {});
@@ -707,9 +753,19 @@ Merci de confirmer la prise en charge et le délai !`;
 
         // 3. Live Media Gallery Subscription
         const unsubMedia = subscribeToCloudMedia((cloudMedia) => {
-          if (Array.isArray(cloudMedia)) {
-            setMedia(cloudMedia);
-            saveLocalMedia(cloudMedia).catch(() => {});
+          if (Array.isArray(cloudMedia) && cloudMedia.length > 0) {
+            setMedia(prev => {
+              const map = new Map<string, MediaItem>();
+              cloudMedia.forEach(m => map.set(m.id, m));
+              prev.forEach(m => {
+                if (!isIdDeleted(m.id) && !map.has(m.id)) {
+                  map.set(m.id, m);
+                }
+              });
+              const merged = Array.from(map.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+              saveLocalMedia(merged).catch(() => {});
+              return merged;
+            });
           }
         }, handleSubError);
 
@@ -724,7 +780,15 @@ Merci de confirmer la prise en charge et le délai !`;
         // 5. Live Company Settings Subscription
         const unsubSettings = subscribeToCloudSettings((cloudSettings) => {
           if (cloudSettings && cloudSettings.companyName) {
-            setSettings(cloudSettings);
+            setSettings(prev => {
+              const bannersToPreserve = (cloudSettings.heroBanners && cloudSettings.heroBanners.length > 0)
+                ? cloudSettings.heroBanners
+                : (prev.heroBanners && prev.heroBanners.length > 0 ? prev.heroBanners : undefined);
+              return {
+                ...cloudSettings,
+                heroBanners: bannersToPreserve
+              };
+            });
             saveLocalSettings(cloudSettings).catch(() => {});
           }
         }, handleSubError);
@@ -736,6 +800,8 @@ Merci de confirmer la prise en charge et le délai !`;
               ...prev,
               heroBanners: cloudBanners
             }));
+            saveLocalHeroBanners(cloudBanners).catch(() => {});
+            try { localStorage.setItem(STORAGE_KEYS.HERO_BANNERS, JSON.stringify(cloudBanners)); } catch {}
           }
         }, handleSubError);
 
@@ -929,7 +995,7 @@ Merci de confirmer la prise en charge et le délai !`;
                 setAnnouncements(filtered);
                 saveLocalAnnouncements(filtered).catch(() => {});
               }
-              if (Array.isArray(snap.media)) {
+              if (Array.isArray(snap.media) && snap.media.length > 0) {
                 const filtered = filterDeleted<MediaItem>(snap.media as MediaItem[]);
                 setMedia(prev => {
                   const map = new Map<string, MediaItem>();
@@ -939,9 +1005,10 @@ Merci de confirmer la prise en charge et le délai !`;
                       map.set(m.id, m);
                     }
                   });
-                  return Array.from(map.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                  const merged = Array.from(map.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                  saveLocalMedia(merged).catch(() => {});
+                  return merged;
                 });
-                saveLocalMedia(filtered).catch(() => {});
               }
               if (Array.isArray(snap.messages)) {
                 const filtered = filterDeleted<CustomerMessage>(snap.messages as CustomerMessage[]);
@@ -1030,6 +1097,7 @@ Merci de confirmer la prise en charge et le délai !`;
         mediaRes,
         msgsRes,
         settingsRes,
+        bannersRes,
         ordersRes,
         reviewsRes
       ] = await Promise.allSettled([
@@ -1038,6 +1106,7 @@ Merci de confirmer la prise en charge et le délai !`;
         api.getMedia(),
         api.getMessages(),
         api.getSettings(),
+        api.getHeroBanners(),
         api.getOrders(),
         api.getReviews()
       ]);
@@ -1046,7 +1115,27 @@ Merci de confirmer la prise en charge et le délai !`;
       if (annsRes.status === 'fulfilled' && Array.isArray(annsRes.value)) setAnnouncements(annsRes.value);
       if (mediaRes.status === 'fulfilled' && Array.isArray(mediaRes.value)) setMedia(mediaRes.value);
       if (msgsRes.status === 'fulfilled' && Array.isArray(msgsRes.value)) setMessages(msgsRes.value);
-      if (settingsRes.status === 'fulfilled' && settingsRes.value?.companyName) setSettings(settingsRes.value);
+
+      let syncBanners: PromoBanner[] | null = null;
+      if (bannersRes.status === 'fulfilled' && Array.isArray(bannersRes.value) && bannersRes.value.length > 0) {
+        syncBanners = bannersRes.value;
+      }
+      if (settingsRes.status === 'fulfilled' && settingsRes.value?.companyName) {
+        const s = settingsRes.value;
+        if (syncBanners && syncBanners.length > 0) {
+          s.heroBanners = syncBanners;
+          setSettings(s);
+        } else if (!s.heroBanners || s.heroBanners.length === 0) {
+          setSettings(prev => ({
+            ...s,
+            heroBanners: (prev.heroBanners && prev.heroBanners.length > 0) ? prev.heroBanners : s.heroBanners
+          }));
+        } else {
+          setSettings(s);
+        }
+      } else if (syncBanners && syncBanners.length > 0) {
+        setSettings(prev => ({ ...prev, heroBanners: syncBanners! }));
+      }
       if (ordersRes.status === 'fulfilled' && Array.isArray(ordersRes.value)) setOrders(ordersRes.value);
       if (reviewsRes.status === 'fulfilled' && Array.isArray(reviewsRes.value)) setReviews(reviewsRes.value);
 
@@ -1184,8 +1273,12 @@ Merci de confirmer la prise en charge et le délai !`;
   const addMedia = async (mediaData: Omit<MediaItem, 'id' | 'createdAt'>) => {
     try {
       const created = await api.createMedia(mediaData);
-      setMedia(prev => [created, ...prev.filter(m => m.id !== created.id)]);
-      showToast('Média synchronisé sur tous vos appareils', 'success');
+      setMedia(prev => {
+        const next = [created, ...prev.filter(m => m.id !== created.id)];
+        saveLocalMedia(next).catch(() => {});
+        return next;
+      });
+      showToast('Média enregistré et synchronisé avec succès', 'success');
       return created;
     } catch (err) {
       showToast('Erreur lors de l’ajout du média', 'error');
@@ -1271,6 +1364,8 @@ Merci de confirmer la prise en charge et le délai !`;
   const saveHeroBanners = async (banners: PromoBanner[]) => {
     try {
       setSettings(prev => ({ ...prev, heroBanners: banners }));
+      try { localStorage.setItem(STORAGE_KEYS.HERO_BANNERS, JSON.stringify(banners)); } catch {}
+      saveLocalHeroBanners(banners).catch(() => {});
       await api.saveHeroBanners(banners);
       showToast('Bannières du panneau publicitaire synchronisées avec la base de données Firestore', 'success');
     } catch {

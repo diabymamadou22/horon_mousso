@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, X, ChevronLeft, ChevronRight, ShoppingBag, Flame, Leaf, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../../context/AppContext';
+import { getOptimizedImageUrl } from '../common/LazyProductImage';
 
 interface Story {
   id: string;
@@ -171,8 +172,10 @@ export const StoryHighlights: React.FC = () => {
                 <div className="p-0.5 bg-white rounded-full">
                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden relative bg-stone-900">
                     <img 
-                      src={story.image} 
+                      src={getOptimizedImageUrl(story.image, 180)} 
                       alt={story.title}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover group-hover:scale-115 transition-transform duration-500"
                       referrerPolicy="no-referrer"
                     />

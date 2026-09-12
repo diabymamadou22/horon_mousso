@@ -7,7 +7,7 @@ import { createServer as createViteServer } from 'vite';
 import { initialProducts, initialAnnouncements, initialMedia, initialMessages, initialSettings } from './src/data/initialData';
 import { initialOrders } from './src/data/initialOrders';
 import { initialReviews } from './src/data/initialReviews';
-import { Product, Announcement, MediaItem, CustomerMessage, CompanySettings, Order, ProductReview } from './src/types';
+import { Product, Announcement, MediaItem, CustomerMessage, CompanySettings, Order, ProductReview, PromoBanner } from './src/types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,6 +43,7 @@ interface DBStructure {
   media: MediaItem[];
   messages: CustomerMessage[];
   settings: CompanySettings;
+  heroBanners?: PromoBanner[];
   orders: Order[];
   reviews: ProductReview[];
   adminCredentials?: AdminCredentials;
@@ -88,6 +89,9 @@ function loadDB(): DBStructure {
         if (!parsed.reviews || parsed.reviews.length === 0) {
           parsed.reviews = initialReviews;
         }
+        if (!parsed.heroBanners || parsed.heroBanners.length === 0) {
+          parsed.heroBanners = parsed.settings?.heroBanners || initialSettings.heroBanners || [];
+        }
         parsed.isInitialized = true;
       } else {
         // Already initialized: NEVER restore deleted items or empty arrays
@@ -97,6 +101,9 @@ function loadDB(): DBStructure {
         if (!parsed.messages) parsed.messages = [];
         if (!parsed.orders) parsed.orders = [];
         if (!parsed.reviews) parsed.reviews = [];
+        if (!parsed.heroBanners) {
+          parsed.heroBanners = parsed.settings?.heroBanners || [];
+        }
       }
 
       // Filter out any IDs that were ever deleted
@@ -117,6 +124,13 @@ function loadDB(): DBStructure {
       } else if (!parsed.settings) {
         parsed.settings = initialSettings;
       }
+      if (parsed.heroBanners && parsed.heroBanners.length > 0) {
+        if (!parsed.settings.heroBanners || parsed.settings.heroBanners.length === 0) {
+          parsed.settings.heroBanners = parsed.heroBanners;
+        }
+      } else if (parsed.settings.heroBanners && parsed.settings.heroBanners.length > 0) {
+        parsed.heroBanners = parsed.settings.heroBanners;
+      }
       if (!parsed.adminCredentials) {
         parsed.adminCredentials = defaultAdminCreds;
       }
@@ -132,6 +146,7 @@ function loadDB(): DBStructure {
     media: initialMedia,
     messages: initialMessages,
     settings: initialSettings,
+    heroBanners: initialSettings.heroBanners || [],
     orders: initialOrders,
     reviews: initialReviews,
     adminCredentials: defaultAdminCreds,
@@ -359,6 +374,7 @@ app.get('/api/sync/snapshot', (_req, res) => {
     orders: db.orders || [],
     reviews: db.reviews || [],
     settings: db.settings,
+    heroBanners: db.heroBanners || db.settings?.heroBanners || [],
     deletedIds: db.deletedIds || [],
     timestamp: Date.now()
   });
@@ -726,9 +742,63 @@ app.put('/api/settings', (req, res) => {
     ...db.settings,
     ...req.body
   };
+  if (req.body.heroBanners && Array.isArray(req.body.heroBanners)) {
+    db.heroBanners = req.body.heroBanners;
+  }
   saveDB(db);
   broadcastSync('settings', db.settings);
   res.json(db.settings);
+});
+
+// Dedicated Hero Banners (Panneau de pub / Billboards) Endpoints
+app.get('/api/hero-banners', (_req, res) => {
+  const banners = db.heroBanners || db.settings?.heroBanners || [];
+  res.json(banners);
+});
+
+app.put('/api/hero-banners', (req, res) => {
+  const banners: PromoBanner[] = Array.isArray(req.body) ? req.body : [];
+  db.heroBanners = banners;
+  if (db.settings) {
+    db.settings.heroBanners = banners;
+  }
+  saveDB(db);
+  broadcastSync('hero-banners', db.heroBanners);
+  broadcastSync('settings', db.settings);
+  res.json(db.heroBanners);
+});
+
+app.post('/api/hero-banners', (req, res) => {
+  const newBanner: PromoBanner = {
+    ...req.body,
+    id: req.body.id || ('banner_' + Date.now()),
+    createdAt: req.body.createdAt || new Date().toISOString()
+  };
+  if (!db.heroBanners) db.heroBanners = [];
+  const existingIdx = db.heroBanners.findIndex(b => b.id === newBanner.id);
+  if (existingIdx > -1) {
+    db.heroBanners[existingIdx] = newBanner;
+  } else {
+    db.heroBanners.push(newBanner);
+  }
+  if (db.settings) {
+    db.settings.heroBanners = db.heroBanners;
+  }
+  saveDB(db);
+  broadcastSync('hero-banners', db.heroBanners);
+  res.status(201).json(newBanner);
+});
+
+app.delete('/api/hero-banners/:id', (req, res) => {
+  const { id } = req.params;
+  if (!db.heroBanners) db.heroBanners = [];
+  db.heroBanners = db.heroBanners.filter(b => b.id !== id);
+  if (db.settings) {
+    db.settings.heroBanners = db.heroBanners;
+  }
+  saveDB(db);
+  broadcastSync('hero-banners', db.heroBanners);
+  res.json({ success: true, id });
 });
 
 // Reset demo data helper
@@ -739,6 +809,7 @@ app.post('/api/reset-demo', (_req, res) => {
     media: initialMedia,
     messages: initialMessages,
     settings: initialSettings,
+    heroBanners: initialSettings.heroBanners || [],
     orders: initialOrders,
     reviews: initialReviews,
     adminCredentials: defaultAdminCreds
@@ -758,7 +829,6 @@ async function startServer() {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        hmr: process.env.DISABLE_HMR === 'true' ? false : { server },
       },
       appType: 'spa',
     });

@@ -1,8 +1,8 @@
 import { openDB, IDBPDatabase } from 'idb';
-import { Product, Announcement, MediaItem, CustomerMessage, CompanySettings, CartItem, Order, ProductReview } from '../types';
+import { Product, Announcement, MediaItem, CustomerMessage, CompanySettings, CartItem, Order, ProductReview, PromoBanner } from '../types';
 
 const DB_NAME = 'horon_mousso_permanent_db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
@@ -36,6 +36,9 @@ export function getDB(): Promise<IDBPDatabase> {
         }
         if (!db.objectStoreNames.contains('reviews')) {
           db.createObjectStore('reviews', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('hero_banners')) {
+          db.createObjectStore('hero_banners', { keyPath: 'id' });
         }
         if (!db.objectStoreNames.contains('sync_metadata')) {
           db.createObjectStore('sync_metadata', { keyPath: 'key' });
@@ -384,6 +387,53 @@ export async function deleteSingleLocalReview(id: string): Promise<void> {
     await db.delete('reviews', id);
   } catch (err) {
     console.warn('IndexedDB deleteSingleLocalReview fallback:', err);
+  }
+}
+
+/* =========================================================
+   HERO BANNERS (INDEXEDDB PERMANENT LOCAL CACHE)
+========================================================= */
+
+export async function getLocalHeroBanners(): Promise<PromoBanner[]> {
+  try {
+    const db = await getDB();
+    const banners = await db.getAll('hero_banners');
+    return banners.sort((a, b) => (a.order || 0) - (b.order || 0));
+  } catch (err) {
+    console.warn('IndexedDB getLocalHeroBanners fallback:', err);
+    return [];
+  }
+}
+
+export async function saveLocalHeroBanners(banners: PromoBanner[]): Promise<void> {
+  try {
+    const db = await getDB();
+    const tx = db.transaction('hero_banners', 'readwrite');
+    await tx.store.clear();
+    for (const banner of banners) {
+      await tx.store.put(banner);
+    }
+    await tx.done;
+  } catch (err) {
+    console.warn('IndexedDB saveLocalHeroBanners fallback:', err);
+  }
+}
+
+export async function saveSingleLocalHeroBanner(banner: PromoBanner): Promise<void> {
+  try {
+    const db = await getDB();
+    await db.put('hero_banners', banner);
+  } catch (err) {
+    console.warn('IndexedDB saveSingleLocalHeroBanner fallback:', err);
+  }
+}
+
+export async function deleteSingleLocalHeroBanner(id: string): Promise<void> {
+  try {
+    const db = await getDB();
+    await db.delete('hero_banners', id);
+  } catch (err) {
+    console.warn('IndexedDB deleteSingleLocalHeroBanner fallback:', err);
   }
 }
 
